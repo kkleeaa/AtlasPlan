@@ -408,15 +408,15 @@ function attachRouteBehaviors(route) {
   if (route === "boards") attachCommunicationModuleApi();
 }
 
-async function attachCommunicationModuleApi() {
+function attachCommunicationModuleApi() {
   const frame = document.querySelector(".communication-module-frame");
   if (!frame) return;
 
   try {
-    const response = await fetch(frame.dataset.moduleSrc);
-    if (!response.ok) throw new Error("Communication module unavailable");
+    const moduleTemplate = document.getElementById("communicationModuleTemplate");
+    if (!moduleTemplate) throw new Error("Communication module unavailable");
 
-    const moduleHtml = await response.text();
+    const moduleHtml = `<!doctype html><html lang="sq"><head><meta charset="UTF-8"></head><body>${moduleTemplate.innerHTML}</body></html>`;
     const apiKeyDeclaration = /const\s+OPENAI_API_KEY\s*=\s*(?:"VENDOS_API_KEY_KETU"|"")\s*;/;
     if (!apiKeyDeclaration.test(moduleHtml)) throw new Error("API key declaration unavailable");
 
@@ -774,7 +774,6 @@ function renderCommunicationBoards() {
       <iframe
         class="communication-module-frame"
         title="Tabela komunikimi"
-        data-module-src="components/tabela-komunikimi/module/final.html"
       ></iframe>
     </section>
   `;

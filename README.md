@@ -76,13 +76,11 @@ Never commit an API key to GitHub. If a key has been shared publicly, revoke it 
 hackathon/
 ├── main/
 │   ├── assets/                         # Images, SVG illustrations, icons and videos
-│   ├── components/
-│   │   └── tabela-komunikimi/module/   # Communication table module
 │   ├── css/                            # Global application styling
 │   ├── data/                           # Local prototype data
 │   ├── js/                             # Application logic and views
-│   └── index.html                      # Main entry point
-├── module/                             # Original module source
+│   ├── server.py                       # Local server and OpenAI API bridge
+│   └── index.html                      # Main entry point and communication module
 └── README.md
 ```
 
