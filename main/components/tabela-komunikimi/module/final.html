@@ -530,7 +530,7 @@
 </div>
 
 <script>
-const OPENAI_API_KEY = "VENDOS_API_KEY_KETU";
+const OPENAI_API_KEY = "";
 let childPhotoDataUrl = "";
 let cachedVoices = [];
 const audioCache = new Map();
@@ -1595,7 +1595,7 @@ function renderTabelaKomunikimit(paketa, target) {
       bllok.appendChild(grid);
       target.appendChild(bllok);
     });
-  }).catch(() => {
+  }).catch(() => { 
     document.getElementById("boardLoading")?.remove();
   });
 }
