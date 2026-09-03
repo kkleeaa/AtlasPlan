@@ -49,20 +49,16 @@ Because the application loads local JSON and component files, serve it through a
 
 ```bash
 cd main
-python -m http.server 4173
+python server.py
 ```
 
 Then open:
 
 ```text
-http://127.0.0.1:4173/
+http://127.0.0.1:4174/
 ```
 
-### Using Node.js
-
-```bash
-npx serve main -l 4173
-```
+The included development server also provides the same-origin API bridge required by all five communication-table modules. A basic static server can display the interface, but it cannot run AI material generation.
 
 ## API key
 

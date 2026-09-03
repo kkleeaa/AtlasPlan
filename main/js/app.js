@@ -417,10 +417,13 @@ async function attachCommunicationModuleApi() {
     if (!response.ok) throw new Error("Communication module unavailable");
 
     const moduleHtml = await response.text();
-    const keyPlaceholder = '"VENDOS_API_KEY_KETU"';
-    if (!moduleHtml.includes(keyPlaceholder)) throw new Error("API key placeholder unavailable");
+    const apiKeyDeclaration = /const\s+OPENAI_API_KEY\s*=\s*(?:"VENDOS_API_KEY_KETU"|"")\s*;/;
+    if (!apiKeyDeclaration.test(moduleHtml)) throw new Error("API key declaration unavailable");
 
-    frame.srcdoc = moduleHtml.replace(keyPlaceholder, JSON.stringify(openAIApiKey));
+    frame.srcdoc = moduleHtml.replace(
+      apiKeyDeclaration,
+      `const OPENAI_API_KEY = ${JSON.stringify(openAIApiKey)};`
+    );
   } catch (error) {
     console.error(error);
     frame.replaceWith(Object.assign(document.createElement("p"), {

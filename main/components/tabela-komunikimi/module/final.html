@@ -531,6 +531,7 @@
 
 <script>
 const OPENAI_API_KEY = "";
+const OPENAI_API_BASE_URL = "/api/openai";
 let childPhotoDataUrl = "";
 let cachedVoices = [];
 const audioCache = new Map();
@@ -540,6 +541,16 @@ const storyImageCache = new Map();
 const boardSymbolCache = new Map();
 const photoProfileCache = new Map();
 const characterReferenceCache = new Map();
+
+function openAIUrl(endpoint) {
+  return `${OPENAI_API_BASE_URL}/${String(endpoint).replace(/^\/+/, "")}`;
+}
+
+function requireApiKey() {
+  if (!OPENAI_API_KEY || !OPENAI_API_KEY.startsWith("sk-")) {
+    throw new Error("API key mungon ose nuk është i vlefshëm. Rifreskoni aplikacionin dhe vendosni një API key të vlefshëm.");
+  }
+}
 
 const moduleMap = {
   "Moduli 1: Sekuencat me Fjalë": "outputContent",
@@ -630,6 +641,7 @@ function getBestAlbanianVoice() {
 }
 
 async function generateOpenAIAudio(teksti) {
+  requireApiKey();
   const cacheKey = String(teksti).trim().toLowerCase();
   if (audioCache.has(cacheKey)) {
     return audioCache.get(cacheKey);
@@ -640,7 +652,7 @@ async function generateOpenAIAudio(teksti) {
   for (const voice of voiceCandidates) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const response = await fetch("https://api.openai.com/v1/audio/speech", {
+        const response = await fetch(openAIUrl("audio/speech"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -704,7 +716,7 @@ async function analyzeChildPhoto(childName, childDescription) {
   }
 
   try {
-    const data = await fetchJsonWithRetry("https://api.openai.com/v1/chat/completions", {
+    const data = await fetchJsonWithRetry(openAIUrl("chat/completions"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -785,14 +797,22 @@ function delay(ms) {
 }
 
 async function fetchJsonWithRetry(url, options, retries = 3) {
+  requireApiKey();
   let lastError;
   for (let attempt = 0; attempt < retries; attempt += 1) {
     try {
       const response = await fetch(url, options);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error?.message || `Request failed with status ${response.status}`);
+      const responseText = await response.text();
+      let data = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = {};
       }
+      if (!response.ok) {
+        throw new Error(data?.error?.message || `Kërkesa dështoi me status ${response.status}.`);
+      }
+      if (!responseText) throw new Error("OpenAI ktheu një përgjigje të zbrazët.");
       return data;
     } catch (error) {
       lastError = error;
@@ -883,7 +903,7 @@ async function generateImageFromReferenceSet(referenceDataUrls, prompt, size = "
   formData.append("quality", "low");
   formData.append("output_format", "png");
 
-  const data = await fetchJsonWithRetry("https://api.openai.com/v1/images/edits", {
+  const data = await fetchJsonWithRetry(openAIUrl("images/edits"), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${OPENAI_API_KEY}`
@@ -940,7 +960,7 @@ async function generateFlashcardImage(word, meaningHint) {
     return flashcardImageCache.get(cacheKey);
   }
 
-  const data = await fetchJsonWithRetry("https://api.openai.com/v1/images/generations", {
+  const data = await fetchJsonWithRetry(openAIUrl("images/generations"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -986,7 +1006,7 @@ async function generateBoardSymbolImage(word, meaningHint) {
     return boardSymbolCache.get(cacheKey);
   }
 
-  const data = await fetchJsonWithRetry("https://api.openai.com/v1/images/generations", {
+  const data = await fetchJsonWithRetry(openAIUrl("images/generations"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1081,7 +1101,7 @@ Reference image rules:
 - Never drift into a different face, different child, different gender presentation, or invented disability traits.`;
     imageDataUrl = await generateImageFromReferenceSet(referenceImages, referencePrompt, "1024x1536");
   } else {
-    const data = await fetchJsonWithRetry("https://api.openai.com/v1/images/generations", {
+    const data = await fetchJsonWithRetry(openAIUrl("images/generations"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1421,7 +1441,7 @@ function validateModuleContent(paketa, moduliZgjedhur) {
 }
 
 async function kerkoNgaOpenAI(messages) {
-  const data = await fetchJsonWithRetry("https://api.openai.com/v1/chat/completions", {
+  const data = await fetchJsonWithRetry(openAIUrl("chat/completions"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
