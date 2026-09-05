@@ -2,7 +2,7 @@ import { renderDashboard } from "./dashboard.js";
 import { parseIEP, normalizeParsedStudent, sanitizePlanText, Student, placeholderEncryptedStorage } from "./parser.js";
 import { educationalTools, recommendTools, generateLesson } from "./toolMatcher.js";
 import { generateAAC, materialToMarkdown } from "./aacGenerator.js";
-import { suggestedQuestions, teacherCoach, renderMarkdown } from "./chatbot.js";
+import { suggestedQuestions, teacherCoach, streamTeacherCoach, renderMarkdown } from "./chatbot.js?v=gemini1";
 import { createProgressEntry, summarizeProgress, generateParentReport } from "./evaluation.js";
 
 const teacherRoutes = [
@@ -48,6 +48,9 @@ const state = {
   scheduleDay: 0,
   scheduleWeekOffset: 0,
   scheduleByStudent: {},
+  teachingMaterials: JSON.parse(localStorage.getItem("atlas-teaching-materials") || "[]"),
+  uploadedPlanText: "",
+  uploadedPlanFileName: "",
   theme: "light"
 };
 
@@ -59,6 +62,8 @@ const roleData = JSON.parse(localStorage.getItem("atlas-role-data") || "null") |
 let activeRole = null;
 let activeUser = null;
 let appInitialized = false;
+const atlasChatSessionId = localStorage.getItem("atlas-chat-session") || crypto.randomUUID();
+localStorage.setItem("atlas-chat-session", atlasChatSessionId);
 
 const scheduleDays = ["E hënë", "E martë", "E mërkurë", "E enjte", "E premte"];
 
@@ -139,9 +144,11 @@ function handleRoleLogin(event) {
   document.getElementById("roleLabel").textContent = `${{ admin: "Administrator", teacher: "Mësues", parent: "Prind" }[role]} · ${user.name}`;
   if (!appInitialized) init();
   else {
-    if (visibleStudents()[0]) activateStudent(visibleStudents()[0]);
+    const firstVisibleStudent = visibleStudents()[0] || null;
+    if (firstVisibleStudent) activateStudent(firstVisibleStudent);
+    else state.currentStudent = null;
     renderNavigation();
-    navigate(routes[0][0]);
+    navigate(firstVisibleStudent || role === "admin" ? routes[0][0] : "students");
   }
 }
 
@@ -155,11 +162,15 @@ function logout() {
 
 async function init() {
   const sample = await loadSampleStudent();
-  state.students = createPrivacySafeStudents(sample);
+  const savedStudents = JSON.parse(localStorage.getItem("atlas-students") || "null");
+  state.students = Array.isArray(savedStudents) && savedStudents.length
+    ? savedStudents.map((student) => new Student(migrateStudentName(student)))
+    : createStudentProfiles(sample);
   state.students.forEach((student, index) => {
     student.teacherId ||= "teacher-demo";
     student.parentId ||= index === 0 ? "parent-demo" : "";
   });
+  saveStudents();
   state.currentStudent = state.students[0];
   state.scheduleByStudent = Object.fromEntries(state.students.map((student) => [student.id, createInitialSchedule()]));
   seedProgress();
@@ -267,7 +278,9 @@ function handleClick(event) {
       if (student) { activateStudent(student); navigate("progress"); }
     },
     "back-student-list": showStudentList,
-    "open-add-student": openAddStudentModal,
+    "open-add-student": () => activeRole === "admin" ? openAddStudentModal() : toast("Vetëm administratori mund të shtojë fëmijë."),
+    "edit-admin-student": () => activeRole === "admin" ? openEditStudentModal(studentId) : toast("Vetëm administratori mund të ndryshojë profilet."),
+    "remove-teaching-material": () => removeTeachingMaterial(actionButton.dataset.materialId),
     "open-report-preview": () => openReportPreview(studentId),
     "back-report-list": showReportList,
     "schedule-day": () => selectScheduleDay(Number(dayIndex)),
@@ -310,7 +323,9 @@ function handleClick(event) {
     return;
   }
   if (action === "delete-child") {
+    if (activeRole !== "admin") return toast("Vetëm administratori mund të fshijë profile.");
     state.students = state.students.filter((student) => student.id !== studentId);
+    saveStudents();
     navigate("admin");
     toast("Profili i fëmijës u fshi.");
     return;
@@ -329,7 +344,7 @@ function toggleDashboardGoal(index) {
 }
 
 function showStudentProfile(studentId) {
-  const student = state.students.find((item) => item.id === studentId);
+  const student = visibleStudents().find((item) => item.id === studentId);
   if (!student) return;
   activateStudent(student);
   state.studentProfileOpen = true;
@@ -371,16 +386,47 @@ function showStudentList() {
   navigate("students");
 }
 
-function createPrivacySafeStudents(sample) {
-  const shared = { ...sample, diagnosis: "Profil mësimor", studentName: undefined };
+function createStudentProfiles(sample) {
+  const shared = { ...sample, diagnosis: "Profil mësimor" };
 
   return [
-    new Student({ ...shared, nickname: "Ylli i Vogël", initials: "M.J.", age: 8, birthday: "14 mars", animal: "bear", learningStyle: "Përfiton nga mbështetja vizuale, frazat e shkurtra dhe rutinat e qarta." }),
-    new Student({ ...shared, nickname: "Luani Kureshtar", initials: "A.K.", age: 9, birthday: "2 korrik", animal: "lion", learningStyle: "Mëson mirë përmes shembujve praktikë, zgjedhjeve dhe lëvizjes së shkurtër.", immediateObjectives: ["Të ndjekë një udhëzim me dy hapa", "Të kërkojë ndihmë me një frazë të shkurtër"] }),
-    new Student({ ...shared, nickname: "Lepurushja e Qetë", initials: "E.R.", age: 7, birthday: "21 shtator", animal: "rabbit", learningStyle: "Përfiton nga ritmi i qetë, koha për përgjigje dhe materialet me figura.", immediateObjectives: ["Të zgjedhë mes dy aktiviteteve", "Të përfundojë rutinën e mëngjesit", "Të përdorë kartën e pushimit"] }),
-    new Student({ ...shared, nickname: "Dhelpra Krijuese", initials: "L.B.", age: 10, birthday: "8 dhjetor", animal: "fox", learningStyle: "Angazhohet më shumë me tregime, vizatim dhe detyra të ndara në hapa të vegjël.", immediateObjectives: ["Të organizojë materialet para aktivitetit", "Të përdorë orarin vizual pa kujtesë"] })
+    new Student({ ...shared, name: sample.studentName || "Maya Johnson", initials: "M.J.", age: 8, birthday: "14/03/2018", animal: "bear", learningStyle: "Përfiton nga mbështetja vizuale, frazat e shkurtra dhe rutinat e qarta." }),
+    new Student({ ...shared, name: "Arion Krasniqi", initials: "A.K.", age: 9, birthday: "02/07/2017", animal: "lion", learningStyle: "Mëson mirë përmes shembujve praktikë, zgjedhjeve dhe lëvizjes së shkurtër.", immediateObjectives: ["Të ndjekë një udhëzim me dy hapa", "Të kërkojë ndihmë me një frazë të shkurtër"] }),
+    new Student({ ...shared, name: "Elira Rexha", initials: "E.R.", age: 7, birthday: "21/09/2019", animal: "rabbit", learningStyle: "Përfiton nga ritmi i qetë, koha për përgjigje dhe materialet me figura.", immediateObjectives: ["Të zgjedhë mes dy aktiviteteve", "Të përfundojë rutinën e mëngjesit", "Të përdorë kartën e pushimit"] }),
+    new Student({ ...shared, name: "Luan Berisha", initials: "L.B.", age: 10, birthday: "08/12/2015", animal: "fox", learningStyle: "Angazhohet më shumë me tregime, vizatim dhe detyra të ndara në hapa të vegjël.", immediateObjectives: ["Të organizojë materialet para aktivitetit", "Të përdorë orarin vizual pa kujtesë"] })
   ];
 }
+
+function migrateStudentName(student) {
+  const namesByInitials = { "M.J.": "Maya Johnson", "A.K.": "Arion Krasniqi", "E.R.": "Elira Rexha", "L.B.": "Luan Berisha" };
+  const realNames = {
+    "Ylli i Vogël": "Maya Johnson",
+    "Luani Kureshtar": "Arion Krasniqi",
+    "Lepurushja e Qetë": "Elira Rexha",
+    "Dhelpra Krijuese": "Luan Berisha"
+  };
+  const legacyName = student.name || student.nickname;
+  const name = namesByInitials[student.initials] || realNames[legacyName] || legacyName || "Nxënës i ri";
+  const legacyBirthdays = { "14 mars": "14/03/2018", "2 korrik": "02/07/2017", "21 shtator": "21/09/2019", "8 dhjetor": "08/12/2015" };
+  return { ...student, name, nickname: name, birthday: legacyBirthdays[student.birthday] || formatBirthday(student.birthday || "") };
+}
+
+function saveStudents() {
+  localStorage.setItem("atlas-students", JSON.stringify(state.students));
+}
+
+window.addEventListener("storage", (event) => {
+  if (event.key !== "atlas-students" || !event.newValue || !appInitialized) return;
+  try {
+    state.students = JSON.parse(event.newValue).map((student) => new Student(migrateStudentName(student)));
+    const visible = visibleStudents();
+    if (visible.length && !visible.some((student) => student.id === state.currentStudent?.id)) activateStudent(visible[0]);
+    if (activeRole === "teacher" || activeRole === "admin") navigate(state.route);
+    toast("Lista e nxënësve u përditësua.");
+  } catch (error) {
+    console.error("Student sync failed.", error);
+  }
+});
 
 async function handleSubmit(event) {
   event.preventDefault();
@@ -398,10 +444,12 @@ async function handleSubmit(event) {
     return;
   }
   if (event.target.matches("[data-admin-link]")) {
+    if (activeRole !== "admin") return toast("Vetëm administratori mund të ndryshojë caktimet.");
     const formData = new FormData(event.target);
     const student = state.students.find((item) => item.id === event.target.dataset.adminLink);
     student.teacherId = String(formData.get("teacherId"));
     student.parentId = String(formData.get("parentId"));
+    saveStudents();
     navigate("admin");
     toast("Lidhja e fëmijës u ruajt.");
     return;
@@ -410,7 +458,18 @@ async function handleSubmit(event) {
     saveScheduleSlot(new FormData(event.target));
   }
   if (event.target.id === "addStudentForm") {
+    if (activeRole !== "admin") return toast("Vetëm administratori mund të shtojë fëmijë.");
     addStudentProfile(new FormData(event.target));
+  }
+  if (event.target.id === "editStudentForm") {
+    if (activeRole !== "admin") return toast("Vetëm administratori mund të ndryshojë profilet.");
+    updateStudentProfile(new FormData(event.target));
+  }
+  if (event.target.id === "studentProfileForm") {
+    saveStudentProfile(new FormData(event.target));
+  }
+  if (event.target.id === "teachingMaterialForm") {
+    await addTeachingMaterial(event.target, new FormData(event.target));
   }
   if (event.target.id === "chatForm") {
     sendCoachMessage(document.getElementById("chatInput").value);
@@ -486,6 +545,10 @@ function visibleStudents() {
   return state.students;
 }
 
+function evaluationLabel(type) {
+  return type === "SPECIAL_ACTIVITIES" ? "Aktivitete të veçanta" : "Vlerësim standard";
+}
+
 function saveRoleData() {
   localStorage.setItem("atlas-role-data", JSON.stringify(roleData));
 }
@@ -509,7 +572,7 @@ function renderAdmin() {
       </section>
     </section>
     <section class="glass-card"><div class="card-header"><div><p class="eyebrow">Lidhjet</p><h2>Cakto mësuesin dhe prindin për çdo fëmijë</h2></div><button class="primary-button" data-action="open-add-student">+ Shto fëmijë</button></div>
-      ${state.students.map((student) => `<form class="admin-link-row" data-admin-link="${student.id}"><strong>${student.nickname}</strong><select name="teacherId"><option value="">Pa mësues</option>${roleData.teachers.map((person) => `<option value="${person.id}" ${student.teacherId === person.id ? "selected" : ""}>${escapeHtml(person.name)}</option>`).join("")}</select><select name="parentId"><option value="">Pa prind</option>${roleData.parents.map((person) => `<option value="${person.id}" ${student.parentId === person.id ? "selected" : ""}>${escapeHtml(person.name)}</option>`).join("")}</select><button class="secondary-button" type="submit">Ruaj lidhjen</button><button class="danger-button" type="button" data-action="delete-child" data-student-id="${student.id}">Fshi</button></form>`).join("")}
+      ${state.students.map((student) => `<form class="admin-link-row" data-admin-link="${student.id}"><span class="admin-student-summary"><strong>${escapeHtml(student.name)}</strong><small>${evaluationLabel(student.evaluationType)}</small></span><select name="teacherId"><option value="">Pa mësues</option>${roleData.teachers.map((person) => `<option value="${person.id}" ${student.teacherId === person.id ? "selected" : ""}>${escapeHtml(person.name)}</option>`).join("")}</select><select name="parentId"><option value="">Pa prind</option>${roleData.parents.map((person) => `<option value="${person.id}" ${student.parentId === person.id ? "selected" : ""}>${escapeHtml(person.name)}</option>`).join("")}</select><button class="secondary-button" type="button" data-action="edit-admin-student" data-student-id="${student.id}">Ndrysho</button><button class="secondary-button" type="submit">Ruaj lidhjen</button><button class="danger-button" type="button" data-action="delete-child" data-student-id="${student.id}">Fshi</button></form>`).join("")}
     </section>`;
 }
 
@@ -570,21 +633,24 @@ function renderStudents() {
       <div class="animal-avatar animal-avatar-large" aria-hidden="true">${animalIcon(student.animal)}</div>
       <div class="private-profile-copy">
         <p class="eyebrow">Profil privat i nxënësit</p>
-        <h2>${student.nickname} <span>${student.initials}</span></h2>
+        <h2>${escapeHtml(student.name)} <span>${escapeHtml(student.initials)}</span></h2>
         <p>${student.learningStyle}</p>
         <div class="badge-row">
-          <span class="badge">Mosha: ${student.age} vjeç</span>
+          <span class="badge">Mosha: ${studentAgeLabel(student.age)}</span>
           <span class="badge">Ditëlindja: ${student.birthday}</span>
           <span class="badge">Objektiva aktuale: ${student.immediateObjectives.length}</span>
+          <span class="badge">${evaluationLabel(student.evaluationType)}</span>
         </div>
       </div>
     </section>
     <section class="profile-grid">
-      ${profileCard("Pikat e forta", student.strengths)}
-      ${profileCard("Sfidat", student.challenges)}
-      ${profileCard("Përforcuesit e preferuar", student.reinforcers)}
-      ${profileCard("Alergjitë", student.allergies)}
-      ${profileCard("Profili i komunikimit", [student.communication, ...student.speechGoals])}
+      ${activeRole === "teacher" ? renderEditableStudentFields(student) : `
+        ${profileCard("Pikat e forta", student.strengths)}
+        ${profileCard("Sfidat", student.challenges)}
+        ${profileCard("Përforcuesit e preferuar", student.reinforcers)}
+        ${profileCard("Alergjitë", student.allergies)}
+        ${profileCard("Metodat e komunikimit", [student.communication, ...student.speechGoals])}
+      `}
     </section>
     <section class="glass-card">
       <div class="card-header">
@@ -616,9 +682,9 @@ function renderStudentList() {
   return `
     <section class="student-list-heading">
       <div>
-        <p class="eyebrow">Pamje private</p>
+        <p class="eyebrow">Profilet e klasës</p>
         <h2>Profilet e nxënësve</h2>
-        <p>Zgjidhni një pseudonim për të hapur profilin e plotë.</p>
+        <p>Zgjidhni emrin e nxënësit për të hapur profilin e plotë.</p>
       </div>
       <div class="student-list-actions"><span class="privacy-badge">Vetëm profilet e caktuara nga administratori</span></div>
     </section>
@@ -629,15 +695,16 @@ function renderStudentList() {
           type="button"
           data-action="open-student-profile"
           data-student-id="${student.id}"
-          aria-label="Hap profilin e ${student.nickname}, ${student.initials}"
+          aria-label="Hap profilin e ${escapeHtml(student.name)}, ${escapeHtml(student.initials)}"
         >
           <span class="animal-avatar" aria-hidden="true">${animalIcon(student.animal)}</span>
-          <span class="student-preview-name">${student.nickname}</span>
+          <span class="student-preview-name">${escapeHtml(student.name)}</span>
           <span class="student-preview-initials">${student.initials}</span>
           <span class="student-preview-facts">
-            <span><strong>Mosha</strong>${student.age} vjeç</span>
+            <span><strong>Mosha</strong>${studentAgeLabel(student.age)}</span>
             <span><strong>Ditëlindja</strong>${student.birthday}</span>
             <span><strong>Objektiva</strong>${student.immediateObjectives.length}</span>
+            <span><strong>Vlerësimi</strong>${evaluationLabel(student.evaluationType)}</span>
           </span>
         </button>
       `).join("")}
@@ -646,6 +713,7 @@ function renderStudentList() {
 }
 
 function openAddStudentModal() {
+  if (activeRole !== "admin") return toast("Vetëm administratori mund të shtojë fëmijë.");
   const animals = [
     ["bear", "Ariu"],
     ["lion", "Luani"],
@@ -660,10 +728,9 @@ function openAddStudentModal() {
   openModal("Profil i ri", "Shto profil nxënësi", `
     <form id="addStudentForm" class="student-add-form">
       <div class="student-add-fields">
-        ${field("Pseudonimi", `<input name="nickname" placeholder="P.sh. Ylli i Artë" maxlength="40" required />`)}
-        ${field("Inicialet", `<input name="initials" placeholder="P.sh. A.K." maxlength="8" required />`)}
-        ${field("Mosha", `<input name="age" type="number" min="3" max="18" required />`)}
-        ${field("Ditëlindja", `<input name="birthday" type="date" required />`)}
+        ${field("Emri i plotë", `<input name="name" placeholder="P.sh. Arta Krasniqi" maxlength="80" required />`)}
+        ${field("Mosha (opsionale)", `<input name="age" type="number" min="3" max="18" />`)}
+        ${field("Ditëlindja (opsionale)", `<input name="birthday" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" pattern="(?:0[1-9]|[12][0-9]|3[01])/(?:0[1-9]|1[0-2])/[0-9]{4}" />`)}
       </div>
       <fieldset class="animal-picker">
         <legend>Zgjidh ikonën e kafshës</legend>
@@ -677,15 +744,81 @@ function openAddStudentModal() {
           `).join("")}
         </div>
       </fieldset>
-      ${field("Objektivat aktuale", `<textarea name="objectives" rows="5" placeholder="Shkruani një objektiv për çdo rresht" required></textarea>`)}
+      <fieldset class="evaluation-track-picker">
+        <legend>Lloji i vlerësimit</legend>
+        <label class="evaluation-track-option">
+          <input type="radio" name="evaluationType" value="STANDARD" checked />
+          <span><strong>Vlerësim i Vazhdueshëm (Lëndë Standarde)</strong><small>Matematikë, shkencë, gjuhë dhe lëndë të tjera.</small></span>
+        </label>
+        <label class="evaluation-track-option">
+          <input type="radio" name="evaluationType" value="SPECIAL_ACTIVITIES" />
+          <span><strong>Aktivitete të Veçanta (Plan Individual)</strong><small>Objektiva zhvillimore të personalizuara dhe PIA/IEP.</small></span>
+        </label>
+      </fieldset>
+      ${field("Mësuesi përgjegjës (opsional)", `<select name="teacherId"><option value="">Caktojeni më vonë</option>${roleData.teachers.map((teacher) => `<option value="${teacher.id}">${escapeHtml(teacher.name)}</option>`).join("")}</select>`)}
+      ${field("Objektivat aktuale (opsionale)", `<textarea name="objectives" rows="5" placeholder="Shkruani një objektiv për çdo rresht"></textarea>`)}
       ${field("Alergjitë", `<textarea name="allergies" rows="3" placeholder="Shkruani një alergji për çdo rresht; lëreni bosh nëse nuk ka"></textarea>`)}
-      <p class="student-add-note">Përdorni vetëm pseudonim dhe iniciale. Mos vendosni emër real ose diagnozë.</p>
+      <p class="student-add-note">Emri përdoret në profilin e nxënësit dhe në materialet e lidhura me të.</p>
       <button class="primary-button" type="submit">Ruaj profilin</button>
     </form>
   `);
 }
 
+function openEditStudentModal(studentId) {
+  if (activeRole !== "admin") return toast("Vetëm administratori mund të ndryshojë profilet.");
+  const student = state.students.find((item) => item.id === studentId);
+  if (!student) return toast("Profili nuk u gjet.");
+  const animals = [["bear", "Ariu"], ["lion", "Luani"], ["rabbit", "Lepuri"], ["fox", "Dhelpra"], ["cat", "Macja"], ["owl", "Bufi"], ["panda", "Panda"], ["turtle", "Breshka"]];
+  const birthday = /^\d{2}\/\d{2}\/\d{4}$/.test(student.birthday) ? student.birthday : "";
+  const evaluationType = student.evaluationType === "SPECIAL_ACTIVITIES" ? "SPECIAL_ACTIVITIES" : "STANDARD";
+
+  openModal("Ndrysho profilin", `Ndrysho ${escapeHtml(student.name)}`, `
+    <form id="editStudentForm" class="student-add-form">
+      <input type="hidden" name="studentId" value="${student.id}" />
+      <div class="student-add-fields">
+        ${field("Emri i plotë", `<input name="name" value="${escapeHtml(student.name)}" maxlength="80" required />`)}
+        ${field("Mosha (opsionale)", `<input name="age" type="number" min="3" max="18" value="${Number.isFinite(Number(student.age)) ? student.age : ""}" />`)}
+        ${field("Ditëlindja (opsionale)", `<input name="birthday" type="text" inputmode="numeric" value="${birthday}" placeholder="dd/mm/yyyy" pattern="(?:0[1-9]|[12][0-9]|3[01])/(?:0[1-9]|1[0-2])/[0-9]{4}" />`)}
+      </div>
+      <fieldset class="animal-picker"><legend>Ikona e kafshës</legend><div class="animal-choice-grid">
+        ${animals.map(([value, label]) => `<label class="animal-choice"><input type="radio" name="animal" value="${value}" ${student.animal === value ? "checked" : ""} /><span class="animal-avatar" aria-hidden="true">${animalIcon(value)}</span><span>${label}</span></label>`).join("")}
+      </div></fieldset>
+      <fieldset class="evaluation-track-picker"><legend>Lloji i vlerësimit</legend>
+        <label class="evaluation-track-option"><input type="radio" name="evaluationType" value="STANDARD" ${evaluationType === "STANDARD" ? "checked" : ""} /><span><strong>Vlerësim i Vazhdueshëm (Lëndë Standarde)</strong></span></label>
+        <label class="evaluation-track-option"><input type="radio" name="evaluationType" value="SPECIAL_ACTIVITIES" ${evaluationType === "SPECIAL_ACTIVITIES" ? "checked" : ""} /><span><strong>Aktivitete të Veçanta (Plan Individual)</strong></span></label>
+      </fieldset>
+      ${field("Mësuesi përgjegjës (opsional)", `<select name="teacherId"><option value="">Pa mësues</option>${roleData.teachers.map((teacher) => `<option value="${teacher.id}" ${student.teacherId === teacher.id ? "selected" : ""}>${escapeHtml(teacher.name)}</option>`).join("")}</select>`)}
+      ${field("Objektivat aktuale (opsionale)", `<textarea name="objectives" rows="5">${escapeHtml(student.immediateObjectives.join("\n"))}</textarea>`)}
+      ${field("Alergjitë (opsionale)", `<textarea name="allergies" rows="3">${escapeHtml((student.allergies || []).filter((item) => item !== "Nuk janë shënuar alergji").join("\n"))}</textarea>`)}
+      <button class="primary-button" type="submit">Ruaj ndryshimet</button>
+    </form>
+  `);
+}
+
+function updateStudentProfile(formData) {
+  const student = state.students.find((item) => item.id === String(formData.get("studentId")));
+  if (!student) return toast("Profili nuk u gjet.");
+  const lines = (name) => String(formData.get(name) || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+  student.name = String(formData.get("name") || student.name).trim();
+  student.nickname = student.name;
+  student.initials = initials(student.name);
+  student.age = Number(formData.get("age")) || "Nuk është shënuar";
+  student.birthday = formatBirthday(String(formData.get("birthday") || ""));
+  student.animal = String(formData.get("animal") || student.animal);
+  student.evaluationType = String(formData.get("evaluationType") || "STANDARD");
+  student.teacherId = String(formData.get("teacherId") || "");
+  student.immediateObjectives = lines("objectives");
+  student.allergies = lines("allergies");
+  if (!student.allergies.length) student.allergies = ["Nuk janë shënuar alergji"];
+  saveStudents();
+  if (state.currentStudent?.id === student.id) activateStudent(student);
+  closeModal();
+  navigate("admin");
+  toast("Të dhënat e nxënësit u përditësuan.");
+}
+
 function addStudentProfile(formData) {
+  if (activeRole !== "admin") return toast("Vetëm administratori mund të shtojë fëmijë.");
   const objectives = String(formData.get("objectives") || "")
     .split(/\r?\n/)
     .map((item) => item.trim())
@@ -696,11 +829,13 @@ function addStudentProfile(formData) {
     .filter(Boolean);
 
   const student = new Student({
-    nickname: String(formData.get("nickname") || "").trim(),
-    initials: String(formData.get("initials") || "").trim().toUpperCase(),
-    age: Number(formData.get("age")),
+    name: String(formData.get("name") || "").trim(),
+    initials: initials(String(formData.get("name") || "Nxënës")),
+    age: Number(formData.get("age")) || "Nuk është shënuar",
     birthday: formatBirthday(String(formData.get("birthday") || "")),
     animal: String(formData.get("animal") || "bear"),
+    evaluationType: String(formData.get("evaluationType") || "STANDARD"),
+    teacherId: String(formData.get("teacherId") || ""),
     learningStyle: "Profili mësimor mund të plotësohet me mbështetje praktike dhe rutina të qarta.",
     diagnosis: "Profil mësimor",
     communicationAbilities: "Përfiton nga udhëzimet e qarta dhe mbështetja vizuale.",
@@ -714,20 +849,28 @@ function addStudentProfile(formData) {
   });
 
   state.students.push(student);
+  saveStudents();
   state.scheduleByStudent[student.id] = createInitialSchedule();
   state.progressByStudent[student.id] = [];
   state.reportsByStudent[student.id] = [];
   activateStudent(student);
   state.studentProfileOpen = false;
-  state.activity.unshift({ title: "U shtua profil i ri", detail: `Profili ${student.nickname} u krijua me pseudonim.` });
+  state.activity.unshift({ title: "U shtua profil i ri", detail: `Profili i ${student.name} u krijua.` });
   closeModal();
   navigate(activeRole === "admin" ? "admin" : "students");
   toast("Profili i ri u shtua.");
 }
 
 function formatBirthday(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value || "Nuk është shënuar";
-  return new Date(`${value}T12:00:00`).toLocaleDateString("sq-AL", { day: "numeric", month: "long" });
+  const clean = value.trim();
+  if (!clean) return "Nuk është shënuar";
+  const iso = clean.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  return clean;
+}
+
+function studentAgeLabel(age) {
+  return Number.isFinite(Number(age)) ? `${age} vjeç` : "Nuk është shënuar";
 }
 
 function animalIcon(type) {
@@ -753,28 +896,58 @@ function profileCard(title, items) {
   `;
 }
 
+function renderEditableStudentFields(student) {
+  const rows = (items) => escapeHtml((items || []).join("\n"));
+  return `
+    <form id="studentProfileForm" class="student-profile-edit-form">
+      <p class="profile-edit-note">Ndryshimet ruhen në profil sapo të shtypni “Ruaj ndryshimet”. Shkruani një element për çdo rresht.</p>
+      ${field("Pikat e forta", `<textarea name="strengths" rows="4" required>${rows(student.strengths)}</textarea>`)}
+      ${field("Sfidat", `<textarea name="challenges" rows="4" required>${rows(student.challenges)}</textarea>`)}
+      ${field("Përforcuesit e preferuar", `<textarea name="reinforcers" rows="4" required>${rows(student.reinforcers)}</textarea>`)}
+      ${field("Alergjitë", `<textarea name="allergies" rows="4" required>${rows(student.allergies)}</textarea>`)}
+      ${field("Metodat e komunikimit", `<textarea name="communicationMethods" rows="4" required>${rows([student.communication, ...student.speechGoals])}</textarea>`)}
+      <button class="primary-button" type="submit">Ruaj ndryshimet</button>
+    </form>
+  `;
+}
+
+function linesFrom(formData, name) {
+  return String(formData.get(name) || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+}
+
+function saveStudentProfile(formData) {
+  if (activeRole !== "teacher") {
+    toast("Vetëm mësuesit mund ta ndryshojnë profilin e nxënësit.");
+    return;
+  }
+  const student = state.currentStudent;
+  const communicationMethods = linesFrom(formData, "communicationMethods");
+  student.strengths = linesFrom(formData, "strengths");
+  student.challenges = linesFrom(formData, "challenges");
+  student.reinforcers = linesFrom(formData, "reinforcers");
+  student.allergies = linesFrom(formData, "allergies");
+  student.communication = communicationMethods[0] || "Nuk është specifikuar";
+  student.speechGoals = communicationMethods.slice(1);
+  saveStudents();
+  refreshDerivedState();
+  navigate("students", { keepStudentProfile: true });
+  toast("Profili i nxënësit u ruajt.");
+}
+
 function renderUpload() {
   return `
     <form class="glass-card" id="planGenerationForm">
       <p class="eyebrow">Lexuesi i PIA / IEP</p>
-      <h2>Ngarko ose ngjit planin e nxënësit</h2>
-      <p>Mbështet PDF, DOCX, TXT dhe tekst të kopjuar. Emrat, inicialet dhe termat mjekësorë filtrohen para analizimit.</p>
+      <h2>Ngarko planin e nxënësit</h2>
+      <p>Mbështet PDF, DOCX, TXT, MD dhe CSV. Të dhënat personale dhe termat mjekësorë filtrohen para analizimit.</p>
       <div class="upload-zone" id="uploadZone">
         <div>
-          <strong>Lësho këtu një skedar PDF, DOCX ose TXT</strong>
+          <strong>Lësho këtu një skedar ose zgjidhe nga pajisja</strong>
           <p>Emri i skedarit nuk përdoret kurrë si emër nxënësi.</p>
-          <input id="fileUpload" type="file" accept=".pdf,.docx,.txt" aria-label="Ngarko planin e nxënësit" />
+          <input id="fileUpload" type="file" accept=".pdf,.docx,.txt,.md,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" aria-label="Zgjidh skedarin e planit" />
+          <small id="selectedPlanFile">${state.uploadedPlanFileName ? `U zgjodh: ${escapeHtml(state.uploadedPlanFileName)}` : "Asnjë skedar i zgjedhur"}</small>
         </div>
       </div>
-      <label class="field">
-        <span>Kopjo dhe ngjit tekstin e planit</span>
-        <textarea id="planText">Pseudonimi: Nxënësi A
-Mosha: 7
-Komunikimi: Përdor fraza verbale dhe përfiton nga zgjedhjet vizuale.
-Objektivi i menjëhershëm: Të kërkojë ndihmë gjatë shkrimit me një kujtesë.
-Objektivi afatgjatë: Të përfundojë rutinat e klasës me më shumë pavarësi.
-Përforcues: Zgjedhja e rolit ndihmës në klasë.</textarea>
-      </label>
       <div class="toolbar">
         <button class="primary-button" type="submit">Analizo planin e nxënësit</button>
         <button class="secondary-button" type="button" data-route="students">Hap profilin aktual</button>
@@ -790,6 +963,8 @@ function renderTools(title, tools) {
     ...[...new Set(educationalTools.map((tool) => tool.category))].map((category) => ({ value: category, label: translateToolLabel(category) }))
   ];
   return `
+    ${activeRole === "teacher" ? renderTeachingMaterialManager() : ""}
+    ${renderTeachingMaterialLibrary()}
     <section class="glass-card">
       <p class="eyebrow">Përputhësi i mjeteve me AI</p>
       <h2>${title}</h2>
@@ -810,6 +985,89 @@ function renderTools(title, tools) {
       ${toolCards(tools)}
     </section>
   `;
+}
+
+function renderTeachingMaterialManager() {
+  return `
+    <section class="glass-card teaching-material-manager">
+      <p class="eyebrow">Biblioteka e materialeve</p>
+      <h2>Shto material mësimor</h2>
+      <p>Ngarkoni video, PDF, Word ose udhëzues tekstual; mund të shtoni edhe lidhje nga YouTube ose Vimeo.</p>
+      <form id="teachingMaterialForm" class="teaching-material-form">
+        ${field("Titulli", `<input name="title" maxlength="100" required />`)}
+        ${field("Lloji", `<select name="type"><option value="video">Video</option><option value="document">Dokument ose skenar</option><option value="interactive">Material interaktiv</option></select>`)}
+        ${field("Kategoria", `<input name="category" placeholder="P.sh. Komunikim" required />`)}
+        ${field("Mësimi", `<input name="lesson" placeholder="P.sh. Larja e duarve" required />`)}
+        ${field("Objektivi / nxënësi", `<select name="studentId"><option value="">Për gjithë klasën</option>${visibleStudents().map((student) => `<option value="${student.id}">${escapeHtml(student.name)}</option>`).join("")}</select>`)}
+        ${field("Lidhja e materialit", `<input name="url" type="url" placeholder="https://youtube.com/... ose https://..." />`)}
+        ${field("Ose ngarko skedar", `<input name="file" type="file" accept="video/*,.pdf,.doc,.docx,.txt,.ppt,.pptx" />`)}
+        <button class="primary-button" type="submit">Ruaj materialin</button>
+      </form>
+    </section>
+  `;
+}
+
+function renderTeachingMaterialLibrary() {
+  if (!state.teachingMaterials.length) return `<section class="glass-card empty-material-library"><h2>Materialet mësimore</h2><p>Ende nuk është shtuar asnjë material.</p></section>`;
+  return `
+    <section class="glass-card">
+      <div class="card-header"><div><p class="eyebrow">Të organizuara sipas mësimit</p><h2>Materialet mësimore</h2></div></div>
+      <div class="teaching-material-grid">${state.teachingMaterials.map(renderTeachingMaterialCard).join("")}</div>
+    </section>`;
+}
+
+function renderTeachingMaterialCard(material) {
+  const student = state.students.find((item) => item.id === material.studentId);
+  const target = student ? student.name : "Gjithë klasa";
+  return `<article class="teaching-material-card">
+    <div><span class="badge">${escapeHtml(material.category)}</span><span class="badge">${escapeHtml(target)}</span></div>
+    <h3>${escapeHtml(material.title)}</h3><p>${escapeHtml(material.lesson)}</p>
+    ${renderMaterialPreview(material)}
+    <div class="toolbar"><a class="secondary-button" href="${escapeHtml(material.source)}" ${material.type === "document" ? "download" : "target=\"_blank\" rel=\"noopener\""}>${material.type === "document" ? "Shiko / shkarko" : "Hap materialin"}</a>${activeRole === "teacher" ? `<button class="text-button" type="button" data-action="remove-teaching-material" data-material-id="${material.id}">Fshi</button>` : ""}</div>
+  </article>`;
+}
+
+function renderMaterialPreview(material) {
+  if (material.type !== "video") return `<div class="document-preview"><strong>${material.type === "interactive" ? "Material interaktiv" : "Dokument"}</strong><small>${escapeHtml(material.fileName || "Lidhje e jashtme")}</small></div>`;
+  const embed = videoEmbedUrl(material.source);
+  if (embed) return `<iframe class="material-video" src="${escapeHtml(embed)}" title="${escapeHtml(material.title)}" loading="lazy" allowfullscreen></iframe>`;
+  return `<video class="material-video" src="${escapeHtml(material.source)}" controls preload="metadata"></video>`;
+}
+
+function videoEmbedUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("youtu.be")) return `https://www.youtube.com/embed/${parsed.pathname.slice(1)}`;
+    if (parsed.hostname.includes("youtube.com")) return `https://www.youtube.com/embed/${parsed.searchParams.get("v") || parsed.pathname.split("/").pop()}`;
+    if (parsed.hostname.includes("vimeo.com")) return `https://player.vimeo.com/video/${parsed.pathname.split("/").filter(Boolean).pop()}`;
+  } catch {}
+  return "";
+}
+
+async function addTeachingMaterial(form, formData) {
+  if (activeRole !== "teacher") return toast("Vetëm mësuesit mund të shtojnë materiale.");
+  const file = form.elements.file.files[0];
+  const url = String(formData.get("url") || "").trim();
+  if (!file && !url) return toast("Shtoni një skedar ose një lidhje.");
+  const source = file ? URL.createObjectURL(file) : url;
+  state.teachingMaterials.unshift({ id: crypto.randomUUID(), title: String(formData.get("title")).trim(), type: String(formData.get("type")), category: String(formData.get("category")).trim(), lesson: String(formData.get("lesson")).trim(), studentId: String(formData.get("studentId") || ""), source, fileName: file?.name || "", temporary: Boolean(file) });
+  persistTeachingMaterials();
+  navigate("tools");
+  toast(file ? "Materiali u shtua për këtë sesion." : "Materiali u ruajt në bibliotekë.");
+}
+
+function persistTeachingMaterials() {
+  localStorage.setItem("atlas-teaching-materials", JSON.stringify(state.teachingMaterials.filter((item) => !item.temporary)));
+}
+
+function removeTeachingMaterial(materialId) {
+  if (activeRole !== "teacher") return toast("Vetëm mësuesit mund të fshijnë materiale.");
+  const material = state.teachingMaterials.find((item) => item.id === materialId);
+  if (material?.temporary) URL.revokeObjectURL(material.source);
+  state.teachingMaterials = state.teachingMaterials.filter((item) => item.id !== materialId);
+  persistTeachingMaterials();
+  navigate("tools");
+  toast("Materiali u fshi.");
 }
 
 function toolCards(tools) {
@@ -945,7 +1203,7 @@ function renderSchedule() {
               aria-pressed="${student.id === state.currentStudent.id}"
             >
               <span class="schedule-student-animal" aria-hidden="true">${animalIcon(student.animal)}</span>
-              <span><strong>${escapeHtml(student.nickname)}</strong><small>${escapeHtml(student.initials)}</small></span>
+              <span><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.initials)}</small></span>
             </button>
           `).join("")}
         </div>
@@ -1003,7 +1261,7 @@ function selectScheduleStudent(studentId) {
   activateStudent(student);
   getStudentSchedule(student.id);
   navigate("schedules");
-  toast(`U hap orari i ${student.nickname}.`);
+  toast(`U hap orari i ${student.name}.`);
 }
 
 function nextScheduleWeek() {
@@ -1173,7 +1431,7 @@ function renderReportList() {
         const results = getStudentProgress(student.id);
         return `<button class="report-student-card" type="button" data-action="open-report-preview" data-student-id="${student.id}" aria-label="Hap raportin e ${student.nickname}, ${student.initials}">
           <span class="animal-avatar" aria-hidden="true">${animalIcon(student.animal)}</span>
-          <span><strong>${escapeHtml(student.nickname)}</strong><small>${escapeHtml(student.initials)}</small></span>
+          <span><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.initials)}</small></span>
           <span class="report-ready-badge">Raporti gati</span>
           <span class="report-result-count">${results.length} rezultate të regjistruara</span>
         </button>`;
@@ -1254,35 +1512,59 @@ function attachUploadZone() {
 }
 
 async function readPlanFile(file) {
-  if (file.name.endsWith(".txt")) {
-    document.getElementById("planText").value = sanitizePlanText(await file.text());
-  } else {
-    document.getElementById("planText").value = `Pseudonimi: Nxënësi A
-Komunikimi: Ngjitni tekstin e nxjerrë nga dokumenti për analizë të plotë.
-Objektivi i menjëhershëm: Përdor mbështetje vizuale gjatë rutinës së klasës.`;
+  const supported = /\.(pdf|docx|txt|md|csv)$/i.test(file.name);
+  if (!supported) return toast("Përdorni një skedar PDF, DOCX, TXT, MD ose CSV.");
+  if (file.size > 12 * 1024 * 1024) return toast("Skedari duhet të jetë më i vogël se 12 MB.");
+  const selectedFile = document.getElementById("selectedPlanFile");
+  if (selectedFile) selectedFile.textContent = `Duke lexuar: ${file.name}`;
+
+  try {
+    let binary = "";
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
+    const response = await fetch("http://localhost:5001/api/extract-plan-text", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName: file.name, data: btoa(binary) })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Skedari nuk mund të lexohej.");
+    state.uploadedPlanText = sanitizePlanText(payload.text);
+    state.uploadedPlanFileName = file.name;
+    if (selectedFile) selectedFile.textContent = `U zgjodh: ${file.name}`;
+    toast("Dokumenti u lexua dhe u anonimizua.");
+  } catch (error) {
+    state.uploadedPlanText = "";
+    state.uploadedPlanFileName = "";
+    if (selectedFile) selectedFile.textContent = "Skedari nuk mund të lexohej";
+    toast(error.message || "Skedari nuk mund të lexohej.");
   }
-  toast("Dokumenti u ngarkua dhe u anonimizua.");
 }
 
 async function generatePlan() {
   const output = document.getElementById("parserOutput");
-  const textArea = document.getElementById("planText");
-  const userInputValue = sanitizePlanText(textArea.value);
+  const userInputValue = sanitizePlanText(state.uploadedPlanText);
 
   if (!userInputValue) {
-    output.innerHTML = `<section class="glass-card parser-error"><h3>Teksti mungon</h3><p>Ngarkoni një dokument ose ngjitni tekstin e planit para analizimit.</p></section>`;
-    toast("Shtoni tekstin e planit para analizimit.");
+    output.innerHTML = `<section class="glass-card parser-error"><h3>Skedari mungon</h3><p>Zgjidhni një skedar PDF, DOCX, TXT, MD ose CSV para analizimit.</p></section>`;
+    toast("Zgjidhni skedarin e planit para analizimit.");
     return;
   }
 
-  textArea.value = userInputValue;
   output.innerHTML = document.getElementById("loadingTemplate").innerHTML;
 
   try {
     const response = await fetch("http://localhost:5001/api/generate-plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: userInputValue })
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: "Përmblidh shkurt planin e nxënësit në shqip. Jep vetëm tri pjesë të shkurtra: Pikat e forta, Sfidat kryesore dhe Objektivat e sugjeruara. Mos përfshi emra, iniciale ose diagnoza." },
+          { role: "user", content: userInputValue }
+        ]
+      })
     });
 
     if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
@@ -1290,16 +1572,18 @@ async function generatePlan() {
     const data = await response.json();
     output.innerHTML = `
       <section class="glass-card plan-summary">
-        <p class="eyebrow">Plani i gjeneruar</p>
-        <h3>Rezultati</h3>
+        <p class="eyebrow">Përmbledhja e planit</p>
+        <h3>Përmbledhje e shkurtër</h3>
         <div id="generatedPlan"></div>
       </section>`;
     document.getElementById("generatedPlan").textContent = data.plan ?? "";
-    toast("Plani u krijua.");
+    toast("Përmbledhja u krijua.");
   } catch (error) {
     console.error(error);
-    output.innerHTML = `<section class="glass-card parser-error"><h3>Gjenerimi dështoi</h3><p>Shërbimi lokal nuk mund ta krijonte planin.</p></section>`;
-    toast("Nuk mundëm ta krijonim planin.");
+    const parsed = normalizeParsedStudent(await parseIEP(userInputValue, ""));
+    const summary = buildPlanSummary(parsed);
+    output.innerHTML = `<section class="glass-card plan-summary"><p class="eyebrow">Përmbledhja e planit</p><h3>Përmbledhje e shkurtër</h3><div class="plan-summary-grid">${summaryCard("Pikat e forta", summary.strengths)}${summaryCard("Sfidat kryesore", summary.challenges)}${summaryCard("Objektivat e sugjeruara", summary.objectives)}</div></section>`;
+    toast("Përmbledhja u krijua lokalisht.");
   }
 }
 
@@ -1472,7 +1756,19 @@ async function sendCoachMessage(message) {
   const log = document.getElementById("chatLog");
   log.insertAdjacentHTML("beforeend", `<div class="message ai" id="typingMessage">${atlasAvatar("small")}<div class="message-bubble atlas-bubble"><span class="spinner" style="width:1.2rem;height:1.2rem;border-width:2px;"></span> Atlas po mendon...</div></div>`);
   scrollChatToBottom();
-  const response = await teacherCoach(clean, state.currentStudent);
+  let response = "";
+  try {
+    response = await streamTeacherCoach(clean, atlasChatSessionId, (partialText) => {
+      response = partialText;
+      const bubble = document.querySelector("#typingMessage .message-bubble");
+      if (bubble) bubble.innerHTML = `${renderMarkdown(partialText)}<span class="streaming-cursor" aria-hidden="true"></span>`;
+      scrollChatToBottom();
+    });
+  } catch (error) {
+    console.error("Gemini chat unavailable; local fallback used.", error);
+    response = `**Po të përgjigjem me mënyrën rezervë të Atlasit.**\n\n${await teacherCoach(clean, state.currentStudent)}`;
+    toast("Lidhja me Atlas AI dështoi; u përdor përgjigjja rezervë.");
+  }
   state.chatMessages.push({ role: "ai", text: response, time: new Date() });
   navigate("coach");
 }
@@ -1514,7 +1810,7 @@ function handleSearch() {
     return;
   }
   const items = [
-    ...state.students.map((student) => ({ title: `${student.nickname} ${student.initials}`, detail: student.learningStyle, route: "students" })),
+    ...state.students.map((student) => ({ title: `${student.name} ${student.initials}`, detail: student.learningStyle, route: "students" })),
     ...educationalTools.map((tool) => ({ title: tool.title, detail: `${tool.category}: ${tool.goal}`, route: "tools" })),
     { title: "Raport për prindër", detail: `Përditësim i thjeshtë për familjen e ${state.currentStudent.name}`, route: "reports" }
   ].filter((item) => `${item.title} ${item.detail}`.toLowerCase().includes(query));

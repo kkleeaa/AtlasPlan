@@ -1,11 +1,13 @@
 export class Student {
   constructor(data) {
     this.id = data.id || crypto.randomUUID();
-    this.nickname = data.nickname || data.pseudonym || data.studentName || data.name || "Nxënës i ri";
-    this.name = this.nickname;
+    this.name = data.name || data.studentName || data.nickname || data.pseudonym || "Nxënës i ri";
+    this.nickname = data.nickname || this.name;
     this.initials = data.initials || "N.X.";
     this.birthday = data.birthday || "Nuk është shënuar";
     this.animal = data.animal || "bear";
+    this.evaluationType = ["STANDARD", "SPECIAL_ACTIVITIES"].includes(data.evaluationType) ? data.evaluationType : "STANDARD";
+    this.teacherId = data.teacherId || "";
     this.learningStyle = data.learningStyle || data.communicationAbilities || data.communication || "Përfiton nga udhëzimet e qarta dhe rutinat e parashikueshme.";
     this.age = data.age || "Nuk është specifikuar";
     this.diagnosis = data.diagnosis || "Profili duhet rishikuar";

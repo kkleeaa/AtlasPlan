@@ -12,10 +12,13 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/genai": "^2.21.0",
     "@supabase/supabase-js": "^2.115.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "openai": "^7.10.0"
+    "mammoth": "^1.12.2",
+    "openai": "^7.10.0",
+    "pdf-parse": "^2.4.5"
   }
 }
