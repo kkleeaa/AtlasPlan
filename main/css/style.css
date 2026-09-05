@@ -20,6 +20,8 @@
   --peach: #f5ba91;
   --pastel-blue: #dceff5;
   --pastel-green: #e2f3e9;
+  --pastel-pink: #fbe2ea;
+  --pastel-lilac: #eee6fb;
   --shadow: 0 16px 42px rgba(63, 104, 111, 0.09);
   --shadow-soft: 0 8px 24px rgba(63, 104, 111, 0.07);
   --radius: 24px;
@@ -1388,20 +1390,23 @@ textarea {
 }
 
 .communication-module-shell {
+  width: 100%;
   min-height: calc(100vh - 9rem);
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-strong);
-  box-shadow: var(--shadow);
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .communication-module-frame {
   display: block;
   width: 100%;
+  height: auto;
   min-height: calc(100vh - 9rem);
+  overflow: hidden;
   border: 0;
-  background: #fff;
+  background: transparent;
 }
 
 .view-root:has(.cute-schedule-shell) {
@@ -2769,6 +2774,36 @@ textarea {
     font-size: 0.78rem;
   }
 }
+
+/* Hyrja sipas rolit, duke ruajtur gjuhën vizuale ekzistuese */
+.role-gate { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:2rem; overflow:auto; background:radial-gradient(circle at 8% 14%,rgba(199,230,245,.96),transparent 27rem),radial-gradient(circle at 88% 10%,rgba(249,180,207,.86),transparent 29rem),radial-gradient(circle at 78% 88%,rgba(255,209,224,.78),transparent 25rem),linear-gradient(145deg,#fff1f6,#f7fbff 54%,#ffe7f0); }
+.role-welcome { width:min(980px,100%); text-align:center; }
+.role-welcome>.brand-mark { margin:auto; }
+.role-welcome h1,.role-login-card h1 { margin:.45rem 0; font-size:clamp(2.2rem,5vw,4rem); }
+.role-lead { color:var(--muted); font-size:1.08rem; }
+.role-choice-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1.2rem; margin-top:2.3rem; }
+.role-choice { padding:2rem 1.3rem; border:1px solid var(--line); border-radius:var(--radius); color:var(--text); background:rgba(255,254,249,.96); box-shadow:var(--shadow); transition:transform .2s,border-color .2s; }
+.role-choice.role-parent { background:linear-gradient(155deg,#fff,#fbe2ea); }
+.role-choice.role-teacher { background:linear-gradient(155deg,#fff,#dceff5); }
+.role-choice.role-admin { background:linear-gradient(155deg,#fff,#eee6fb); }
+.role-choice:hover { transform:translateY(-6px); border-color:var(--primary); }
+.role-choice strong,.role-choice small { display:block; }
+.role-choice strong { margin:.8rem 0 .35rem; font-size:1.25rem; }
+.role-choice small { color:var(--muted); }
+.role-figure { display:grid; place-items:center; width:5.8rem; height:5.8rem; margin:auto; border:3px solid rgba(255,255,255,.9); border-radius:42% 58% 55% 45%; color:#fff; background:linear-gradient(145deg,#b9dff0,#f4b9ca); box-shadow:0 8px 20px rgba(92,120,145,.16); font-size:2.45rem; }
+.role-login-card { width:min(460px,100%); padding:2rem; border:1px solid var(--line); border-radius:var(--radius); background:rgba(255,254,249,.97); box-shadow:var(--shadow); }
+.role-login-actions { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin-top:1rem; }
+.role-login-card input { pointer-events:auto; user-select:text; }
+.role-logout { width:calc(100% - 2rem); margin:1.5rem 1rem 0; padding:.7rem; border:1px solid rgba(255,255,255,.3); border-radius:12px; color:inherit; background:transparent; }
+.admin-role-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin:1.2rem 0; }
+.admin-person-row,.admin-link-row { display:grid; grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) auto; gap:.7rem; align-items:center; padding:.8rem 0; border-bottom:1px solid var(--line); }
+.admin-person-row { grid-template-columns:1fr auto; }
+.admin-person-row small { display:block; color:var(--muted); }
+.admin-link-row { grid-template-columns:minmax(130px,1fr) minmax(150px,1fr) minmax(150px,1fr) auto auto; }
+.admin-link-row select { width:100%; padding:.7rem; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.admin-email-note { padding:.8rem; border-radius:12px; color:#79502f; background:#fff0d7; }
+.progress-student-picker { margin-bottom:1.2rem; }
+@media (max-width:760px) { .role-choice-grid,.admin-role-grid,.role-login-actions { grid-template-columns:1fr; } .admin-link-row { grid-template-columns:1fr; } }
 
 /* Ilustrime te sfondit: pa emoji dhe pa penguar permbajtjen */
 .workspace,

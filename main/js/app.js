@@ -5,18 +5,26 @@ import { generateAAC, materialToMarkdown } from "./aacGenerator.js";
 import { suggestedQuestions, teacherCoach, renderMarkdown } from "./chatbot.js";
 import { createProgressEntry, summarizeProgress, generateParentReport } from "./evaluation.js";
 
-const routes = [
+const teacherRoutes = [
   ["dashboard", "PN", "Paneli"],
   ["students", "NX", "Profilet e nxënësve"],
   ["upload", "PI", "Ngarko PIA"],
   ["tools", "MJ", "Paketa e mësimdhënies"],
   ["schedules", "OR", "Orari"],
-  ["boards", "TK", "Tabela komunikimi"],
+  ["boards", "GM", "Gjenero materiale"],
   ["progress", "PR", "Ndjekja e progresit"],
   ["reports", "RP", "Raporte për prindër"],
   ["coach", "AI", "Atlas - trajneri AI"],
   ["settings", "CI", "Cilësimet"]
 ];
+const parentRoutes = [
+  ["progress", "PR", "Progresi i fëmijës"],
+  ["reports", "RP", "Raportet"],
+  ["schedules", "OR", "Orari"],
+  ["boards", "GM", "Gjenero materiale"]
+];
+const adminRoutes = [["admin", "AD", "Paneli i administratorit"]];
+let routes = teacherRoutes;
 
 const state = {
   route: "dashboard",
@@ -31,6 +39,7 @@ const state = {
   compareTools: new Set(),
   progressEntries: [],
   progressByStudent: {},
+  reportsByStudent: {},
   progressSummary: summarizeProgress([]),
   chatMessages: [],
   completedGoals: new Set(),
@@ -41,6 +50,15 @@ const state = {
   scheduleByStudent: {},
   theme: "light"
 };
+
+const roleData = JSON.parse(localStorage.getItem("atlas-role-data") || "null") || {
+  teachers: [{ id: "teacher-demo", name: "Mësuesja Demo", email: "mesues@atlas.al", password: "Atlas123" }],
+  parents: [{ id: "parent-demo", name: "Prindi Demo", email: "prind@atlas.al", password: "Atlas123" }],
+  admins: [{ id: "admin-demo", name: "Administratori", email: "admin@atlas.al", password: "Atlas123" }]
+};
+let activeRole = null;
+let activeUser = null;
+let appInitialized = false;
 
 const scheduleDays = ["E hënë", "E martë", "E mërkurë", "E enjte", "E premte"];
 
@@ -74,74 +92,79 @@ const modalTitle = document.getElementById("modalTitle");
 const modalEyebrow = document.getElementById("modalEyebrow");
 const modalBody = document.getElementById("modalBody");
 const toastRegion = document.getElementById("toastRegion");
-const apiKeyGate = document.getElementById("apiKeyGate");
-const apiKeyForm = document.getElementById("apiKeyForm");
-const apiKeyInput = document.getElementById("apiKeyInput");
-const apiKeyError = document.getElementById("apiKeyError");
-const privacyConsent = document.getElementById("privacyConsent");
-const privacyPolicyLink = document.getElementById("privacyPolicyLink");
-const privacyStickerBackdrop = document.getElementById("privacyStickerBackdrop");
-const privacyStickerClose = document.getElementById("privacyStickerClose");
-const privacyStickerAccept = document.getElementById("privacyStickerAccept");
-const openAppButton = document.getElementById("openAppButton");
-let openAIApiKey = "";
+const roleGate = document.getElementById("roleGate");
+const roleWelcome = document.getElementById("roleWelcome");
+const roleLoginForm = document.getElementById("roleLoginForm");
+const loginError = document.getElementById("loginError");
+const demoAccounts = { admin: ["admin@atlas.al", "Atlas123"], teacher: ["mesues@atlas.al", "Atlas123"], parent: ["prind@atlas.al", "Atlas123"] };
 
-apiKeyForm.addEventListener("submit", handleApiKeySubmit);
-privacyConsent.addEventListener("change", () => {
-  openAppButton.disabled = !privacyConsent.checked;
+document.querySelectorAll("[data-login-role]").forEach((button) => button.addEventListener("click", () => showRoleLogin(button.dataset.loginRole)));
+document.getElementById("backToRoles").addEventListener("click", showRoleChoices);
+document.getElementById("demoLogin").addEventListener("click", () => {
+  const role = document.getElementById("selectedRole").value;
+  [roleLoginForm.elements.email.value, roleLoginForm.elements.password.value] = demoAccounts[role];
+  roleLoginForm.requestSubmit();
 });
-privacyPolicyLink.addEventListener("click", openPrivacySticker);
-privacyStickerClose.addEventListener("click", closePrivacySticker);
-privacyStickerAccept.addEventListener("click", closePrivacySticker);
-privacyStickerBackdrop.addEventListener("click", (event) => {
-  if (event.target === privacyStickerBackdrop) closePrivacySticker();
-});
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !privacyStickerBackdrop.classList.contains("hidden")) closePrivacySticker();
-});
-apiKeyInput.focus();
+document.getElementById("logoutButton").addEventListener("click", logout);
+roleLoginForm.addEventListener("submit", handleRoleLogin);
 
-function openPrivacySticker(event) {
-  event.preventDefault();
-  event.stopPropagation();
-  privacyStickerBackdrop.classList.remove("hidden");
-  privacyStickerClose.focus();
+function showRoleLogin(role) {
+  document.getElementById("selectedRole").value = role;
+  document.getElementById("roleLoginTitle").textContent = `Hyr si ${{ admin: "Admin", teacher: "Mësues", parent: "Prind" }[role]}`;
+  roleWelcome.classList.add("hidden");
+  roleLoginForm.classList.remove("hidden");
+  loginError.classList.add("hidden");
+  roleLoginForm.elements.email.focus();
 }
 
-function closePrivacySticker() {
-  privacyStickerBackdrop.classList.add("hidden");
-  privacyPolicyLink.focus();
+function showRoleChoices() {
+  roleLoginForm.reset();
+  roleLoginForm.classList.add("hidden");
+  roleWelcome.classList.remove("hidden");
 }
 
-function handleApiKeySubmit(event) {
+function handleRoleLogin(event) {
   event.preventDefault();
-  const key = apiKeyInput.value.trim();
-
-  if (!privacyConsent.checked) return;
-
-  if (!/^sk-[A-Za-z0-9_-]{16,}$/.test(key)) {
-    apiKeyError.classList.remove("hidden");
-    apiKeyInput.focus();
-    return;
-  }
-
-  openAIApiKey = key;
-  apiKeyInput.value = "";
-  apiKeyError.classList.add("hidden");
-  apiKeyGate.classList.add("hidden");
+  const formData = new FormData(roleLoginForm);
+  const role = String(formData.get("role"));
+  const user = roleData[`${role}s`].find((item) => item.email.toLowerCase() === String(formData.get("email")).toLowerCase() && item.password === formData.get("password"));
+  if (!user) { loginError.classList.remove("hidden"); return; }
+  activeRole = role;
+  activeUser = user;
+  routes = role === "teacher" ? teacherRoutes : role === "parent" ? parentRoutes : adminRoutes;
+  roleGate.classList.add("hidden");
   document.querySelector(".app-shell").removeAttribute("inert");
-  document.querySelector(".atlas-guide-widget").removeAttribute("inert");
-  init();
+  document.querySelector(".atlas-guide-widget").toggleAttribute("inert", role !== "teacher");
+  document.querySelector(".atlas-guide-widget").classList.toggle("hidden", role !== "teacher");
+  document.getElementById("roleLabel").textContent = `${{ admin: "Administrator", teacher: "Mësues", parent: "Prind" }[role]} · ${user.name}`;
+  if (!appInitialized) init();
+  else {
+    if (visibleStudents()[0]) activateStudent(visibleStudents()[0]);
+    renderNavigation();
+    navigate(routes[0][0]);
+  }
+}
+
+function logout() {
+  activeRole = null;
+  activeUser = null;
+  document.querySelector(".app-shell").setAttribute("inert", "");
+  roleGate.classList.remove("hidden");
+  showRoleChoices();
 }
 
 async function init() {
-  renderNavigation();
   const sample = await loadSampleStudent();
   state.students = createPrivacySafeStudents(sample);
+  state.students.forEach((student, index) => {
+    student.teacherId ||= "teacher-demo";
+    student.parentId ||= index === 0 ? "parent-demo" : "";
+  });
   state.currentStudent = state.students[0];
   state.scheduleByStudent = Object.fromEntries(state.students.map((student) => [student.id, createInitialSchedule()]));
   seedProgress();
   state.progressByStudent = Object.fromEntries(state.students.map((student, index) => [student.id, index === 0 ? state.progressEntries : []]));
+  state.reportsByStudent = Object.fromEntries(state.students.map((student) => [student.id, []]));
   refreshDerivedState();
   state.activity = [
     { title: "Profili shembull u ngarkua", detail: `Plani mbështetës për ${state.currentStudent.name} është gati.` },
@@ -155,7 +178,9 @@ async function init() {
     }
   ];
   bindGlobalEvents();
-  navigate("dashboard");
+  appInitialized = true;
+  renderNavigation();
+  navigate(routes[0][0]);
 }
 
 async function loadSampleStudent() {
@@ -237,6 +262,10 @@ function handleClick(event) {
     "toggle-theme": toggleTheme,
     "toggle-dashboard-goal": () => toggleDashboardGoal(Number(goalIndex)),
     "open-student-profile": () => showStudentProfile(studentId),
+    "select-progress-student": () => {
+      const student = visibleStudents().find((item) => item.id === studentId);
+      if (student) { activateStudent(student); navigate("progress"); }
+    },
     "back-student-list": showStudentList,
     "open-add-student": openAddStudentModal,
     "open-report-preview": () => openReportPreview(studentId),
@@ -247,7 +276,7 @@ function handleClick(event) {
     "toggle-slot-complete": () => toggleScheduleSlot(slotId),
     "edit-schedule-slot": () => openScheduleSlotEditor(slotId),
     "close-modal": closeModal,
-    "parse-plan": parsePlanFromInputs,
+    "parse-plan": generatePlan,
     "tool-details": () => showToolDetails(toolId),
     "save-tool": () => toggleSet(state.savedTools, toolId, "U ruajt në paketën e mjeteve", "U hoq nga mjetet e ruajtura"),
     "favorite-tool": () => toggleSet(state.favoriteTools, toolId, "U shtua te të preferuarat", "U hoq nga të preferuarat"),
@@ -268,6 +297,24 @@ function handleClick(event) {
     "backup-placeholder": () => toast(placeholderEncryptedStorage().message),
     "clear-memory": clearMemory
   };
+
+  if (action === "delete-account") {
+    roleData[actionButton.dataset.accountType] = roleData[actionButton.dataset.accountType].filter((item) => item.id !== actionButton.dataset.accountId);
+    state.students.forEach((student) => {
+      if (student.teacherId === actionButton.dataset.accountId) student.teacherId = "";
+      if (student.parentId === actionButton.dataset.accountId) student.parentId = "";
+    });
+    saveRoleData();
+    navigate("admin");
+    toast("Llogaria u fshi.");
+    return;
+  }
+  if (action === "delete-child") {
+    state.students = state.students.filter((student) => student.id !== studentId);
+    navigate("admin");
+    toast("Profili i fëmijës u fshi.");
+    return;
+  }
 
   actions[action]?.();
 }
@@ -335,8 +382,30 @@ function createPrivacySafeStudents(sample) {
   ];
 }
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
+  if (event.target.id === "planGenerationForm") {
+    await generatePlan();
+    return;
+  }
+  if (event.target.id === "adminAccountForm") {
+    const formData = new FormData(event.target);
+    const type = String(formData.get("accountType"));
+    roleData[type].push({ id: `${type}-${Date.now()}`, name: String(formData.get("name")), email: String(formData.get("email")), password: String(formData.get("password")) });
+    saveRoleData();
+    navigate("admin");
+    toast("Llogaria u krijua. Kredencialet u dërguan me email (simulim).");
+    return;
+  }
+  if (event.target.matches("[data-admin-link]")) {
+    const formData = new FormData(event.target);
+    const student = state.students.find((item) => item.id === event.target.dataset.adminLink);
+    student.teacherId = String(formData.get("teacherId"));
+    student.parentId = String(formData.get("parentId"));
+    navigate("admin");
+    toast("Lidhja e fëmijës u ruajt.");
+    return;
+  }
   if (event.target.id === "scheduleSlotForm") {
     saveScheduleSlot(new FormData(event.target));
   }
@@ -348,6 +417,14 @@ function handleSubmit(event) {
   }
   if (event.target.id === "progressForm") {
     addProgressEntry(new FormData(event.target));
+  }
+  if (event.target.id === "teacherReportForm") {
+    const formData = new FormData(event.target);
+    const studentId = String(formData.get("studentId"));
+    state.reportsByStudent[studentId] ||= [];
+    state.reportsByStudent[studentId].push({ date: new Date().toLocaleDateString("sq-AL"), text: String(formData.get("report")) });
+    navigate("reports");
+    toast("Raporti u publikua dhe është i dukshëm për prindin.");
   }
 }
 
@@ -388,18 +465,52 @@ function navigate(route, options = {}) {
 function renderRoute(route) {
   refreshDerivedState();
   const renderers = {
+    admin: renderAdmin,
     dashboard: () => renderDashboard(state),
     students: renderStudents,
     upload: renderUpload,
     tools: () => renderTools("Paketa e mësimdhënies", educationalTools),
     schedules: renderSchedule,
     boards: renderCommunicationBoards,
-    progress: renderProgress,
-    reports: renderReports,
+    progress: () => activeRole === "parent" ? renderParentProgress() : renderProgress(),
+    reports: () => activeRole === "parent" ? renderParentReports() : renderReports(),
     coach: renderCoach,
     settings: renderSettings
   };
   return renderers[route]?.() || renderDashboard(state);
+}
+
+function visibleStudents() {
+  if (activeRole === "teacher") return state.students.filter((student) => student.teacherId === activeUser.id);
+  if (activeRole === "parent") return state.students.filter((student) => student.parentId === activeUser.id);
+  return state.students;
+}
+
+function saveRoleData() {
+  localStorage.setItem("atlas-role-data", JSON.stringify(roleData));
+}
+
+function renderAdmin() {
+  return `
+    <section class="dashboard-stats">
+      <article class="stat-card"><span>Mësues aktivë</span><strong>${roleData.teachers.length}</strong></article>
+      <article class="stat-card"><span>Prindër aktivë</span><strong>${roleData.parents.length}</strong></article>
+      <article class="stat-card"><span>Fëmijë aktivë</span><strong>${state.students.length}</strong></article>
+    </section>
+    <section class="admin-role-grid">
+      <form class="glass-card" id="adminAccountForm"><p class="eyebrow">Llogari e re</p><h2>Krijo llogari</h2>
+        ${field("Roli", `<select name="accountType"><option value="teachers">Mësues</option><option value="parents">Prind</option></select>`)}
+        ${field("Emri", `<input name="name" required />`)}${field("Email", `<input name="email" type="email" required />`)}${field("Fjalëkalimi fillestar", `<input name="password" type="password" minlength="6" required />`)}
+        <button class="primary-button" type="submit">Krijo llogarinë</button>
+        <p class="admin-email-note">Kredencialet i dërgohen përdoruesit me email pas krijimit (simulim).</p>
+      </form>
+      <section class="glass-card"><p class="eyebrow">Profile aktive</p><h2>Mësuesit dhe prindërit</h2>
+        ${[...roleData.teachers.map((x) => ({...x,type:"teachers"})), ...roleData.parents.map((x) => ({...x,type:"parents"}))].map((person) => `<div class="admin-person-row"><span><strong>${escapeHtml(person.name)}</strong><small>${escapeHtml(person.email)}</small></span><button class="danger-button" data-action="delete-account" data-account-type="${person.type}" data-account-id="${person.id}">Fshi</button></div>`).join("")}
+      </section>
+    </section>
+    <section class="glass-card"><div class="card-header"><div><p class="eyebrow">Lidhjet</p><h2>Cakto mësuesin dhe prindin për çdo fëmijë</h2></div><button class="primary-button" data-action="open-add-student">+ Shto fëmijë</button></div>
+      ${state.students.map((student) => `<form class="admin-link-row" data-admin-link="${student.id}"><strong>${student.nickname}</strong><select name="teacherId"><option value="">Pa mësues</option>${roleData.teachers.map((person) => `<option value="${person.id}" ${student.teacherId === person.id ? "selected" : ""}>${escapeHtml(person.name)}</option>`).join("")}</select><select name="parentId"><option value="">Pa prind</option>${roleData.parents.map((person) => `<option value="${person.id}" ${student.parentId === person.id ? "selected" : ""}>${escapeHtml(person.name)}</option>`).join("")}</select><button class="secondary-button" type="submit">Ruaj lidhjen</button><button class="danger-button" type="button" data-action="delete-child" data-student-id="${student.id}">Fshi</button></form>`).join("")}
+    </section>`;
 }
 
 function attachRouteBehaviors(route) {
@@ -408,22 +519,38 @@ function attachRouteBehaviors(route) {
   if (route === "boards") attachCommunicationModuleApi();
 }
 
-function attachCommunicationModuleApi() {
+async function attachCommunicationModuleApi() {
   const frame = document.querySelector(".communication-module-frame");
   if (!frame) return;
 
-  try {
-    const moduleTemplate = document.getElementById("communicationModuleTemplate");
-    if (!moduleTemplate) throw new Error("Communication module unavailable");
+  const resizeFrameToContent = () => {
+    const frameDocument = frame.contentDocument;
+    if (!frameDocument) return;
 
-    const moduleHtml = `<!doctype html><html lang="sq"><head><meta charset="UTF-8"></head><body>${moduleTemplate.innerHTML}</body></html>`;
-    const apiKeyDeclaration = /const\s+OPENAI_API_KEY\s*=\s*(?:"VENDOS_API_KEY_KETU"|"")\s*;/;
-    if (!apiKeyDeclaration.test(moduleHtml)) throw new Error("API key declaration unavailable");
-
-    frame.srcdoc = moduleHtml.replace(
-      apiKeyDeclaration,
-      `const OPENAI_API_KEY = ${JSON.stringify(openAIApiKey)};`
+    const contentHeight = Math.max(
+      frameDocument.documentElement?.scrollHeight || 0,
+      frameDocument.body?.scrollHeight || 0,
+      window.innerHeight - 144
     );
+    frame.style.height = `${contentHeight}px`;
+  };
+
+  frame.addEventListener("load", () => {
+    resizeFrameToContent();
+
+    const frameDocument = frame.contentDocument;
+    if (!frameDocument || typeof ResizeObserver === "undefined") return;
+
+    const contentObserver = new ResizeObserver(resizeFrameToContent);
+    contentObserver.observe(frameDocument.documentElement);
+    if (frameDocument.body) contentObserver.observe(frameDocument.body);
+  }, { once: true });
+
+  try {
+    const response = await fetch(frame.dataset.moduleSrc);
+    if (!response.ok) throw new Error("Communication module unavailable");
+
+    frame.srcdoc = await response.text();
   } catch (error) {
     console.error(error);
     frame.replaceWith(Object.assign(document.createElement("p"), {
@@ -485,6 +612,7 @@ function renderStudents() {
 }
 
 function renderStudentList() {
+  const students = visibleStudents();
   return `
     <section class="student-list-heading">
       <div>
@@ -492,13 +620,10 @@ function renderStudentList() {
         <h2>Profilet e nxënësve</h2>
         <p>Zgjidhni një pseudonim për të hapur profilin e plotë.</p>
       </div>
-      <div class="student-list-actions">
-        <span class="privacy-badge">Vetëm pseudonime</span>
-        <button class="student-add-button" type="button" data-action="open-add-student">+ Shto profil</button>
-      </div>
+      <div class="student-list-actions"><span class="privacy-badge">Vetëm profilet e caktuara nga administratori</span></div>
     </section>
     <section class="student-preview-grid" aria-label="Lista e profileve të nxënësve">
-      ${state.students.map((student) => `
+      ${students.map((student) => `
         <button
           class="student-preview-card"
           type="button"
@@ -591,11 +716,12 @@ function addStudentProfile(formData) {
   state.students.push(student);
   state.scheduleByStudent[student.id] = createInitialSchedule();
   state.progressByStudent[student.id] = [];
+  state.reportsByStudent[student.id] = [];
   activateStudent(student);
   state.studentProfileOpen = false;
   state.activity.unshift({ title: "U shtua profil i ri", detail: `Profili ${student.nickname} u krijua me pseudonim.` });
   closeModal();
-  navigate("students");
+  navigate(activeRole === "admin" ? "admin" : "students");
   toast("Profili i ri u shtua.");
 }
 
@@ -629,7 +755,7 @@ function profileCard(title, items) {
 
 function renderUpload() {
   return `
-    <section class="glass-card">
+    <form class="glass-card" id="planGenerationForm">
       <p class="eyebrow">Lexuesi i PIA / IEP</p>
       <h2>Ngarko ose ngjit planin e nxënësit</h2>
       <p>Mbështet PDF, DOCX, TXT dhe tekst të kopjuar. Emrat, inicialet dhe termat mjekësorë filtrohen para analizimit.</p>
@@ -650,11 +776,11 @@ Objektivi afatgjatë: Të përfundojë rutinat e klasës me më shumë pavarësi
 Përforcues: Zgjedhja e rolit ndihmës në klasë.</textarea>
       </label>
       <div class="toolbar">
-        <button class="primary-button" data-action="parse-plan">Analizo planin e nxënësit</button>
-        <button class="secondary-button" data-route="students">Hap profilin aktual</button>
+        <button class="primary-button" type="submit">Analizo planin e nxënësit</button>
+        <button class="secondary-button" type="button" data-route="students">Hap profilin aktual</button>
       </div>
-    </section>
-    <section id="parserOutput"></section>
+    </form>
+    <section id="parserOutput" aria-live="polite"></section>
   `;
 }
 
@@ -770,10 +896,11 @@ function materialCard(title, items) {
 
 function renderCommunicationBoards() {
   return `
-    <section class="communication-module-shell" aria-label="Tabela komunikimi">
+    <section class="communication-module-shell" aria-label="Gjenero materiale">
       <iframe
         class="communication-module-frame"
-        title="Tabela komunikimi"
+        title="Gjenero materiale"
+        data-module-src="components/tabela-komunikimi/module/final.html"
       ></iframe>
     </section>
   `;
@@ -810,7 +937,7 @@ function renderSchedule() {
           <p>Çdo profil ka orarin e vet.</p>
         </div>
         <div class="schedule-student-options">
-          ${state.students.map((student) => `
+          ${visibleStudents().map((student) => `
             <button
               type="button"
               data-action="schedule-student"
@@ -967,7 +1094,9 @@ function escapeHtml(value) {
 }
 
 function renderProgress() {
+  const students = visibleStudents();
   return `
+    <section class="student-preview-grid progress-student-picker">${students.map((student) => `<button class="student-preview-card" type="button" data-action="select-progress-student" data-student-id="${student.id}"><span class="animal-avatar">${animalIcon(student.animal)}</span><span class="student-preview-name">${student.nickname}</span><span class="student-preview-initials">${student.id === state.currentStudent.id ? "I zgjedhur" : "Zgjidh"}</span></button>`).join("")}</section>
     <section class="progress-results-layout">
       <form class="glass-card progress-result-form" id="progressForm">
         <p class="eyebrow">Rezultat i ri</p>
@@ -986,6 +1115,16 @@ function renderProgress() {
       </section>
     </section>
   `;
+}
+
+function renderParentProgress() {
+  const students = visibleStudents();
+  return `<section class="student-preview-grid">${students.map((student) => `<article class="glass-card"><span class="animal-avatar">${animalIcon(student.animal)}</span><h2>${student.nickname}</h2><h3>Progresi i fëmijës</h3><ul class="result-list">${getStudentProgress(student.id).slice().reverse().map((entry) => `<li><time>${escapeHtml(entry.date)}</time><div><strong>${escapeHtml(entry.goal)}</strong><p>${escapeHtml(entry.result)}</p></div></li>`).join("") || "<li>Ende nuk ka shënime progresi.</li>"}</ul></article>`).join("") || `<div class="glass-card">Administratori nuk ka lidhur ende një fëmijë me këtë llogari.</div>`}</section>`;
+}
+
+function renderParentReports() {
+  if (state.reportPreviewOpen) return renderReports();
+  return `<section class="student-list-heading"><div><p class="eyebrow">Raporte private</p><h2>Raportet e fëmijës</h2></div></section><section class="report-student-grid">${visibleStudents().map((student) => `<article class="glass-card"><span class="animal-avatar">${animalIcon(student.animal)}</span><h2>${student.nickname}</h2>${(state.reportsByStudent[student.id] || []).slice().reverse().map((report) => `<div class="admin-email-note"><small>${escapeHtml(report.date)}</small><p>${escapeHtml(report.text)}</p></div>`).join("") || `<p>Ende nuk ka raport të publikuar.</p>`}<button class="secondary-button" type="button" data-action="open-report-preview" data-student-id="${student.id}">Hap raportin e progresit</button></article>`).join("")}</section>`;
 }
 
 function renderReports() {
@@ -1019,12 +1158,18 @@ function renderReports() {
 
 function renderReportList() {
   return `
+    <form class="glass-card" id="teacherReportForm">
+      <p class="eyebrow">Raport i ri</p><h2>Shkruaj raport për fëmijën</h2>
+      ${field("Fëmija", `<select name="studentId">${visibleStudents().map((student) => `<option value="${student.id}">${student.nickname}</option>`).join("")}</select>`)}
+      ${field("Raporti", `<textarea name="report" required placeholder="Shkruani përmbledhjen për familjen..."></textarea>`)}
+      <button class="primary-button" type="submit">Publiko raportin</button>
+    </form>
     <section class="student-list-heading report-list-heading">
       <div><p class="eyebrow">Raporte për prindër</p><h2>Zgjidhni nxënësin</h2><p>Çdo profil ka preview-n dhe raportin e vet.</p></div>
       <span class="privacy-badge">Raporte private</span>
     </section>
     <section class="report-student-grid" aria-label="Lista e raporteve të nxënësve">
-      ${state.students.map((student) => {
+      ${visibleStudents().map((student) => {
         const results = getStudentProgress(student.id);
         return `<button class="report-student-card" type="button" data-action="open-report-preview" data-student-id="${student.id}" aria-label="Hap raportin e ${student.nickname}, ${student.initials}">
           <span class="animal-avatar" aria-hidden="true">${animalIcon(student.animal)}</span>
@@ -1119,51 +1264,42 @@ Objektivi i menjëhershëm: Përdor mbështetje vizuale gjatë rutinës së klas
   toast("Dokumenti u ngarkua dhe u anonimizua.");
 }
 
-async function parsePlanFromInputs() {
+async function generatePlan() {
   const output = document.getElementById("parserOutput");
   const textArea = document.getElementById("planText");
-  const text = sanitizePlanText(textArea.value);
+  const userInputValue = sanitizePlanText(textArea.value);
 
-  if (!text) {
+  if (!userInputValue) {
     output.innerHTML = `<section class="glass-card parser-error"><h3>Teksti mungon</h3><p>Ngarkoni një dokument ose ngjitni tekstin e planit para analizimit.</p></section>`;
     toast("Shtoni tekstin e planit para analizimit.");
     return;
   }
 
-  textArea.value = text;
+  textArea.value = userInputValue;
   output.innerHTML = document.getElementById("loadingTemplate").innerHTML;
 
   try {
-    const parsed = await parseIEP(text);
-    const student = privatizeStudent(normalizeParsedStudent(parsed));
-    const summary = buildPlanSummary(student);
-    state.students.unshift(student);
-    state.scheduleByStudent[student.id] = createInitialSchedule();
-    state.progressByStudent[student.id] = [];
-    activateStudent(student);
-    state.activity.unshift({ title: "Plani u analizua", detail: `Përmbledhja private e ${student.nickname} u krijua.` });
-    refreshDerivedState();
+    const response = await fetch("http://localhost:5001/api/generate-plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: userInputValue })
+    });
+
+    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+
+    const data = await response.json();
     output.innerHTML = `
       <section class="glass-card plan-summary">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Analizë e anonimizuar</p>
-            <h3>Përmbledhja e planit</h3>
-          </div>
-          <span class="privacy-badge">E anonimizuar</span>
-        </div>
-        <div class="plan-summary-grid">
-          ${summaryCard("Pikat e forta", summary.strengths)}
-          ${summaryCard("Sfidat kryesore", summary.challenges)}
-          ${summaryCard("Objektivat e sugjeruara", summary.objectives)}
-        </div>
-        <button class="primary-button" data-route="students">Shiko profilin e nxënësit</button>
+        <p class="eyebrow">Plani i gjeneruar</p>
+        <h3>Rezultati</h3>
+        <div id="generatedPlan"></div>
       </section>`;
-    toast("Përmbledhja private u krijua.");
+    document.getElementById("generatedPlan").textContent = data.plan ?? "";
+    toast("Plani u krijua.");
   } catch (error) {
     console.error(error);
-    output.innerHTML = `<section class="glass-card parser-error"><h3>Analizimi dështoi</h3><p>Kontrolloni tekstin dhe provoni përsëri.</p></section>`;
-    toast("Nuk mundëm ta analizonim planin. Provoni përsëri.");
+    output.innerHTML = `<section class="glass-card parser-error"><h3>Gjenerimi dështoi</h3><p>Shërbimi lokal nuk mund ta krijonte planin.</p></section>`;
+    toast("Nuk mundëm ta krijonim planin.");
   }
 }
 
