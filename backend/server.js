@@ -5,6 +5,9 @@ const { OpenAI, toFile } = require('openai');
 const { GoogleGenAI } = require('@google/genai');
 const mammoth = require('mammoth');
 const { PDFParse } = require('pdf-parse');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 
 // DEBUG: Check if key is loaded
 console.log("Key check:", process.env.OPENAI_API_KEY ? "Key loaded successfully! ✅" : "NO KEY FOUND ❌");
@@ -37,6 +40,101 @@ Example Response Style:
 
 app.use(cors());
 app.use(express.json({ limit: '30mb' }));
+
+const CALENDAR_STORE = path.join(__dirname, 'data', 'calendar-events.json');
+
+function readCalendarEvents() {
+  try {
+    return JSON.parse(fs.readFileSync(CALENDAR_STORE, 'utf8'));
+  } catch {
+    return [];
+  }
+}
+
+function writeCalendarEvents(events) {
+  fs.mkdirSync(path.dirname(CALENDAR_STORE), { recursive: true });
+  fs.writeFileSync(CALENDAR_STORE, JSON.stringify(events, null, 2));
+}
+
+app.get('/api/calendar-events', (req, res) => {
+  const teacherId = String(req.query.teacherId || '').trim();
+  if (!teacherId) return res.status(400).json({ error: 'Mungon identifikuesi i mësueses.' });
+  const events = readCalendarEvents()
+    .filter((event) => event.teacherId === teacherId)
+    .sort((a, b) => `${a.date} ${a.time || ''}`.localeCompare(`${b.date} ${b.time || ''}`));
+  res.json({ events });
+});
+
+app.post('/api/calendar-events', (req, res) => {
+  const teacherId = String(req.body?.teacherId || '').trim();
+  const date = String(req.body?.date || '').trim();
+  const title = String(req.body?.title || '').trim();
+  if (!teacherId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !title) {
+    return res.status(400).json({ error: 'Mësuesja, data dhe titulli janë të detyrueshme.' });
+  }
+  const events = readCalendarEvents();
+  const requestedId = String(req.body?.id || '').trim();
+  const existingIndex = events.findIndex((event) => event.id === requestedId && event.teacherId === teacherId);
+  const calendarEvent = {
+    id: existingIndex >= 0 ? events[existingIndex].id : crypto.randomUUID(),
+    teacherId,
+    studentId: String(req.body?.studentId || '').trim(),
+    date,
+    time: String(req.body?.time || '').slice(0, 5),
+    type: ['EXAM', 'HOLIDAY', 'TRIP', 'DEADLINE', 'OTHER'].includes(req.body?.type) ? req.body.type : 'OTHER',
+    title: title.slice(0, 120),
+    notes: String(req.body?.notes || '').trim().slice(0, 1000),
+    updatedAt: new Date().toISOString()
+  };
+  if (existingIndex >= 0) events[existingIndex] = calendarEvent;
+  else events.push(calendarEvent);
+  writeCalendarEvents(events);
+  res.json({ event: calendarEvent });
+});
+
+app.post('/api/calendar-events/sync-birthday', (req, res) => {
+  const studentId = String(req.body?.studentId || '').trim();
+  const teacherId = String(req.body?.teacherId || '').trim();
+  const studentName = String(req.body?.studentName || '').trim();
+  const birthday = String(req.body?.birthday || '').trim();
+  if (!studentId) return res.status(400).json({ error: 'Mungon identifikuesi i nxënësit.' });
+  const sourceKey = `birthday:${studentId}`;
+  const events = readCalendarEvents().filter((event) => event.sourceKey !== sourceKey);
+  const match = birthday.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!teacherId || !studentName || !match) {
+    writeCalendarEvents(events);
+    return res.json({ event: null });
+  }
+  const [, day, month] = match;
+  const now = new Date();
+  let year = now.getFullYear();
+  if (`${year}-${month}-${day}` < now.toISOString().slice(0, 10)) year += 1;
+  const birthdayEvent = {
+    id: crypto.randomUUID(),
+    teacherId,
+    date: `${year}-${month}-${day}`,
+    time: '',
+    type: 'BIRTHDAY',
+    title: `Ditëlindja: ${studentName}`.slice(0, 120),
+    notes: 'Përsëritet çdo vit',
+    sourceKey,
+    recurrence: 'ANNUAL',
+    monthDay: `${month}-${day}`,
+    updatedAt: new Date().toISOString()
+  };
+  events.push(birthdayEvent);
+  writeCalendarEvents(events);
+  res.json({ event: birthdayEvent });
+});
+
+app.delete('/api/calendar-events/:id', (req, res) => {
+  const teacherId = String(req.query.teacherId || '').trim();
+  const events = readCalendarEvents();
+  const nextEvents = events.filter((event) => !(event.id === req.params.id && event.teacherId === teacherId));
+  if (nextEvents.length === events.length) return res.status(404).json({ error: 'Ngjarja nuk u gjet.' });
+  writeCalendarEvents(nextEvents);
+  res.json({ success: true });
+});
 
 app.post('/api/extract-plan-text', async (req, res) => {
   try {

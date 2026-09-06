@@ -1,4 +1,4 @@
-import { renderDashboard } from "./dashboard.js";
+import { renderDashboard } from "./dashboard.js?v=7";
 import { parseIEP, normalizeParsedStudent, sanitizePlanText, Student, placeholderEncryptedStorage } from "./parser.js";
 import { educationalTools, recommendTools, generateLesson } from "./toolMatcher.js";
 import { generateAAC, materialToMarkdown } from "./aacGenerator.js";
@@ -45,9 +45,12 @@ const state = {
   completedGoals: new Set(),
   lastMaterial: null,
   selectedMood: "I/e qetë",
-  scheduleDay: 0,
+  scheduleDay: (new Date().getDay() + 6) % 7,
   scheduleWeekOffset: 0,
+  selectedScheduleDate: new Date().toISOString().slice(0, 10),
   scheduleByStudent: {},
+  calendarYear: new Date().getFullYear(),
+  calendarEvents: [],
   teachingMaterials: JSON.parse(localStorage.getItem("atlas-teaching-materials") || "[]"),
   uploadedPlanText: "",
   uploadedPlanFileName: "",
@@ -65,7 +68,7 @@ let appInitialized = false;
 const atlasChatSessionId = localStorage.getItem("atlas-chat-session") || crypto.randomUUID();
 localStorage.setItem("atlas-chat-session", atlasChatSessionId);
 
-const scheduleDays = ["E hënë", "E martë", "E mërkurë", "E enjte", "E premte"];
+const scheduleDays = ["E hënë", "E martë", "E mërkurë", "E enjte", "E premte", "E shtunë", "E diel"];
 
 function createInitialSchedule() {
   const activities = [
@@ -128,7 +131,7 @@ function showRoleChoices() {
   roleWelcome.classList.remove("hidden");
 }
 
-function handleRoleLogin(event) {
+async function handleRoleLogin(event) {
   event.preventDefault();
   const formData = new FormData(roleLoginForm);
   const role = String(formData.get("role"));
@@ -142,12 +145,13 @@ function handleRoleLogin(event) {
   document.querySelector(".atlas-guide-widget").toggleAttribute("inert", role !== "teacher");
   document.querySelector(".atlas-guide-widget").classList.toggle("hidden", role !== "teacher");
   document.getElementById("roleLabel").textContent = `${{ admin: "Administrator", teacher: "Mësues", parent: "Prind" }[role]} · ${user.name}`;
-  if (!appInitialized) init();
+  if (!appInitialized) await init();
   else {
     const firstVisibleStudent = visibleStudents()[0] || null;
     if (firstVisibleStudent) activateStudent(firstVisibleStudent);
     else state.currentStudent = null;
     renderNavigation();
+    await loadCalendarEvents();
     navigate(firstVisibleStudent || role === "admin" ? routes[0][0] : "students");
   }
 }
@@ -171,10 +175,20 @@ async function init() {
     student.parentId ||= index === 0 ? "parent-demo" : "";
   });
   saveStudents();
+  await Promise.all(state.students.map((student) => syncStudentBirthdayEvent(student)));
   state.currentStudent = state.students[0];
-  state.scheduleByStudent = Object.fromEntries(state.students.map((student) => [student.id, createInitialSchedule()]));
+  const savedSchedules = JSON.parse(localStorage.getItem("atlas-schedules") || "null");
+  state.scheduleByStudent = savedSchedules && typeof savedSchedules === "object" ? savedSchedules : {};
+  state.students.forEach((student) => getStudentSchedule(student.id));
+  persistSchedules();
   seedProgress();
-  state.progressByStudent = Object.fromEntries(state.students.map((student, index) => [student.id, index === 0 ? state.progressEntries : []]));
+  const savedProgress = JSON.parse(localStorage.getItem("atlas-progress") || "null");
+  state.progressByStudent = savedProgress && typeof savedProgress === "object"
+    ? savedProgress
+    : Object.fromEntries(state.students.map((student, index) => [student.id, index === 0 ? state.progressEntries : []]));
+  state.students.forEach((student) => { state.progressByStudent[student.id] ||= []; });
+  state.progressEntries = state.progressByStudent[state.currentStudent.id];
+  persistProgress();
   state.reportsByStudent = Object.fromEntries(state.students.map((student) => [student.id, []]));
   refreshDerivedState();
   state.activity = [
@@ -188,6 +202,7 @@ async function init() {
       time: new Date()
     }
   ];
+  await loadCalendarEvents();
   bindGlobalEvents();
   appInitialized = true;
   renderNavigation();
@@ -255,6 +270,39 @@ function bindGlobalEvents() {
     if (event.key === "Escape") closeModal();
   });
   searchInput.addEventListener("input", handleSearch);
+  window.addEventListener("storage", handleLiveDataUpdate);
+  window.setInterval(refreshParentLiveData, 15000);
+}
+
+function handleLiveDataUpdate(event) {
+  if (event.key === "atlas-progress" && event.newValue) {
+    try {
+      state.progressByStudent = JSON.parse(event.newValue) || {};
+      state.progressEntries = getStudentProgress(state.currentStudent?.id);
+      refreshDerivedState();
+      if (state.route === "progress" || state.route === "reports") navigate(state.route, { keepReportPreview: state.reportPreviewOpen });
+    } catch { /* Injoro të dhënat jo të plota gjatë sinkronizimit. */ }
+  }
+  if (event.key === "atlas-schedules" && event.newValue) {
+    try {
+      state.scheduleByStudent = JSON.parse(event.newValue) || {};
+      if (state.route === "schedules") navigate("schedules");
+    } catch { /* Injoro të dhënat jo të plota gjatë sinkronizimit. */ }
+  }
+  const teacherId = calendarTeacherId();
+  if (teacherId && event.key === `atlas-calendar-${teacherId}` && event.newValue) {
+    try {
+      state.calendarEvents = filterCalendarEventsForRole(JSON.parse(event.newValue) || []);
+      if (state.route === "schedules" || state.route === "dashboard") navigate(state.route);
+    } catch { /* Injoro të dhënat jo të plota gjatë sinkronizimit. */ }
+  }
+}
+
+async function refreshParentLiveData() {
+  if (activeRole !== "parent") return;
+  const previous = JSON.stringify(state.calendarEvents);
+  await loadCalendarEvents();
+  if (previous !== JSON.stringify(state.calendarEvents) && (state.route === "schedules" || state.route === "dashboard")) navigate(state.route);
 }
 
 function handleClick(event) {
@@ -286,8 +334,22 @@ function handleClick(event) {
     "schedule-day": () => selectScheduleDay(Number(dayIndex)),
     "schedule-student": () => selectScheduleStudent(studentId),
     "schedule-next-week": nextScheduleWeek,
+    "schedule-previous-week": previousScheduleWeek,
+    "manage-selected-date": () => openCalendarDate(state.selectedScheduleDate),
     "toggle-slot-complete": () => toggleScheduleSlot(slotId),
     "edit-schedule-slot": () => openScheduleSlotEditor(slotId),
+    "open-full-calendar": openCalendarModal,
+    "calendar-previous-year": () => changeCalendarYear(-1),
+    "calendar-next-year": () => changeCalendarYear(1),
+    "calendar-today": () => { state.calendarYear = new Date().getFullYear(); openCalendarModal(); },
+    "open-calendar-date": () => openCalendarDate(actionButton.dataset.date),
+    "view-schedule-date": () => selectScheduleDate(actionButton.dataset.date),
+    "edit-calendar-event": () => openCalendarDate(actionButton.dataset.date, actionButton.dataset.eventId),
+    "delete-calendar-event": () => deleteCalendarEvent(actionButton.dataset.eventId),
+    "save-calendar-event": () => {
+      const form = document.getElementById("calendarEventForm");
+      if (form?.reportValidity()) saveCalendarEvent(new FormData(form));
+    },
     "close-modal": closeModal,
     "parse-plan": generatePlan,
     "tool-details": () => showToolDetails(toolId),
@@ -450,12 +512,16 @@ async function handleSubmit(event) {
     student.teacherId = String(formData.get("teacherId"));
     student.parentId = String(formData.get("parentId"));
     saveStudents();
+    syncStudentBirthdayEvent(student);
     navigate("admin");
     toast("Lidhja e fëmijës u ruajt.");
     return;
   }
   if (event.target.id === "scheduleSlotForm") {
     saveScheduleSlot(new FormData(event.target));
+  }
+  if (event.target.id === "calendarEventForm") {
+    await saveCalendarEvent(new FormData(event.target));
   }
   if (event.target.id === "addStudentForm") {
     if (activeRole !== "admin") return toast("Vetëm administratori mund të shtojë fëmijë.");
@@ -477,14 +543,6 @@ async function handleSubmit(event) {
   if (event.target.id === "progressForm") {
     addProgressEntry(new FormData(event.target));
   }
-  if (event.target.id === "teacherReportForm") {
-    const formData = new FormData(event.target);
-    const studentId = String(formData.get("studentId"));
-    state.reportsByStudent[studentId] ||= [];
-    state.reportsByStudent[studentId].push({ date: new Date().toLocaleDateString("sq-AL"), text: String(formData.get("report")) });
-    navigate("reports");
-    toast("Raporti u publikua dhe është i dukshëm për prindin.");
-  }
 }
 
 function handleInput(event) {
@@ -500,6 +558,10 @@ function handleInput(event) {
 }
 
 function handleChange(event) {
+  if (event.target.matches("[data-schedule-date-picker]")) {
+    selectScheduleDate(event.target.value);
+    return;
+  }
   if (event.target.id === "fileUpload") {
     const file = event.target.files[0];
     if (file) readPlanFile(file);
@@ -811,6 +873,7 @@ function updateStudentProfile(formData) {
   student.allergies = lines("allergies");
   if (!student.allergies.length) student.allergies = ["Nuk janë shënuar alergji"];
   saveStudents();
+  syncStudentBirthdayEvent(student);
   if (state.currentStudent?.id === student.id) activateStudent(student);
   closeModal();
   navigate("admin");
@@ -850,6 +913,7 @@ function addStudentProfile(formData) {
 
   state.students.push(student);
   saveStudents();
+  syncStudentBirthdayEvent(student);
   state.scheduleByStudent[student.id] = createInitialSchedule();
   state.progressByStudent[student.id] = [];
   state.reportsByStudent[student.id] = [];
@@ -1165,7 +1229,8 @@ function renderCommunicationBoards() {
 }
 
 function renderSchedule() {
-  const entries = getStudentSchedule(state.currentStudent.id)[state.scheduleDay];
+  const entries = getStudentSchedule(state.currentStudent.id)[state.scheduleDay] || [];
+  const weekDates = scheduleWeekDates();
   const goals = state.currentStudent.immediateObjectives.length
     ? state.currentStudent.immediateObjectives
     : ["Të ndjekë rutinën e ditës", "Të kërkojë ndihmë"];
@@ -1174,19 +1239,26 @@ function renderSchedule() {
       <svg class="schedule-decoration flower-one" viewBox="0 0 80 80" aria-hidden="true"><path d="M39 42C18 45 11 27 25 22c-1-17 23-19 27-4 16-5 24 17 9 25 8 15-14 25-22 10-10 12-28-3-17-15 4-4 10-3 17 4Z"/><circle cx="40" cy="38" r="9"/></svg>
       <svg class="schedule-decoration leaf-sprig" viewBox="0 0 90 90" aria-hidden="true"><path d="M15 76C32 58 48 40 70 17"/><ellipse cx="30" cy="59" rx="13" ry="7" transform="rotate(38 30 59)"/><ellipse cx="47" cy="43" rx="13" ry="7" transform="rotate(-32 47 43)"/><ellipse cx="62" cy="28" rx="12" ry="7" transform="rotate(35 62 28)"/></svg>
       <div class="schedule-heading">
-        <div>
+        <div class="schedule-heading-title">
           <p class="eyebrow">PlanifikoMeAtlas</p>
           <h2>Orari i javës</h2>
-          <p>Organizoni aktivitetet dhe lidhni objektivat me çdo orë.</p>
         </div>
         <div class="schedule-week-control">
-          <span>Java ${state.scheduleWeekOffset + 1}</span>
-          <button type="button" data-action="schedule-next-week">Java tjetër →</button>
+          <button class="schedule-calendar-button" type="button" data-action="open-full-calendar">Shiko Kalendarin</button>
+          <label class="schedule-date-picker"><span>Zgjidh datën</span><input type="date" data-schedule-date-picker value="${state.selectedScheduleDate}" /></label>
+          ${activeRole === "parent" ? `<span class="schedule-read-only-badge">Vetëm për lexim</span>` : ""}
+        </div>
+        <div class="schedule-heading-lower">
+          <p>${activeRole === "parent" ? "Orari përditësohet automatikisht nga mësuesja." : "Organizoni aktivitetet dhe lidhni objektivat me çdo orë."}</p>
+          <div class="schedule-week-buttons">
+            <button type="button" data-action="schedule-previous-week">← Java e kaluar</button>
+            <button type="button" data-action="schedule-next-week">Java tjetër →</button>
+          </div>
         </div>
       </div>
 
       <nav class="schedule-days" aria-label="Ditët e javës">
-        ${scheduleDays.map((day, index) => `<button type="button" data-action="schedule-day" data-day-index="${index}" aria-current="${index === state.scheduleDay ? "date" : "false"}">${day}</button>`).join("")}
+        ${scheduleDays.map((day, index) => `<button type="button" data-action="schedule-day" data-day-index="${index}" aria-current="${index === state.scheduleDay ? "date" : "false"}"><span>${day}</span><small>${formatScheduleDayDate(weekDates[index])}</small></button>`).join("")}
       </nav>
 
       <section class="schedule-student-picker" aria-label="Zgjidh nxënësin për orarin">
@@ -1209,7 +1281,7 @@ function renderSchedule() {
         </div>
       </section>
 
-      <section class="schedule-goal-bank">
+      ${activeRole === "teacher" ? `<section class="schedule-goal-bank">
         <div>
           <h3>Objektivat për t'u lidhur</h3>
           <p>Zvarriteni një objektiv te ora e dëshiruar.</p>
@@ -1217,7 +1289,7 @@ function renderSchedule() {
         <div class="schedule-goal-chips">
           ${goals.map((goal, index) => `<button class="schedule-goal-chip" type="button" draggable="true" data-schedule-goal="${escapeHtml(goal)}"><span aria-hidden="true">★</span>${escapeHtml(goal)}</button>`).join("")}
         </div>
-      </section>
+      </section>` : ""}
 
       <section class="schedule-day-panel">
         <div class="schedule-day-title">
@@ -1225,34 +1297,215 @@ function renderSchedule() {
           <div><p>Plani ditor</p><h3>${scheduleDays[state.scheduleDay]}</h3></div>
         </div>
         <div class="schedule-slots">
-          ${entries.map((slot, index) => `
-            <article class="schedule-slot schedule-pastel-${(index % 3) + 1}" data-schedule-slot="${slot.id}">
-              <button class="schedule-complete" type="button" data-action="toggle-slot-complete" data-slot-id="${slot.id}" aria-pressed="${slot.completed}" aria-label="${slot.completed ? "Shëno si të papërfunduar" : "Shëno si të përfunduar"}: ${escapeHtml(slot.activity)}">
+          ${entries.length ? entries.map((slot, index) => `
+            <article class="schedule-slot schedule-pastel-${(index % 3) + 1}" ${activeRole === "teacher" ? `data-schedule-slot="${slot.id}"` : ""}>
+              ${activeRole === "teacher" ? `<button class="schedule-complete" type="button" data-action="toggle-slot-complete" data-slot-id="${slot.id}" aria-pressed="${slot.completed}" aria-label="${slot.completed ? "Shëno si të papërfunduar" : "Shëno si të përfunduar"}: ${escapeHtml(slot.activity)}">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.8 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg>
-              </button>
-              <button class="schedule-slot-main" type="button" data-action="edit-schedule-slot" data-slot-id="${slot.id}">
+              </button>` : ""}
+              <${activeRole === "teacher" ? "button" : "div"} class="schedule-slot-main" ${activeRole === "teacher" ? `type="button" data-action="edit-schedule-slot" data-slot-id="${slot.id}"` : ""}>
                 <span class="schedule-time">${slot.start} – ${slot.end}</span>
                 <strong>${escapeHtml(slot.activity)}</strong>
-                <span class="schedule-linked-goal ${slot.goal ? "has-goal" : ""}">${slot.goal ? `Objektivi: ${escapeHtml(slot.goal)}` : "Shtoni ose zvarritni një objektiv"}</span>
-              </button>
-              <span class="schedule-edit-hint">Klikoni për ta ndryshuar</span>
+                <span class="schedule-linked-goal ${slot.goal ? "has-goal" : ""}">${slot.goal ? `Objektivi: ${escapeHtml(slot.goal)}` : (activeRole === "teacher" ? "Shtoni ose zvarritni një objektiv" : "Pa objektiv të caktuar")}</span>
+              </${activeRole === "teacher" ? "button" : "div"}>
+              ${activeRole === "teacher" ? `<span class="schedule-edit-hint">Klikoni për ta ndryshuar</span>` : ""}
             </article>
-          `).join("")}
+          `).join("") : `<div class="schedule-empty-day"><strong>Nuk ka orar të caktuar për këtë ditë.</strong><span>Zgjidhni një ditë tjetër ose javën e ardhshme.</span></div>`}
         </div>
+        <button class="secondary-button schedule-selected-events" type="button" data-action="manage-selected-date">${activeRole === "parent" ? "Shiko ngjarjet e kësaj date" : "Menaxho ngjarjet e kësaj date"}</button>
       </section>
     </section>
   `;
 }
 
+function renderYearCalendar() {
+  const months = ["Janar", "Shkurt", "Mars", "Prill", "Maj", "Qershor", "Korrik", "Gusht", "Shtator", "Tetor", "Nëntor", "Dhjetor"];
+  const weekdays = ["H", "M", "M", "E", "P", "S", "D"];
+  const today = new Date();
+  const monthCards = months.map((month, monthIndex) => {
+    const days = new Date(state.calendarYear, monthIndex + 1, 0).getDate();
+    const startOffset = (new Date(state.calendarYear, monthIndex, 1).getDay() + 6) % 7;
+    const blanks = Array.from({ length: startOffset }, () => `<span class="calendar-empty" aria-hidden="true"></span>`).join("");
+    const dateButtons = Array.from({ length: days }, (_, index) => {
+      const day = index + 1;
+      const date = `${state.calendarYear}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const events = state.calendarEvents.filter((event) => calendarEventDateForYear(event, state.calendarYear) === date);
+      const isToday = today.getFullYear() === state.calendarYear && today.getMonth() === monthIndex && today.getDate() === day;
+      const isSelected = state.selectedScheduleDate === date;
+      return `<button class="calendar-date ${events.length ? "has-events" : ""} ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}" type="button" data-action="open-calendar-date" data-date="${date}" aria-label="${day} ${month} ${state.calendarYear}${events.length ? `, ${events.length} ngjarje` : ""}"><span>${day}</span>${events.length ? `<small>${events.length}</small>` : ""}</button>`;
+    }).join("");
+    return `<article class="calendar-month"><h4>${month}</h4><div class="calendar-weekdays">${weekdays.map((day) => `<span>${day}</span>`).join("")}</div><div class="calendar-days">${blanks}${dateButtons}</div></article>`;
+  }).join("");
+
+  return `<section class="year-calendar" aria-label="Kalendari vjetor ${state.calendarYear}">
+    <div class="year-calendar-header"><div><p class="eyebrow">Datat e rëndësishme</p><h3>Kalendari ${state.calendarYear}</h3><p>Klikoni një datë për të hapur orarin e asaj dite.</p></div><div class="year-calendar-actions"><button type="button" data-action="calendar-previous-year" aria-label="Viti i kaluar">←</button><button type="button" data-action="calendar-today">Sot</button><button type="button" data-action="calendar-next-year" aria-label="Viti tjetër">→</button></div></div>
+    <div class="calendar-month-grid">${monthCards}</div>
+  </section>`;
+}
+
+function changeCalendarYear(offset) {
+  state.calendarYear += offset;
+  openCalendarModal();
+}
+
+function openCalendarModal() {
+  openModal("Planifikimi vjetor", `Kalendari ${state.calendarYear}`, renderYearCalendar());
+}
+
+function calendarTypeLabel(type) {
+  return ({ EXAM: "Provimi", HOLIDAY: "Pushim", TRIP: "Ekskursion", DEADLINE: "Afat", BIRTHDAY: "Ditëlindje", OTHER: "Tjetër" })[type] || "Tjetër";
+}
+
+function openCalendarDate(date, editEventId = "") {
+  const events = state.calendarEvents.filter((event) => calendarEventDateForYear(event, state.calendarYear) === date).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  const edited = events.find((event) => event.id === editEventId) || null;
+  const parsedDate = new Date(`${date}T00:00:00`);
+  const albanianDays = ["E diel", "E hënë", "E martë", "E mërkurë", "E enjte", "E premte", "E shtunë"];
+  const albanianMonths = ["janar", "shkurt", "mars", "prill", "maj", "qershor", "korrik", "gusht", "shtator", "tetor", "nëntor", "dhjetor"];
+  const displayDate = `${albanianDays[parsedDate.getDay()]}, ${parsedDate.getDate()} ${albanianMonths[parsedDate.getMonth()]} ${parsedDate.getFullYear()}`;
+  openModal("Planifikimi i datës", displayDate, `
+    <button class="secondary-button calendar-view-schedule" type="button" data-action="view-schedule-date" data-date="${date}">Shiko orarin e kësaj dite</button>
+    <section class="calendar-event-list">
+      ${events.length ? events.map((event) => `<article><span class="calendar-event-type">${calendarTypeLabel(event.type)}</span><div><strong>${escapeHtml(event.title)}</strong><small>${event.time ? `${event.time} · ` : ""}${escapeHtml(event.notes || "Pa shënime")}</small></div><div class="calendar-event-actions">${activeRole !== "teacher" || event.recurrence === "ANNUAL" ? `<span class="calendar-automatic-badge">${activeRole === "parent" ? "Vetëm lexim" : "Automatike"}</span>` : `<button type="button" data-action="edit-calendar-event" data-event-id="${event.id}" data-date="${date}">Ndrysho</button><button type="button" class="danger-button" data-action="delete-calendar-event" data-event-id="${event.id}">Fshi</button>`}</div></article>`).join("") : `<p class="calendar-no-events">Nuk ka ngjarje për këtë datë.</p>`}
+    </section>
+    ${activeRole === "teacher" ? `<form id="calendarEventForm" class="calendar-event-form">
+      <input type="hidden" name="id" value="${edited?.id || ""}" />
+      <input type="hidden" name="date" value="${date}" />
+      <h3>${edited ? "Ndrysho ngjarjen" : "Shto ngjarje"}</h3>
+      ${field("Titulli", `<input name="title" maxlength="120" value="${escapeHtml(edited?.title || "")}" placeholder="P.sh. Ekskursion në muze" required />`)}
+      ${field("Nxënësi", `<select name="studentId" required>${visibleStudents().map((student) => `<option value="${student.id}" ${(edited?.studentId || state.currentStudent?.id) === student.id ? "selected" : ""}>${escapeHtml(student.name)}</option>`).join("")}</select>`)}
+      <div class="calendar-event-form-row">${field("Lloji", `<select name="type">${[["EXAM", "Provimi"], ["HOLIDAY", "Pushim"], ["TRIP", "Ekskursion"], ["DEADLINE", "Afat"], ["OTHER", "Tjetër"]].map(([value, label]) => `<option value="${value}" ${edited?.type === value ? "selected" : ""}>${label}</option>`).join("")}</select>`)}${field("Ora (opsionale)", `<input name="time" type="time" value="${edited?.time || ""}" />`)}</div>
+      ${field("Shënime (opsionale)", `<textarea name="notes" rows="3" maxlength="1000">${escapeHtml(edited?.notes || "")}</textarea>`)}
+      <button class="primary-button" type="button" data-action="save-calendar-event">${edited ? "Ruaj ndryshimet" : "Shto në kalendar"}</button>
+    </form>` : ""}`);
+}
+
+function calendarTeacherId() {
+  if (activeRole === "teacher") return activeUser?.id || "";
+  if (activeRole === "parent") return visibleStudents()[0]?.teacherId || state.currentStudent?.teacherId || "";
+  return "";
+}
+
+async function loadCalendarEvents() {
+  const teacherId = calendarTeacherId();
+  if (!teacherId) {
+    state.calendarEvents = [];
+    return;
+  }
+  try {
+    const response = await fetch(`http://localhost:5001/api/calendar-events?teacherId=${encodeURIComponent(teacherId)}`);
+    if (!response.ok) throw new Error("Calendar unavailable");
+    state.calendarEvents = filterCalendarEventsForRole((await response.json()).events || []);
+  } catch {
+    state.calendarEvents = filterCalendarEventsForRole(JSON.parse(localStorage.getItem(`atlas-calendar-${teacherId}`) || "[]"));
+  }
+}
+
+function filterCalendarEventsForRole(events) {
+  if (activeRole !== "parent") return events;
+  const allowedStudentIds = new Set(visibleStudents().map((student) => String(student.id)));
+  return events.filter((event) => {
+    if (event.studentId) return allowedStudentIds.has(String(event.studentId));
+    if (event.sourceKey?.startsWith("birthday:")) return allowedStudentIds.has(event.sourceKey.slice("birthday:".length));
+    return false;
+  });
+}
+
+function calendarEventDateForYear(event, year) {
+  return event.recurrence === "ANNUAL" && event.monthDay ? `${year}-${event.monthDay}` : event.date;
+}
+
+async function syncStudentBirthdayEvent(student) {
+  try {
+    await fetch("http://localhost:5001/api/calendar-events/sync-birthday", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentId: student.id, teacherId: student.teacherId, studentName: student.name, birthday: student.birthday })
+    });
+  } catch (error) {
+    console.error("Birthday sync failed.", error);
+  }
+}
+
+async function saveCalendarEvent(formData) {
+  if (activeRole !== "teacher" || !activeUser?.id) return toast("Vetëm mësuesja mund të planifikojë ngjarje.");
+  const event = Object.fromEntries(formData.entries());
+  event.teacherId = activeUser.id;
+  try {
+    const response = await fetch("http://localhost:5001/api/calendar-events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(event) });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Ngjarja nuk u ruajt.");
+    const index = state.calendarEvents.findIndex((item) => item.id === payload.event.id);
+    if (index >= 0) state.calendarEvents[index] = payload.event;
+    else state.calendarEvents.push(payload.event);
+    localStorage.setItem(`atlas-calendar-${activeUser.id}`, JSON.stringify(state.calendarEvents));
+    closeModal();
+    navigate("schedules");
+    toast("Ngjarja u ruajt në kalendar.");
+  } catch (error) {
+    toast(error.message || "Ngjarja nuk u ruajt.");
+  }
+}
+
+async function deleteCalendarEvent(eventId) {
+  if (activeRole !== "teacher" || !activeUser?.id) return;
+  try {
+    const response = await fetch(`http://localhost:5001/api/calendar-events/${encodeURIComponent(eventId)}?teacherId=${encodeURIComponent(activeUser.id)}`, { method: "DELETE" });
+    if (!response.ok) throw new Error("Ngjarja nuk u fshi.");
+    state.calendarEvents = state.calendarEvents.filter((event) => event.id !== eventId);
+    localStorage.setItem(`atlas-calendar-${activeUser.id}`, JSON.stringify(state.calendarEvents));
+    closeModal();
+    navigate("schedules");
+    toast("Ngjarja u fshi.");
+  } catch (error) {
+    toast(error.message || "Ngjarja nuk u fshi.");
+  }
+}
+
 function selectScheduleDay(index) {
   if (!Number.isInteger(index) || index < 0 || index >= scheduleDays.length) return;
   state.scheduleDay = index;
+  state.selectedScheduleDate = scheduleWeekDates()[index];
+  navigate("schedules");
+}
+
+function mondayForDate(value) {
+  const date = new Date(`${value}T12:00:00`);
+  const day = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - day);
+  return date;
+}
+
+function scheduleWeekDates() {
+  const monday = mondayForDate(state.selectedScheduleDate);
+  return scheduleDays.map((_, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+    return date.toISOString().slice(0, 10);
+  });
+}
+
+function formatScheduleDayDate(value) {
+  const date = new Date(`${value}T12:00:00`);
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function selectScheduleDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return;
+  const date = new Date(`${value}T12:00:00`);
+  state.selectedScheduleDate = value;
+  state.scheduleDay = (date.getDay() + 6) % 7;
+  state.calendarYear = date.getFullYear();
+  closeModal();
   navigate("schedules");
 }
 
 function getStudentSchedule(studentId) {
   if (!state.scheduleByStudent[studentId]) state.scheduleByStudent[studentId] = createInitialSchedule();
   return state.scheduleByStudent[studentId];
+}
+
+function persistSchedules() {
+  localStorage.setItem("atlas-schedules", JSON.stringify(state.scheduleByStudent));
 }
 
 function selectScheduleStudent(studentId) {
@@ -1265,9 +1518,19 @@ function selectScheduleStudent(studentId) {
 }
 
 function nextScheduleWeek() {
-  state.scheduleWeekOffset = (state.scheduleWeekOffset + 1) % 4;
+  changeScheduleWeek(1);
+}
+
+function previousScheduleWeek() {
+  changeScheduleWeek(-1);
+}
+
+function changeScheduleWeek(offset) {
+  const date = new Date(`${state.selectedScheduleDate}T12:00:00`);
+  date.setDate(date.getDate() + offset * 7);
+  state.selectedScheduleDate = date.toISOString().slice(0, 10);
+  state.scheduleWeekOffset += offset;
   navigate("schedules");
-  toast(`U hap Java ${state.scheduleWeekOffset + 1}.`);
 }
 
 function findScheduleSlot(slotId) {
@@ -1275,14 +1538,17 @@ function findScheduleSlot(slotId) {
 }
 
 function toggleScheduleSlot(slotId) {
+  if (activeRole !== "teacher") return;
   const slot = findScheduleSlot(slotId);
   if (!slot) return;
   slot.completed = !slot.completed;
+  persistSchedules();
   navigate("schedules");
   toast(slot.completed ? "Objektivi i orës u përfundua!" : "Objektivi u rihap.");
 }
 
 function openScheduleSlotEditor(slotId) {
+  if (activeRole !== "teacher") return;
   const slot = findScheduleSlot(slotId);
   if (!slot) return;
   const goals = state.currentStudent.immediateObjectives;
@@ -1301,18 +1567,21 @@ function openScheduleSlotEditor(slotId) {
 }
 
 function saveScheduleSlot(formData) {
+  if (activeRole !== "teacher") return;
   const slot = findScheduleSlot(String(formData.get("slotId")));
   if (!slot) return;
   slot.start = String(formData.get("start"));
   slot.end = String(formData.get("end"));
   slot.activity = String(formData.get("activity")).trim();
   slot.goal = String(formData.get("goal") || "");
+  persistSchedules();
   closeModal();
   navigate("schedules");
   toast("Ora u përditësua.");
 }
 
 function handleScheduleDragStart(event) {
+  if (activeRole !== "teacher") return;
   const chip = event.target.closest("[data-schedule-goal]");
   if (!chip || !event.dataTransfer) return;
   event.dataTransfer.setData("text/plain", chip.dataset.scheduleGoal);
@@ -1320,6 +1589,7 @@ function handleScheduleDragStart(event) {
 }
 
 function handleScheduleDragOver(event) {
+  if (activeRole !== "teacher") return;
   const slot = event.target.closest("[data-schedule-slot]");
   if (!slot) return;
   event.preventDefault();
@@ -1327,11 +1597,13 @@ function handleScheduleDragOver(event) {
 }
 
 function handleScheduleDragLeave(event) {
+  if (activeRole !== "teacher") return;
   const slot = event.target.closest("[data-schedule-slot]");
   if (slot && !slot.contains(event.relatedTarget)) slot.classList.remove("drag-over");
 }
 
 function handleScheduleDrop(event) {
+  if (activeRole !== "teacher") return;
   const slotNode = event.target.closest("[data-schedule-slot]");
   if (!slotNode || !event.dataTransfer) return;
   event.preventDefault();
@@ -1339,6 +1611,7 @@ function handleScheduleDrop(event) {
   const goal = event.dataTransfer.getData("text/plain");
   if (!slot || !goal) return;
   slot.goal = goal;
+  persistSchedules();
   navigate("schedules");
   toast("Objektivi u lidh me orën.");
 }
@@ -1382,7 +1655,11 @@ function renderParentProgress() {
 
 function renderParentReports() {
   if (state.reportPreviewOpen) return renderReports();
-  return `<section class="student-list-heading"><div><p class="eyebrow">Raporte private</p><h2>Raportet e fëmijës</h2></div></section><section class="report-student-grid">${visibleStudents().map((student) => `<article class="glass-card"><span class="animal-avatar">${animalIcon(student.animal)}</span><h2>${student.nickname}</h2>${(state.reportsByStudent[student.id] || []).slice().reverse().map((report) => `<div class="admin-email-note"><small>${escapeHtml(report.date)}</small><p>${escapeHtml(report.text)}</p></div>`).join("") || `<p>Ende nuk ka raport të publikuar.</p>`}<button class="secondary-button" type="button" data-action="open-report-preview" data-student-id="${student.id}">Hap raportin e progresit</button></article>`).join("")}</section>`;
+  return `<section class="student-list-heading"><div><p class="eyebrow">Raporte private</p><h2>Raportet e fëmijës</h2></div></section><section class="report-student-grid">${visibleStudents().map((student) => {
+    const progress = getStudentProgress(student.id).slice().reverse();
+    const latest = progress[0];
+    return `<article class="glass-card"><span class="animal-avatar">${animalIcon(student.animal)}</span><h2>${student.nickname}</h2>${latest ? `<div class="admin-email-note"><small>${escapeHtml(latest.date)}</small><p>${escapeHtml(latest.goal)}: ${escapeHtml(latest.result)}</p></div>` : `<p>Ende nuk ka rezultate të regjistruara.</p>`}<button class="secondary-button" type="button" data-action="open-report-preview" data-student-id="${student.id}">Hap raportin e progresit</button></article>`;
+  }).join("")}</section>`;
 }
 
 function renderReports() {
@@ -1416,12 +1693,6 @@ function renderReports() {
 
 function renderReportList() {
   return `
-    <form class="glass-card" id="teacherReportForm">
-      <p class="eyebrow">Raport i ri</p><h2>Shkruaj raport për fëmijën</h2>
-      ${field("Fëmija", `<select name="studentId">${visibleStudents().map((student) => `<option value="${student.id}">${student.nickname}</option>`).join("")}</select>`)}
-      ${field("Raporti", `<textarea name="report" required placeholder="Shkruani përmbledhjen për familjen..."></textarea>`)}
-      <button class="primary-button" type="submit">Publiko raportin</button>
-    </form>
     <section class="student-list-heading report-list-heading">
       <div><p class="eyebrow">Raporte për prindër</p><h2>Zgjidhni nxënësin</h2><p>Çdo profil ka preview-n dhe raportin e vet.</p></div>
       <span class="privacy-badge">Raporte private</span>
@@ -1737,6 +2008,7 @@ function addProgressEntry(formData) {
     result: formData.get("result")
   });
   state.progressEntries.push(entry);
+  persistProgress();
   state.activity.unshift({ title: "Rezultati u regjistrua", detail: `${entry.goal}: ${entry.result}` });
   refreshDerivedState();
   toast("Rezultati u ruajt dhe është gati për raportin e prindërve.");
@@ -1771,6 +2043,10 @@ async function sendCoachMessage(message) {
   }
   state.chatMessages.push({ role: "ai", text: response, time: new Date() });
   navigate("coach");
+}
+
+function persistProgress() {
+  localStorage.setItem("atlas-progress", JSON.stringify(state.progressByStudent));
 }
 
 function renderMessage(message) {

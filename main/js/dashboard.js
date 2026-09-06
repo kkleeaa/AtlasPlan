@@ -31,7 +31,7 @@ export function renderDashboard(state) {
     </section>
     <section class="stats-grid dashboard-summary-grid">
       ${statCard("Profile aktive", state.students.length, "Nxënës të regjistruar", "profiles")}
-      ${statCard("Objektivat e ditës", student.immediateObjectives.length, "Të redaktueshme nga mësuesja", "objectives")}
+      ${importantDatesCard(state.calendarEvents || [])}
     </section>
     <section class="dashboard-grid">
       <article class="glass-card">
@@ -70,6 +70,29 @@ export function renderDashboard(state) {
       </article>
     </section>
   `;
+}
+
+function importantDatesCard(events) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcoming = events
+    .filter((event) => new Date(`${event.date}T00:00:00`) >= today)
+    .sort((a, b) => `${a.date} ${a.time || ""}`.localeCompare(`${b.date} ${b.time || ""}`))
+    .slice(0, 4);
+  return `<article class="stat-card important-dates-card">
+    <div class="important-dates-heading"><h3>Datat e Rëndësishme</h3></div>
+    <ul>${upcoming.length ? upcoming.map((event) => `<li><strong>${escapeDashboardText(event.title)}</strong><small>${formatEventDate(event.date)}${event.time ? `, ${event.time}` : ""}</small></li>`).join("") : `<li class="important-date-empty">Nuk ka data të planifikuara.</li>`}</ul>
+  </article>`;
+}
+
+function formatEventDate(date) {
+  const parsed = new Date(`${date}T00:00:00`);
+  const months = ["Janar", "Shkurt", "Mars", "Prill", "Maj", "Qershor", "Korrik", "Gusht", "Shtator", "Tetor", "Nëntor", "Dhjetor"];
+  return `${String(parsed.getDate()).padStart(2, "0")} ${months[parsed.getMonth()]}`;
+}
+
+function escapeDashboardText(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]);
 }
 
 function statCard(label, value, detail, icon) {
