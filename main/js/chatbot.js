@@ -1,11 +1,3 @@
-export const suggestedQuestions = [
-  "Si ta mësoj pritjen e radhës?",
-  "Si ta ul mbingarkesën shqisore?",
-  "Strategji alternative AAC?",
-  "Ide për orar vizual?",
-  "Shembuj për përforcim pozitiv?"
-];
-
 const responseMap = [
   {
     keywords: ["radh", "prit", "turn", "taking"],
@@ -37,14 +29,14 @@ export async function teacherCoach(message, student) {
   return `${match?.answer || "Fillo duke përcaktuar aftësinë që do të mësosh, zgjidh një lloj ndihme dhe mblidh një të dhënë të vogël çdo ditë. Mbaje rutinën të parashikueshme, përforco përpjekjen dhe ndrysho vetëm një element në të njëjtën kohë."}${studentContext}`;
 }
 
-export async function streamTeacherCoach(message, sessionId, onChunk) {
+export async function streamTeacherCoach(message, sessionId, onChunk, messages = [], context = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 50000);
   try {
-    const response = await fetch("http://localhost:5001/api/chat/atlas", {
+    const response = await fetch("http://localhost:5001/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, sessionId }),
+      body: JSON.stringify({ message, sessionId, messages, context }),
       signal: controller.signal
     });
     if (!response.ok) {

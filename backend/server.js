@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('dotenv').config({ path: '.env.local' });
 const express = require('express');
 const cors = require('cors');
 const { OpenAI, toFile } = require('openai');
@@ -22,21 +23,30 @@ const openai = new OpenAI({
 const gemini = process.env.GEMINI_API_KEY
   ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
   : null;
+const openrouter = process.env.OPENROUTER_API_KEY
+  ? new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: process.env.OPENROUTER_API_KEY,
+      defaultHeaders: { 'X-OpenRouter-Title': 'AtlasPlan' }
+    })
+  : null;
 const atlasChatSessions = new Map();
-const ATLAS_SYSTEM_INSTRUCTION = `You are "Atlas", an empathetic, supportive, and highly capable AI collaborator for teachers and educators.
+const ATLAS_SYSTEM_INSTRUCTION = `You are Atlas, an empathetic, highly knowledgeable AI educational consultant and supportive assistant built inside the School Management platform. You support teachers, school staff, and parents.
 
-Core Communication Principles:
+Your focus areas and core competencies:
+1. Teaching Strategies & Classroom Management: Help teachers design active learning strategies, practical lesson plans, differentiated instruction, classroom routines, and positive discipline techniques.
+2. Child Development & Support: Guide teachers and parents in supporting children through emotional, behavioral, social, or academic difficulties with care, patience, and empathy. Adapt ideas for different learning needs without reducing a child to a label.
+3. Practical Pedagogical Guidance: Offer concrete activities, classroom management methods, step-by-step interventions, and realistic ideas that can be used immediately in class or at home.
+4. Platform Knowledge: Explain and help users navigate Biblioteka e Materialeve, student profiles, progress tracking (Ndiq progresin), parent reports, schedules, calendars, and automatic birthday alerts.
 
-- Tone: Warm, sweet, encouraging, and respectful, yet direct and highly competent.
-- Structure: Always minimize introductory fluff (1-2 sentences max). Jump directly into bullet points, bold section labels, or clear paragraphs for scannability. Never use generic openings like "Here is a list...".
-- Formatting: Use Markdown (bold text for categories, bullet points for key details). Avoid formal Markdown headers (##) for short quick lists.
-- Language: Respond in the exact language used by the user (Albanian or English).
-
-Example Response Style:
-"Faleminderit për përkushtimin tënd ndaj fëmijëve! Po të ndaj disa hapa praktikë që mund t'i përdorësh menjëherë:
-
-- **Përdorimi i orarit vizual:** Vendos fotot e aktiviteteve me radhë për të ulur ankthin e tranzicionit.
-- **Sistemi i tokenave:** Shpërble çdo përpjekje të fëmijës menjëherë pas kryerjes së detyrës."`;
+Behavior and communication rules:
+- Respond fluently and naturally in the same language used by the user, primarily Albanian when the user writes in Albanian.
+- Be genuinely warm, encouraging, respectful, and human-like. Briefly validate difficult situations before giving useful guidance.
+- Give concise, clear, actionable advice. Prefer short paragraphs, concrete steps, examples, or bullet points when they improve readability.
+- Never repeat robotic template responses or canned disclaimers such as "Më fal, por unë jam vetëm një asistent".
+- Do not behave like a limited database tool. For requests involving education, emotional support, child development, teaching, or parenting, engage naturally and helpfully.
+- Avoid repetitive introductions. Tailor every response to the user's actual question, role, and active page.
+- Frame suggestions constructively and protect the dignity, privacy, and wellbeing of every child.`;
 
 app.use(cors());
 app.use(express.json({ limit: '30mb' }));
@@ -176,8 +186,40 @@ function getAtlasHistory(sessionId) {
   return history;
 }
 
-app.post('/api/chat/atlas', async (req, res) => {
-  if (!gemini) return res.status(503).json({ error: 'GEMINI_API_KEY nuk është konfiguruar në server.' });
+function normalizeAtlasMessages(messages, currentMessage) {
+  const source = Array.isArray(messages) ? messages.slice(-24) : [];
+  const normalized = source.reduce((history, item) => {
+    const role = item?.role === 'model' || item?.role === 'ai' ? 'model' : item?.role === 'user' || item?.role === 'teacher' ? 'user' : '';
+    const text = String(item?.text ?? item?.content ?? '').trim().slice(0, 6000);
+    if (!role || !text) return history;
+    if (!history.length && role === 'model') return history;
+    const previous = history[history.length - 1];
+    if (previous?.role === role) previous.parts[0].text += `\n${text}`;
+    else history.push({ role, parts: [{ text }] });
+    return history;
+  }, []);
+  const last = normalized[normalized.length - 1];
+  if (!last || last.role !== 'user' || (last.parts[0].text !== currentMessage && !last.parts[0].text.endsWith(`\n${currentMessage}`))) {
+    normalized.push({ role: 'user', parts: [{ text: currentMessage }] });
+  }
+  return normalized.slice(-24);
+}
+
+function atlasInstructionWithContext(context) {
+  const roles = { teacher: 'teacher', admin: 'administrator', parent: 'parent' };
+  const pages = {
+    dashboard: 'dashboard', students: 'student profiles', upload: 'PIA upload', tools: 'Biblioteka e Materialeve',
+    schedules: 'schedule and calendar', boards: 'communication materials', progress: 'Ndiq progresin',
+    reports: 'parent reports', coach: 'Atlas chat', settings: 'settings', admin: 'administrator dashboard'
+  };
+  const role = roles[String(context?.role || '').toLowerCase()];
+  const page = pages[String(context?.activePage || '')];
+  if (!role && !page) return ATLAS_SYSTEM_INSTRUCTION;
+  return `${ATLAS_SYSTEM_INSTRUCTION}\n\nCurrent trusted application context: ${role ? `the signed-in user is a ${role}` : ''}${role && page ? '; ' : ''}${page ? `the active page is ${page}` : ''}. Tailor navigation guidance to this context without changing permissions.`;
+}
+
+async function handleAtlasChat(req, res) {
+  if (!openrouter && !gemini) return res.status(503).json({ error: 'Shërbimi AI nuk është konfiguruar në server.' });
 
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
   const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId.trim() : '';
@@ -199,27 +241,37 @@ app.post('/api/chat/atlas', async (req, res) => {
   }, 45000);
 
   try {
-    const history = getAtlasHistory(sessionId);
-    const contents = [...history, { role: 'user', parts: [{ text: message }] }];
-    const stream = await gemini.models.generateContentStream({
-      model: 'models/gemini-1.5-flash',
-      contents,
-      config: { systemInstruction: ATLAS_SYSTEM_INSTRUCTION }
-    });
+    const sessionHistory = getAtlasHistory(sessionId);
+    const contents = Array.isArray(req.body?.messages)
+      ? normalizeAtlasMessages(req.body.messages, message)
+      : [...sessionHistory, { role: 'user', parts: [{ text: message }] }];
+    const systemInstruction = atlasInstructionWithContext(req.body?.context);
+    const stream = openrouter
+      ? await openrouter.chat.completions.create({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: systemInstruction },
+            ...contents.map((item) => ({ role: item.role === 'model' ? 'assistant' : 'user', content: item.parts[0].text }))
+          ],
+          max_tokens: 800,
+          stream: true
+        })
+      : await gemini.models.generateContentStream({
+          model: 'gemini-2.5-flash',
+          contents,
+          config: { systemInstruction }
+        });
     let responseText = '';
     for await (const chunk of stream) {
       if (finished) break;
-      if (chunk.text) {
-        responseText += chunk.text;
-        res.write(`event: chunk\ndata: ${JSON.stringify({ text: chunk.text })}\n\n`);
+      const text = openrouter ? chunk.choices?.[0]?.delta?.content : chunk.text;
+      if (text) {
+        responseText += text;
+        res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);
       }
     }
     if (!finished) {
-      history.push(
-        { role: 'user', parts: [{ text: message }] },
-        { role: 'model', parts: [{ text: responseText }] }
-      );
-      if (history.length > 24) history.splice(0, history.length - 24);
+      atlasChatSessions.set(sessionId, [...contents, { role: 'model', parts: [{ text: responseText }] }].slice(-24));
       finished = true;
       res.write('event: done\ndata: {}\n\n');
       res.end();
@@ -235,7 +287,10 @@ app.post('/api/chat/atlas', async (req, res) => {
   } finally {
     clearTimeout(timeout);
   }
-});
+}
+
+app.post('/api/chat', handleAtlasChat);
+app.post('/api/chat/atlas', handleAtlasChat);
 
 function normalizeMessages(messages, prompt) {
   if (!Array.isArray(messages) || !messages.length) {

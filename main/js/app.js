@@ -1,15 +1,15 @@
 import { renderDashboard } from "./dashboard.js?v=7";
 import { parseIEP, normalizeParsedStudent, sanitizePlanText, Student, placeholderEncryptedStorage } from "./parser.js";
-import { educationalTools, recommendTools, generateLesson } from "./toolMatcher.js";
+import { educationalTools, recommendTools } from "./toolMatcher.js";
 import { generateAAC, materialToMarkdown } from "./aacGenerator.js";
-import { suggestedQuestions, teacherCoach, streamTeacherCoach, renderMarkdown } from "./chatbot.js?v=gemini1";
+import { teacherCoach, streamTeacherCoach, renderMarkdown } from "./chatbot.js?v=gemini4";
 import { createProgressEntry, summarizeProgress, generateParentReport } from "./evaluation.js";
 
 const teacherRoutes = [
   ["dashboard", "PN", "Paneli"],
   ["students", "NX", "Profilet e nxënësve"],
   ["upload", "PI", "Ngarko PIA"],
-  ["tools", "MJ", "Paketa e mësimdhënies"],
+  ["tools", "BM", "Biblioteka e Materialeve"],
   ["schedules", "OR", "Orari"],
   ["boards", "GM", "Gjenero materiale"],
   ["progress", "PR", "Ndjekja e progresit"],
@@ -34,9 +34,6 @@ const state = {
   reportPreviewOpen: false,
   activity: [],
   recommendations: [],
-  savedTools: new Set(),
-  favoriteTools: new Set(),
-  compareTools: new Set(),
   progressEntries: [],
   progressByStudent: {},
   reportsByStudent: {},
@@ -159,6 +156,7 @@ async function handleRoleLogin(event) {
 function logout() {
   activeRole = null;
   activeUser = null;
+  syncAtlasWidgetVisibility();
   document.querySelector(".app-shell").setAttribute("inert", "");
   roleGate.classList.remove("hidden");
   showRoleChoices();
@@ -198,7 +196,7 @@ async function init() {
   state.chatMessages = [
     {
       role: "ai",
-      text: `Përshëndetje, jam Atlas, asistenti yt për PIA. Mund të ndihmoj që objektivat e ${state.currentStudent.name} të kthehen në rutina, mbështetje AAC, strategji mësimore dhe gjuhë të kuptueshme për familjen.`,
+      text: "Përshëndetje! Unë jam Atlas, si mund të ndihmoj?",
       time: new Date()
     }
   ];
@@ -353,11 +351,6 @@ function handleClick(event) {
     "close-modal": closeModal,
     "parse-plan": generatePlan,
     "tool-details": () => showToolDetails(toolId),
-    "save-tool": () => toggleSet(state.savedTools, toolId, "U ruajt në paketën e mjeteve", "U hoq nga mjetet e ruajtura"),
-    "favorite-tool": () => toggleSet(state.favoriteTools, toolId, "U shtua te të preferuarat", "U hoq nga të preferuarat"),
-    "compare-tool": () => toggleCompare(toolId),
-    "lesson-tool": () => showLesson(toolId),
-    "video-tool": () => showVideoPlaceholder(toolId),
     "generate-aac": generateAACFromInput,
     "copy-material": copyMaterial,
     "print-view": () => window.print(),
@@ -365,7 +358,6 @@ function handleClick(event) {
     "download-placeholder": () => toast("Eksporti PDF është gati si funksion provë për integrim të ardhshëm."),
     "edit-material": enableMaterialEditing,
     "regenerate-material": generateAACFromInput,
-    "suggestion": () => sendCoachMessage(actionButton.textContent.trim()),
     "send-chat": () => sendCoachMessage(document.getElementById("chatInput")?.value || ""),
     "mood": () => selectMood(actionButton),
     "generate-report": renderParentReport,
@@ -572,6 +564,7 @@ function navigate(route, options = {}) {
   if (route === "students" && !options.keepStudentProfile) state.studentProfileOpen = false;
   if (route === "reports" && !options.keepReportPreview) state.reportPreviewOpen = false;
   state.route = route;
+  syncAtlasWidgetVisibility();
   sidebar.classList.remove("open");
   renderNavigation();
   const routeLabel = routes.find(([id]) => id === route)?.[2] || "Paneli";
@@ -590,7 +583,7 @@ function renderRoute(route) {
     dashboard: () => renderDashboard(state),
     students: renderStudents,
     upload: renderUpload,
-    tools: () => renderTools("Paketa e mësimdhënies", educationalTools),
+    tools: renderTools,
     schedules: renderSchedule,
     boards: renderCommunicationBoards,
     progress: () => activeRole === "parent" ? renderParentProgress() : renderProgress(),
@@ -605,6 +598,16 @@ function visibleStudents() {
   if (activeRole === "teacher") return state.students.filter((student) => student.teacherId === activeUser.id);
   if (activeRole === "parent") return state.students.filter((student) => student.parentId === activeUser.id);
   return state.students;
+}
+
+function syncAtlasWidgetVisibility() {
+  const widget = document.querySelector(".atlas-guide-widget");
+  if (!widget) return;
+  const chatOpen = activeRole === "teacher" && state.route === "coach";
+  widget.classList.toggle("hidden", activeRole !== "teacher");
+  widget.classList.toggle("is-chat-open", chatOpen);
+  widget.toggleAttribute("inert", activeRole !== "teacher" || chatOpen);
+  widget.setAttribute("aria-hidden", String(activeRole !== "teacher" || chatOpen));
 }
 
 function evaluationLabel(type) {
@@ -730,7 +733,7 @@ function renderStudents() {
     <section class="glass-card">
       <div class="card-header">
         <h3>Mjete të rekomanduara</h3>
-        <button class="text-button" data-route="tools">Krahaso mjetet</button>
+        <button class="text-button" data-route="tools">Hap Bibliotekën e Materialeve</button>
       </div>
       <div class="recommendation-row">
         ${state.recommendations.slice(0, 3).map((tool) => `<button class="mini-tool" data-tool-id="${tool.id}" data-action="tool-details"><span>${tool.image}</span><strong>${tool.title}</strong><small>${tool.notes}</small></button>`).join("")}
@@ -1021,40 +1024,20 @@ function renderUpload() {
   `;
 }
 
-function renderTools(title, tools) {
-  const categories = [
-    { value: "All", label: "Të gjitha" },
-    ...[...new Set(educationalTools.map((tool) => tool.category))].map((category) => ({ value: category, label: translateToolLabel(category) }))
-  ];
+function renderTools() {
   return `
+    <section class="student-list-heading material-library-heading">
+      <div><p class="eyebrow">Burimet e klasës</p><h2>Biblioteka e Materialeve</h2><p>Shfletoni, filtroni dhe menaxhoni materialet e ruajtura.</p></div>
+    </section>
     ${activeRole === "teacher" ? renderTeachingMaterialManager() : ""}
     ${renderTeachingMaterialLibrary()}
-    <section class="glass-card">
-      <p class="eyebrow">Përputhësi i mjeteve me AI</p>
-      <h2>${title}</h2>
-      <p class="tool-access-note">Të gjitha paketat janë të hapura për çdo mësuese.</p>
-      <div class="filter-grid">
-        ${field("Kategoria", select("toolCategory", categories))}
-        ${field("Mosha", `<input id="toolAge" type="number" min="3" max="18" value="${state.currentStudent.age}" />`)}
-        ${field("Objektivi", `<input id="toolGoal" placeholder="Komunikim, motorikë fine..." />`)}
-        ${field("Teknologjia", select("toolTech", [
-          { value: "All", label: "Të gjitha" },
-          { value: "No tech", label: "Pa teknologji" },
-          { value: "Low tech", label: "Teknologji e thjeshtë" },
-          { value: "Mid tech", label: "Teknologji mesatare" }
-        ]))}
-      </div>
-    </section>
-    <section class="tools-grid" id="toolsGrid">
-      ${toolCards(tools)}
-    </section>
   `;
 }
 
 function renderTeachingMaterialManager() {
   return `
     <section class="glass-card teaching-material-manager">
-      <p class="eyebrow">Biblioteka e materialeve</p>
+      <p class="eyebrow">Biblioteka e Materialeve</p>
       <h2>Shto material mësimor</h2>
       <p>Ngarkoni video, PDF, Word ose udhëzues tekstual; mund të shtoni edhe lidhje nga YouTube ose Vimeo.</p>
       <form id="teachingMaterialForm" class="teaching-material-form">
@@ -1072,11 +1055,16 @@ function renderTeachingMaterialManager() {
 }
 
 function renderTeachingMaterialLibrary() {
-  if (!state.teachingMaterials.length) return `<section class="glass-card empty-material-library"><h2>Materialet mësimore</h2><p>Ende nuk është shtuar asnjë material.</p></section>`;
+  const categories = [...new Set(state.teachingMaterials.map((material) => material.category).filter(Boolean))];
   return `
     <section class="glass-card">
-      <div class="card-header"><div><p class="eyebrow">Të organizuara sipas mësimit</p><h2>Materialet mësimore</h2></div></div>
-      <div class="teaching-material-grid">${state.teachingMaterials.map(renderTeachingMaterialCard).join("")}</div>
+      <div class="card-header"><div><p class="eyebrow">Të organizuara sipas mësimit</p><h2>Biblioteka e Materialeve</h2></div></div>
+      <div class="material-library-filters">
+        ${field("Kërko", `<input id="materialLibrarySearch" type="search" placeholder="Kërko sipas titullit ose mësimit..." />`)}
+        ${field("Lloji", `<select id="materialLibraryType"><option value="All">Të gjitha</option><option value="video">Video</option><option value="document">Dokumente</option><option value="interactive">Interaktive</option></select>`)}
+        ${field("Kategoria", `<select id="materialLibraryCategory"><option value="All">Të gjitha</option>${categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join("")}</select>`)}
+      </div>
+      <div class="teaching-material-grid" id="materialLibraryGrid">${state.teachingMaterials.length ? state.teachingMaterials.map(renderTeachingMaterialCard).join("") : `<div class="empty-material-library"><p>Ende nuk është shtuar asnjë material.</p></div>`}</div>
     </section>`;
 }
 
@@ -1132,36 +1120,6 @@ function removeTeachingMaterial(materialId) {
   persistTeachingMaterials();
   navigate("tools");
   toast("Materiali u fshi.");
-}
-
-function toolCards(tools) {
-  return tools.map((tool) => `
-    <article class="tool-card slide-up" data-tool-card="${tool.id}">
-      <div class="row" style="justify-content:space-between; gap:1rem;">
-        <div class="tool-image" aria-hidden="true">${tool.image}</div>
-        <span class="badge">E hapur</span>
-      </div>
-      <div>
-        <p class="eyebrow">${translateToolLabel(tool.category)}</p>
-        <h3>${tool.title}</h3>
-        <p>${tool.description}</p>
-      </div>
-      <div class="tool-meta">
-        <span class="badge">${tool.ageRange}</span>
-        <span class="badge">${translateToolLabel(tool.goal)}</span>
-        <span class="badge">${translateToolLabel(tool.difficulty)}</span>
-      </div>
-      <small>${tool.frequency}</small>
-      <div class="toolbar">
-        <button class="secondary-button" data-tool-id="${tool.id}" data-action="tool-details">Shiko detajet</button>
-        <button class="text-button" data-tool-id="${tool.id}" data-action="save-tool">${state.savedTools.has(tool.id) ? "U ruajt" : "Ruaj"}</button>
-        <button class="text-button" data-tool-id="${tool.id}" data-action="favorite-tool">${state.favoriteTools.has(tool.id) ? "I preferuar" : "Prefero"}</button>
-        <button class="text-button" data-tool-id="${tool.id}" data-action="compare-tool">Krahaso</button>
-        <button class="text-button" data-tool-id="${tool.id}" data-action="video-tool">Video</button>
-        <button class="text-button" data-tool-id="${tool.id}" data-action="lesson-tool">Krijo mësim</button>
-      </div>
-    </article>
-  `).join("");
 }
 
 function renderAAC() {
@@ -1714,17 +1672,6 @@ function renderReportList() {
 function renderCoach() {
   return `
     <section class="chat-shell">
-      <div class="atlas-welcome">
-        ${atlasAvatar("large")}
-        <div>
-          <p class="eyebrow">Trajneri AI për mësimdhënie</p>
-          <h2>Bisedo me Atlasin, asistentin tënd për PIA!</h2>
-          <p>Atlas ofron udhëzime të qeta, ide praktike dhe strategji të gatshme për klasë sipas planit të ${state.currentStudent.name}.</p>
-        </div>
-      </div>
-      <div class="suggestions">
-        ${suggestedQuestions.map((question) => `<button class="secondary-button" data-action="suggestion">${question}</button>`).join("")}
-      </div>
       <div class="chat-log" id="chatLog">
         ${state.chatMessages.map(renderMessage).join("")}
       </div>
@@ -1884,26 +1831,25 @@ function privatizeStudent(student) {
   return student;
 }
 
-function filterToolsFromControls() {
-  const filters = {
-    category: document.getElementById("toolCategory")?.value || "All",
-    age: document.getElementById("toolAge")?.value || "",
-    goal: document.getElementById("toolGoal")?.value || "",
-    techLevel: document.getElementById("toolTech")?.value || "All"
-  };
-  const grid = document.getElementById("toolsGrid");
-  if (grid) grid.innerHTML = toolCards(recommendTools(state.currentStudent, filters));
+function filterMaterialLibraryFromControls() {
+  const query = (document.getElementById("materialLibrarySearch")?.value || "").trim().toLowerCase();
+  const type = document.getElementById("materialLibraryType")?.value || "All";
+  const category = document.getElementById("materialLibraryCategory")?.value || "All";
+  const materials = state.teachingMaterials.filter((material) => {
+    const searchable = `${material.title} ${material.lesson} ${material.category} ${material.fileName || ""}`.toLowerCase();
+    return (!query || searchable.includes(query)) && (type === "All" || material.type === type) && (category === "All" || material.category === category);
+  });
+  const grid = document.getElementById("materialLibraryGrid");
+  if (grid) grid.innerHTML = materials.length ? materials.map(renderTeachingMaterialCard).join("") : `<div class="empty-material-library"><p>Nuk u gjet asnjë material me këto filtra.</p></div>`;
 }
 
 document.addEventListener("input", (event) => {
-  if (["toolGoal", "toolAge", "fontSize"].includes(event.target.id)) {
-    if (event.target.id === "fontSize") document.documentElement.style.setProperty("--font-scale", event.target.value);
-    else filterToolsFromControls();
-  }
+  if (event.target.id === "fontSize") document.documentElement.style.setProperty("--font-scale", event.target.value);
+  if (event.target.id === "materialLibrarySearch") filterMaterialLibraryFromControls();
 });
 
 document.addEventListener("change", (event) => {
-  if (["toolCategory", "toolTech"].includes(event.target.id)) filterToolsFromControls();
+  if (["materialLibraryType", "materialLibraryCategory"].includes(event.target.id)) filterMaterialLibraryFromControls();
   if (event.target.id === "themeColor") document.documentElement.style.setProperty("--primary", event.target.value);
 });
 
@@ -1928,46 +1874,6 @@ function showToolDetails(toolId) {
     <h3>Video</h3>
     <p>Parapamje video provë: më vonë mund të lidhet një bibliotekë e sigurt videosh ose klip trajnimi.</p>
   `);
-}
-
-function showLesson(toolId) {
-  const tool = educationalTools.find((item) => item.id === toolId);
-  const lesson = generateLesson(tool, state.currentStudent.name);
-  openModal("Mësim i krijuar", lesson.title, `
-    <p><strong>Kohëzgjatja:</strong> ${lesson.duration}</p>
-    ${profileCard("Hapat", lesson.steps)}
-    ${profileCard("Materialet", lesson.materials)}
-  `);
-}
-
-function showVideoPlaceholder(toolId) {
-  const tool = educationalTools.find((item) => item.id === toolId);
-  if (!tool) return;
-  openModal(
-    "Parapamje video",
-    `Klip trajnimi për ${tool.title}`,
-    "<p>Ky funksion provë është gati për një bibliotekë të sigurt videosh në të ardhmen. Për tani, përdor shënimet për mësuesin dhe mësimin e krijuar për të modeluar strategjinë.</p>"
-  );
-}
-
-function toggleSet(set, id, addMessage, removeMessage) {
-  if (set.has(id)) {
-    set.delete(id);
-    toast(removeMessage);
-  } else {
-    set.add(id);
-    toast(addMessage);
-  }
-  navigate(state.route);
-}
-
-function toggleCompare(toolId) {
-  if (state.compareTools.has(toolId)) state.compareTools.delete(toolId);
-  else state.compareTools.add(toolId);
-  const compared = [...state.compareTools].map((id) => educationalTools.find((tool) => tool.id === id)).filter(Boolean);
-  openModal("Krahasimi i mjeteve", "Krahaso mjetet e zgjedhura", compared.length ? `
-    <div class="tools-grid">${toolCards(compared)}</div>
-  ` : "<p>Nuk është zgjedhur ende asnjë mjet për krahasim.</p>");
 }
 
 function generateAACFromInput() {
@@ -2035,7 +1941,7 @@ async function sendCoachMessage(message) {
       const bubble = document.querySelector("#typingMessage .message-bubble");
       if (bubble) bubble.innerHTML = `${renderMarkdown(partialText)}<span class="streaming-cursor" aria-hidden="true"></span>`;
       scrollChatToBottom();
-    });
+    }, state.chatMessages.map((item) => ({ role: item.role, text: item.text })), { role: activeRole, activePage: state.route });
   } catch (error) {
     console.error("Gemini chat unavailable; local fallback used.", error);
     response = `**Po të përgjigjem me mënyrën rezervë të Atlasit.**\n\n${await teacherCoach(clean, state.currentStudent)}`;
@@ -2104,9 +2010,6 @@ function toggleTheme() {
 function clearMemory() {
   state.students = state.students.slice(0, 1);
   state.currentStudent = state.students[0];
-  state.savedTools.clear();
-  state.favoriteTools.clear();
-  state.compareTools.clear();
   state.completedGoals.clear();
   state.scheduleByStudent = Object.fromEntries(state.students.map((student) => [student.id, createInitialSchedule()]));
   state.progressByStudent = { [state.currentStudent.id]: [] };
