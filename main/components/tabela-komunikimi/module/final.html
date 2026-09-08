@@ -550,6 +550,7 @@ const storyImageCache = new Map();
 const boardSymbolCache = new Map();
 const photoProfileCache = new Map();
 const characterReferenceCache = new Map();
+const generatedMaterialCache = new Map();
 
 const moduleMap = {
   "Moduli 1: Sekuencat me Fjalë": "outputContent",
@@ -604,7 +605,7 @@ async function lexoMeZe(teksti) {
 
   let blob = audioCache.get(text);
   if (!blob) {
-    const response = await fetch("http://localhost:5001/api/text-to-speech", {
+    const response = await fetch(apiUrl("/api/text-to-speech"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text })
@@ -650,7 +651,7 @@ async function analyzeChildPhoto(childName, childDescription) {
   }
 
   try {
-    const data = await fetchJsonWithRetry("http://localhost:5001/api/generate-plan", {
+    const data = await fetchJsonWithRetry(apiUrl("/api/generate-plan"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -729,6 +730,28 @@ function delay(ms) {
   });
 }
 
+function resolveApiBaseUrl() {
+  if (window.ATLAS_API_BASE_URL) return String(window.ATLAS_API_BASE_URL).replace(/\/$/, "");
+
+  let hostLocation;
+  try {
+    hostLocation = window.parent !== window ? window.parent.location : window.location;
+  } catch {
+    hostLocation = new URL(document.baseURI);
+  }
+
+  const hostname = hostLocation.hostname || new URL(document.baseURI).hostname;
+  const protocol = hostLocation.protocol === "https:" ? "https:" : "http:";
+  const isLocal = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0" || hostname === "::1";
+  return isLocal ? `${protocol}//${hostname}:5001` : hostLocation.origin;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+function apiUrl(path) {
+  return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 async function runWithConcurrency(tasks, limit = 3) {
   const results = new Array(tasks.length);
   let nextIndex = 0;
@@ -743,11 +766,35 @@ async function runWithConcurrency(tasks, limit = 3) {
   return results;
 }
 
-async function fetchJsonWithRetry(url, options) {
-  const response = await fetch(url, options);
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.error || `Request failed with status ${response.status}`);
-  return data;
+async function fetchJsonWithRetry(url, options = {}, attempts = 3) {
+  let lastError;
+  const timeoutMs = /\/(generate-image|edit-image)$/.test(url) ? 180000 : 60000;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(data?.error || `Kërkesa dështoi (${response.status}).`);
+        error.retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      lastError = error;
+      const retryable = error.name === "AbortError" || error instanceof TypeError || error.retryable;
+      if (!retryable || attempt === attempts) break;
+      await delay(700 * attempt);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  console.error("Backend request failed after retries.", lastError);
+  if (lastError?.name === "AbortError") {
+    throw new Error("Gjenerimi i figurës zgjati shumë. Ju lutem provoni përsëri.");
+  }
+  throw new Error(lastError?.message || "Shërbimi online nuk u lidh dot për momentin.");
 }
 
 function createBookFallbackImage(pageText, childName) {
@@ -818,11 +865,11 @@ function dataUrlToFile(dataUrl, fileBaseName) {
   });
 }
 
-async function generateImageFromReferenceSet(referenceDataUrls, prompt, size = "1024x1536") {
-  const data = await fetchJsonWithRetry("http://localhost:5001/api/edit-image", {
+async function generateImageFromReferenceSet(referenceDataUrls, prompt, size = "1024x1536", quality = "medium") {
+  const data = await fetchJsonWithRetry(apiUrl("/api/edit-image"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ images: referenceDataUrls, prompt, size, quality: "medium" })
+    body: JSON.stringify({ images: referenceDataUrls, prompt, size, quality })
   });
 
   const b64 = data?.data?.[0]?.b64_json;
@@ -838,7 +885,7 @@ async function generateStoryCharacterReference(childName, childDescription, chil
   if (!activePhotoDataUrl) return "";
 
   const profile = childVisualProfile || {};
-  const cacheKey = `${getPhotoIdentityKey()}::${childName}::${childDescription}::${JSON.stringify(profile)}`;
+  const cacheKey = `identity-v2::${getPhotoIdentityKey()}::${childName}::${childDescription}::${JSON.stringify(profile)}`;
   if (characterReferenceCache.has(cacheKey)) {
     return characterReferenceCache.get(cacheKey);
   }
@@ -862,10 +909,11 @@ Critical rules:
 - Full body portrait whenever possible.
 - Plain clean background.
 - Keep the pose and full physique visible from the source photo, including any visible mobility equipment.
-- Use a lightly animated 2D storybook treatment while retaining the child's likeness; do not simplify the face into a generic cartoon.
+- Trace the child's recognizable facial structure and distinctive features faithfully before applying a lightly animated 2D storybook treatment.
+- Keep illustration stylization subtle, especially on the face. Do not simplify the face into a generic cartoon.
 - Plain clean background, no text.`;
 
-  const imageUrl = await generateImageFromReferenceSet([activePhotoDataUrl], prompt, "1024x1536");
+  const imageUrl = await generateImageFromReferenceSet([activePhotoDataUrl], prompt, "1024x1536", "high");
   characterReferenceCache.set(cacheKey, imageUrl);
   return imageUrl;
 }
@@ -876,7 +924,7 @@ async function generateFlashcardImage(word, meaningHint) {
     return flashcardImageCache.get(cacheKey);
   }
 
-  const data = await fetchJsonWithRetry("http://localhost:5001/api/generate-image", {
+  const data = await fetchJsonWithRetry(apiUrl("/api/generate-image"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -920,7 +968,7 @@ async function generateBoardSymbolImage(word, meaningHint) {
     return boardSymbolCache.get(cacheKey);
   }
 
-  const data = await fetchJsonWithRetry("http://localhost:5001/api/generate-image", {
+  const data = await fetchJsonWithRetry(apiUrl("/api/generate-image"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -946,7 +994,7 @@ async function generateBoardSymbolImage(word, meaningHint) {
 async function generateStoryPageImage(pageText, childName, childDescription, childVisualProfile, scenePlan = {}, previousPageText = "", nextPageText = "") {
   const profileKey = JSON.stringify(childVisualProfile || {});
   const sceneKey = JSON.stringify(scenePlan || {});
-  const cacheKey = `${getPhotoIdentityKey()}::${childName}::${childDescription}::${profileKey}::${sceneKey}::${previousPageText}::${pageText}::${nextPageText}`;
+  const cacheKey = `likeness-v3::${getPhotoIdentityKey()}::${childName}::${childDescription}::${profileKey}::${sceneKey}::${previousPageText}::${pageText}::${nextPageText}`;
   if (storyImageCache.has(cacheKey)) {
     return storyImageCache.get(cacheKey);
   }
@@ -1010,11 +1058,14 @@ Reference image rules:
 - Use the uploaded photo as the identity source of truth.
 - Use the illustrated reference image to keep the same illustrated character across all pages.
 - Match the uploaded child's facial geometry, eyes, nose, mouth, cheeks, hairline, skin tone, body proportions, posture, clothing, and mobility equipment with high fidelity.
+- Preserve distinctive facial asymmetry, smile shape, eye spacing, eyebrow shape, hair texture, and any visible identifying features from the uploaded photo.
+- Apply the illustrated style mainly to colors, outlines, lighting, and texture. Do not redraw or idealize the child's facial proportions.
+- When the original photo and illustrated reference differ, always follow the original uploaded photo.
 - The child on this page must look like the uploaded child first and a storybook illustration second. Never substitute a generic child.
 - Never drift into a different face, different child, different gender presentation, or invented disability traits.`;
-    imageDataUrl = await generateImageFromReferenceSet(referenceImages, referencePrompt, "1024x1536");
+    imageDataUrl = await generateImageFromReferenceSet(referenceImages, referencePrompt, "1024x1536", "high");
   } else {
-    const data = await fetchJsonWithRetry("http://localhost:5001/api/generate-image", {
+    const data = await fetchJsonWithRetry(apiUrl("/api/generate-image"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1071,6 +1122,51 @@ function isSleepGoal(tema) {
 function isReadingGoal(tema) {
   const normalized = normalizeWord(tema);
   return containsAny(normalized, ["lex", "shkronj", "rrok", "fjal", "lib", "book", "read", "reading", "alphabet"]);
+}
+
+function isTeethBrushingGoal(tema) {
+  const normalized = normalizeWord(tema);
+  return containsAny(normalized, ["dhëmb", "dhemb", "furç", "furc", "pastë dhëmb", "paste dhemb", "brush teeth", "toothbrush"]);
+}
+
+function enforceKnownStorySequence(paketa, tema, protagonistName) {
+  const libri = paketa?.social_story_libri;
+  if (!libri) return paketa;
+  const name = protagonistName || "Fëmija";
+  let lines = null;
+
+  if (isTeethBrushingGoal(tema)) {
+    lines = [
+      `${name} ngrihet nga shtrati.`,
+      `${name} shkon në banjë.`,
+      `${name} merr furçën e dhëmbëve.`,
+      `${name} hap pastën e dhëmbëve.`,
+      `${name} vendos pastë mbi furçë.`,
+      `${name} lan dhëmbët e sipërm.`,
+      `${name} lan dhëmbët e poshtëm.`,
+      `${name} shpëlan gojën me ujë.`,
+      `${name} fshin gojën me peshqir.`,
+      `${name} buzëqesh me dhëmbë të pastër.`
+    ];
+  } else if (isSleepGoal(tema)) {
+    lines = [
+      `${name} hyn në dhomën e gjumit.`,
+      `${name} vesh pizhamet.`,
+      `${name} afrohet te shtrati.`,
+      `${name} shtrihet në shtrat.`,
+      `${name} mbulohet me batanije.`,
+      `${name} vendos kokën në jastëk.`,
+      `${name} mbyll sytë.`,
+      `${name} merr frymë ngadalë.`,
+      `${name} qëndron me qetësi në shtrat.`,
+      `${name} fle në shtrat.`
+    ];
+  }
+
+  if (lines) {
+    libri.faqet = lines.map((teksti_faqes, index) => ({ numri_faqes: index + 1, teksti_faqes }));
+  }
+  return paketa;
 }
 
 function buildStoryScenePlan(faqet, tema) {
@@ -1171,17 +1267,12 @@ function enrichCommunicationBoard(paketa) {
     {
       name: "Fjalë Lidhëse dhe Parafjalë",
       matches: ["lidh", "parafjal"],
-      words: [word("në", "an object inside a box"), word("te", "a child arriving near a person"), word("me", "two things together"), word("nga", "an arrow moving away from a place"), word("për", "a wrapped gift intended for someone"), word("mbi", "a ball above a box"), word("nën", "a ball under a table"), word("pranë", "two objects next to each other"), word("para", "a child in front of a chair"), word("pas", "a child behind a chair"), word("dhe", "two ideas joined together"), word("ose", "a choice between two objects"), word("por", "two contrasting choices"), word("sepse", "a simple cause and result arrow")]
+      words: [word("në", "an object inside a box"), word("te", "a child arriving near a person"), word("me", "two things together"), word("nga", "an arrow moving away from a place"), word("për", "a wrapped gift intended for someone"), word("dhe", "two ideas joined together"), word("pastaj", "two actions in sequence with an arrow"), word("sepse", "a simple cause and result arrow")]
     },
     {
       name: "Ndajfoljet",
       matches: ["ndajfol"],
-      words: [word("tani", "a clock showing now"), word("pastaj", "two actions in sequence with an arrow"), word("këtu", "a child pointing to the place here"), word("atje", "a child pointing to a distant place"), word("brenda", "a toy inside a box"), word("jashtë", "a toy outside a box"), word("ngadalë", "a turtle moving slowly"), word("shpejt", "a rabbit moving quickly"), word("përsëri", "a circular repeat arrow"), word("bashkë", "two children doing an activity together")]
-    },
-    {
-      name: "Folje të Dobishme",
-      matches: ["folje"],
-      words: [word("dua", "a child reaching for a wanted object"), word("kam", "a child holding an object"), word("jam", "a child pointing to self"), word("mund", "a child successfully doing an action"), word("shkoj", "a child walking toward a destination"), word("marr", "a hand taking an object"), word("jap", "a hand giving an object"), word("hap", "hands opening an object"), word("mbyll", "hands closing an object"), word("ndihmo", "one child helping another")]
+      words: [word("tani", "a clock showing now"), word("ngadalë", "a turtle moving slowly"), word("përsëri", "a circular repeat arrow"), word("bashkë", "two children doing an activity together")]
     }
   ];
 
@@ -1196,6 +1287,7 @@ function enrichCommunicationBoard(paketa) {
     group.words.forEach((item) => {
       if (!existing.has(normalizeWord(item.fjala))) category.opsionet.push(item);
     });
+    if (group.name === "Ndajfoljet") category.opsionet = category.opsionet.slice(0, 4);
   });
 
   return paketa;
@@ -1327,7 +1419,12 @@ function validateModuleContent(paketa, moduliZgjedhur) {
   if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") {
     const kategorite = paketa?.tabela_komunikimit?.kategorite;
     if (!Array.isArray(kategorite) || kategorite.length < 5) return "Duhet të ketë të paktën 5 kategori.";
-    if (kategorite.some((kategori) => !Array.isArray(kategori?.opsionet) || kategori.opsionet.length < 5)) return "Çdo kategori duhet të ketë të paktën 5 opsione.";
+    const veprimet = kategorite.find((kategori) => normalizeWord(kategori?.emri_kategorise).includes("veprim"));
+    if (!Array.isArray(veprimet?.opsionet) || veprimet.opsionet.length < 8) return "Duhet të ketë të paktën 8 veprime që lidhen me aktivitetin.";
+    if (kategorite.some((kategori) => {
+      const minimum = normalizeWord(kategori?.emri_kategorise).includes("ndajfol") ? 3 : 5;
+      return !Array.isArray(kategori?.opsionet) || kategori.opsionet.length < minimum;
+    })) return "Kategoritë kryesore nuk kanë mjaftueshëm fjalë për aktivitetin.";
   }
 
   if (moduliZgjedhur === "Moduli 4: Social Story (Libri Virtual)") {
@@ -1338,8 +1435,15 @@ function validateModuleContent(paketa, moduliZgjedhur) {
   return "";
 }
 
+function getMaterialCacheKey(moduliZgjedhur, tema) {
+  const storyIdentity = moduliZgjedhur === "Moduli 4: Social Story (Libri Virtual)"
+    ? `${getStoryProtagonistName(getStoryChildName())}::${getPhotoIdentityKey()}`
+    : "";
+  return `${moduliZgjedhur}::${String(tema || "").trim().toLocaleLowerCase("sq-AL")}::${storyIdentity}`;
+}
+
 async function kerkoNgaOpenAI(messages) {
-  const data = await fetchJsonWithRetry("http://localhost:5001/api/generate-plan", {
+  const data = await fetchJsonWithRetry(apiUrl("/api/generate-plan"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -1355,7 +1459,7 @@ async function kerkoNgaOpenAI(messages) {
 }
 
 async function generateTargetedAACBoard(goal) {
-  return fetchJsonWithRetry("http://localhost:5001/api/generate-aac-board", {
+  return fetchJsonWithRetry(apiUrl("/api/generate-aac-board"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ goal })
@@ -1476,7 +1580,10 @@ async function renderTabelaKomunikimit(paketa, target, generationId) {
   }
 
   document.getElementById("speakSentenceBtn")?.addEventListener("click", () => {
-    if (currentWords.length) lexoMeZe(`${currentWords.join(" ")}.`).catch((error) => alert(error.message));
+    if (currentWords.length) lexoMeZe(`${currentWords.join(" ")}.`).catch((error) => {
+      console.error("Sentence audio failed", error);
+      alert("Audioja nuk është e disponueshme për momentin. Materiali mund të vazhdojë të përdoret pa audio.");
+    });
   });
 
   document.getElementById("clearSentenceBtn")?.addEventListener("click", () => {
@@ -1650,21 +1757,15 @@ async function renderSocialStory(paketa, target, generationId) {
     const scenePlan = scenePlans[i] || {};
     const previousPageText = i > 0 ? String(faqet[i - 1]?.teksti_faqes || "") : "";
     const nextPageText = i < faqet.length - 1 ? String(faqet[i + 1]?.teksti_faqes || "") : "";
-    let imageUrl = "";
-    try {
-      imageUrl = await generateStoryPageImage(
-        faqe.teksti_faqes,
-        protagonistName,
-        childDescription,
-        childVisualProfile,
-        scenePlan,
-        previousPageText,
-        nextPageText
-      );
-    } catch (error) {
-      console.error("Story page fallback image used", error);
-      imageUrl = createBookFallbackImage(faqe.teksti_faqes, protagonistName);
-    }
+    const imageUrl = await generateStoryPageImage(
+      faqe.teksti_faqes,
+      protagonistName,
+      childDescription,
+      childVisualProfile,
+      scenePlan,
+      previousPageText,
+      nextPageText
+    );
     faqetMeImazhe.push({ ...faqe, imageUrl });
   }
 
@@ -1696,6 +1797,7 @@ async function gjeneroPaketen() {
   const usingChildPhotoStory = wantsChildPhotoStory();
   const hasConsent = hasStoryConsent();
   const protagonistName = getStoryProtagonistName(childName);
+  const materialCacheKey = getMaterialCacheKey(moduliZgjedhur, tema);
 
   if (!moduliZgjedhur || !tema) {
     alert("Ju lutem zgjidhni modulin dhe vendosni një qëllim.");
@@ -1879,7 +1981,10 @@ Struktura:
 
     if (moduliZgjedhur === "Moduli 4: Social Story (Libri Virtual)") {
       paketa = await refineSocialStorySequence(paketa, tema, protagonistName);
+      paketa = enforceKnownStorySequence(paketa, tema, protagonistName);
     }
+
+    generatedMaterialCache.set(materialCacheKey, JSON.parse(JSON.stringify(paketa)));
 
     if (moduliZgjedhur === "Moduli 1: Sekuencat me Fjalë") {
       renderSekuencat(paketa, moduliA);
@@ -1892,12 +1997,22 @@ Struktura:
     }
   } catch (error) {
     if (generationId !== activeGenerationId) return;
-    const mesazh = `Gabim: ${error.message}`;
-    const target = document.getElementById(moduliZgjedhurId);
-    if (target) {
-      target.innerHTML = `<div style="color:red;">${escapeHtml(mesazh)}</div>`;
+    console.error("Online material generation failed after retries.", error);
+    const cachedPackage = generatedMaterialCache.get(materialCacheKey);
+    if (cachedPackage) {
+      if (moduliZgjedhur === "Moduli 1: Sekuencat me Fjalë") renderSekuencat(cachedPackage, moduliA);
+      else if (moduliZgjedhur === "Moduli 2: Flashcards") await renderFlashcards(cachedPackage, moduliB, generationId);
+      else if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") await renderTabelaKomunikimit(cachedPackage, moduliD, generationId);
+      else await renderSocialStory(cachedPackage, moduliC, generationId);
+      return;
     }
-    console.error(error);
+    const target = document.getElementById(moduliZgjedhurId);
+    if (target) target.innerHTML = `
+      <div style="color:#30516b; text-align:center; padding:20px;">
+        <strong>Gjenerimi u ndërpre për momentin.</strong>
+        <p>Lidhja do të provohet përsëri pa ndryshuar mënyrën e krijimit të materialit.</p>
+        <button class="btn-gjenero" type="button" onclick="gjeneroPaketen()">Provo përsëri</button>
+      </div>`;
   }
 }
 

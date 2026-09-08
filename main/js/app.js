@@ -675,7 +675,7 @@ async function attachCommunicationModuleApi() {
   }, { once: true });
 
   try {
-    const response = await fetch(frame.dataset.moduleSrc);
+    const response = await fetch(frame.dataset.moduleSrc, { cache: "no-store" });
     if (!response.ok) throw new Error("Communication module unavailable");
 
     frame.srcdoc = await response.text();

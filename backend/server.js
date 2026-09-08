@@ -341,14 +341,62 @@ function ensureGoalCoreVocabulary(board, goal) {
 
   if ((normalizedGoal.includes('laj') || normalizedGoal.includes('lar')) && normalizedGoal.includes('duar')) {
     ensureWords(/veprim/, 'Veprimet', [
-      { fjala: 'laj', kuptimi_ne_anglisht: 'wash', pershkrimi_vizual_anglisht: 'a child washing both hands with soap and water' }
+      { fjala: 'laj', kuptimi_ne_anglisht: 'wash', pershkrimi_vizual_anglisht: 'a child washing both hands with soap and water' },
+      { fjala: 'shkoj', kuptimi_ne_anglisht: 'go', pershkrimi_vizual_anglisht: 'a child going toward the bathroom sink' },
+      { fjala: 'hap', kuptimi_ne_anglisht: 'open', pershkrimi_vizual_anglisht: 'a hand turning on a water faucet' },
+      { fjala: 'lag', kuptimi_ne_anglisht: 'wet', pershkrimi_vizual_anglisht: 'two hands getting wet under running water' },
+      { fjala: 'vendos', kuptimi_ne_anglisht: 'put', pershkrimi_vizual_anglisht: 'putting soap onto a palm' },
+      { fjala: 'fërkoj', kuptimi_ne_anglisht: 'rub', pershkrimi_vizual_anglisht: 'rubbing soapy hands together' },
+      { fjala: 'shpëlaj', kuptimi_ne_anglisht: 'rinse', pershkrimi_vizual_anglisht: 'rinsing hands under clean running water' },
+      { fjala: 'mbyll', kuptimi_ne_anglisht: 'close', pershkrimi_vizual_anglisht: 'a hand turning off a water faucet' },
+      { fjala: 'thaj', kuptimi_ne_anglisht: 'dry', pershkrimi_vizual_anglisht: 'drying both hands with a clean towel' },
+      { fjala: 'përfundoj', kuptimi_ne_anglisht: 'finish', pershkrimi_vizual_anglisht: 'a child showing clean dry hands after washing' }
     ]);
     ensureWords(/objekt/, 'Objektet', [
       { fjala: 'duart', kuptimi_ne_anglisht: 'the hands', pershkrimi_vizual_anglisht: 'two clean child hands' },
       { fjala: 'sapuni', kuptimi_ne_anglisht: 'the soap', pershkrimi_vizual_anglisht: 'a simple soap dispenser beside a sink' },
-      { fjala: 'uji', kuptimi_ne_anglisht: 'the water', pershkrimi_vizual_anglisht: 'clean water flowing from a faucet' }
+      { fjala: 'uji', kuptimi_ne_anglisht: 'the water', pershkrimi_vizual_anglisht: 'clean water flowing from a faucet' },
+      { fjala: 'rubineti', kuptimi_ne_anglisht: 'the faucet', pershkrimi_vizual_anglisht: 'a bathroom water faucet' },
+      { fjala: 'lavamani', kuptimi_ne_anglisht: 'the sink', pershkrimi_vizual_anglisht: 'a simple bathroom sink' },
+      { fjala: 'peshqiri', kuptimi_ne_anglisht: 'the towel', pershkrimi_vizual_anglisht: 'a clean hand towel beside a sink' },
+      { fjala: 'peceta', kuptimi_ne_anglisht: 'the paper towel', pershkrimi_vizual_anglisht: 'a clean paper towel for drying hands' },
+      { fjala: 'mëngët', kuptimi_ne_anglisht: 'the sleeves', pershkrimi_vizual_anglisht: 'shirt sleeves rolled above the wrists' }
     ]);
+    ensureWords(/njerëz|njerez|përem|perem/, 'Njerëzit/Përemrat', [
+      { fjala: 'unë', kuptimi_ne_anglisht: 'I', pershkrimi_vizual_anglisht: 'a child pointing to self' },
+      { fjala: 'ti', kuptimi_ne_anglisht: 'you', pershkrimi_vizual_anglisht: 'a child pointing to another person' },
+      { fjala: 'mësuesja', kuptimi_ne_anglisht: 'the teacher', pershkrimi_vizual_anglisht: 'a friendly female teacher' },
+      { fjala: 'prindi', kuptimi_ne_anglisht: 'the parent', pershkrimi_vizual_anglisht: 'a supportive parent beside a child' },
+      { fjala: 'shoku', kuptimi_ne_anglisht: 'the friend', pershkrimi_vizual_anglisht: 'a child friend waiting near the sink' }
+    ]);
+    ensureWords(/lidh|parafjal/, 'Fjalë Lidhëse/Parafjalë', [
+      { fjala: 'në', kuptimi_ne_anglisht: 'in', pershkrimi_vizual_anglisht: 'an object inside a place' },
+      { fjala: 'te', kuptimi_ne_anglisht: 'at', pershkrimi_vizual_anglisht: 'a child arriving at a sink' },
+      { fjala: 'me', kuptimi_ne_anglisht: 'with', pershkrimi_vizual_anglisht: 'two things used together' },
+      { fjala: 'dhe', kuptimi_ne_anglisht: 'and', pershkrimi_vizual_anglisht: 'two actions joined together' },
+      { fjala: 'pastaj', kuptimi_ne_anglisht: 'then', pershkrimi_vizual_anglisht: 'two actions in sequence with an arrow' },
+      { fjala: 'për', kuptimi_ne_anglisht: 'for', pershkrimi_vizual_anglisht: 'an object intended for a purpose' }
+    ]);
+    ensureWords(/ndajfol/, 'Ndajfoljet', [
+      { fjala: 'tani', kuptimi_ne_anglisht: 'now', pershkrimi_vizual_anglisht: 'a clock indicating now' },
+      { fjala: 'mirë', kuptimi_ne_anglisht: 'well', pershkrimi_vizual_anglisht: 'clean hands with a positive check mark' },
+      { fjala: 'përsëri', kuptimi_ne_anglisht: 'again', pershkrimi_vizual_anglisht: 'a simple repeat arrow' }
+    ]);
+
+    const keepOnly = (categoryMatch, allowedWords) => {
+      const category = categories.find((item) => categoryMatch.test(String(item?.emri_kategorise || '').toLocaleLowerCase('sq-AL')));
+      if (!Array.isArray(category?.opsionet)) return;
+      const allowed = new Set(allowedWords);
+      category.opsionet = category.opsionet.filter((item) => allowed.has(String(item?.fjala || '').toLocaleLowerCase('sq-AL')));
+    };
+    keepOnly(/veprim/, ['laj', 'shkoj', 'hap', 'lag', 'vendos', 'fërkoj', 'shpëlaj', 'mbyll', 'thaj', 'përfundoj']);
+    keepOnly(/objekt/, ['duart', 'sapuni', 'uji', 'rubineti', 'lavamani', 'peshqiri', 'peceta', 'mëngët']);
+    keepOnly(/njerëz|njerez|përem|perem/, ['unë', 'ti', 'mësuesja', 'prindi', 'shoku']);
+    keepOnly(/lidh|parafjal/, ['në', 'te', 'me', 'dhe', 'pastaj', 'për']);
+    keepOnly(/ndajfol/, ['tani', 'mirë', 'përsëri']);
   }
+  const adverbs = categories.find((item) => /ndajfol/.test(String(item?.emri_kategorise || '').toLocaleLowerCase('sq-AL')));
+  if (Array.isArray(adverbs?.opsionet)) adverbs.opsionet = adverbs.opsionet.slice(0, 4);
   return board;
 }
 
@@ -385,7 +433,7 @@ app.post('/api/generate-aac-board', async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: `Ti je ekspert i AAC dhe gjuhës shqipe. Krijo vetëm një tabelë komunikimi që lidhet drejtpërdrejt me qëllimin e përdoruesit. Kthe vetëm JSON të vlefshëm me strukturën {"moduli_i_zgjedhur":"Moduli 3: Tabela e Komunikimit","tabela_komunikimit":{"kategorite":[{"emri_kategorise":"Veprimet","opsionet":[{"fjala":"...","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"..."}]}]}}. Përfshi kategoritë Veprimet, Objektet dhe Njerëzit/Përemrat, plus Fjalë Lidhëse/Parafjalë dhe Ndajfolje. Çdo kategori duhet të ketë të paktën 5 fjalë. Fjalori duhet të jetë specifik për qëllimin, jo sende të rastësishme. Për larjen e duarve duhet të përfshihen patjetër: duart, sapuni, uji dhe laj. Përdor shqip gramatikisht të saktë dhe ruaj çdo “ë”. Jep për çdo fjalë një përshkrim vizual të saktë në anglisht.`
+          content: `Ti je ekspert i AAC dhe gjuhës shqipe. Krijo vetëm një tabelë komunikimi që lidhet drejtpërdrejt me qëllimin e përdoruesit. Kthe vetëm JSON të vlefshëm me strukturën {"moduli_i_zgjedhur":"Moduli 3: Tabela e Komunikimit","tabela_komunikimit":{"kategorite":[{"emri_kategorise":"Veprimet","opsionet":[{"fjala":"...","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"..."}]}]}}. Kategoritë dhe sasitë: Veprimet 10-12 fjalë, Objektet 8-10 fjalë, Njerëzit/Përemrat 5-6 fjalë, Fjalë Lidhëse/Parafjalë 6-8 fjalë dhe Ndajfolje vetëm 3-4 fjalë. Veprimet dhe objektet kanë përparësi. Çdo folje dhe objekt duhet të përdoret realisht në aktivitetin e dhënë; mos shto fjalë të përgjithshme ose sende të rastësishme. Për larjen e duarve duhet të përfshihen patjetër: duart, sapuni, uji, laj, hap, lag, fërkoj, shpëlaj, mbyll dhe thaj. Përdor shqip gramatikisht të saktë dhe ruaj çdo “ë”. Jep për çdo fjalë një përshkrim vizual të saktë në anglisht.`
         },
         {
           role: 'user',
@@ -459,7 +507,7 @@ app.post('/api/edit-image', async (req, res) => {
 
     const imageFiles = await Promise.all(images.map(dataUrlToFile));
     const result = await openai.images.edit({
-      model: 'gpt-image-1',
+      model: 'gpt-image-1.5',
       image: imageFiles,
       prompt: prompt.trim(),
       size,

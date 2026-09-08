@@ -3117,18 +3117,35 @@ main::after {
 }
 
 /* PlanifikoMeAtlas: sistemi i ngrohte vizual ne gjithe aplikacionin */
+.workspace {
+  background:
+    radial-gradient(circle at 88% 7%, rgba(247, 185, 207, 0.38), transparent 28rem),
+    radial-gradient(circle at 18% 42%, rgba(255, 214, 181, 0.28), transparent 30rem),
+    radial-gradient(circle at 78% 82%, rgba(190, 224, 239, 0.3), transparent 26rem),
+    linear-gradient(145deg, #fff9f5 0%, #fff5f8 48%, #f6fbfd 100%);
+}
+
 .sidebar {
   background:
-    radial-gradient(circle at 12% 8%, rgba(255, 240, 216, 0.9), transparent 12rem),
-    linear-gradient(180deg, rgba(248, 253, 251, 0.96), rgba(231, 244, 247, 0.94));
+    radial-gradient(circle at 12% 8%, rgba(255, 222, 194, 0.94), transparent 12rem),
+    radial-gradient(circle at 95% 48%, rgba(248, 193, 212, 0.4), transparent 15rem),
+    linear-gradient(180deg, rgba(255, 250, 245, 0.97), rgba(238, 247, 249, 0.95));
   border-right-color: rgba(95, 159, 176, 0.16);
   box-shadow: 10px 0 34px rgba(72, 120, 128, 0.05);
 }
 
 .topbar {
-  background: rgba(255, 253, 247, 0.78);
+  background: linear-gradient(90deg, rgba(255, 249, 243, 0.88), rgba(255, 238, 245, 0.82), rgba(245, 251, 253, 0.84));
   border-bottom-color: rgba(95, 159, 176, 0.13);
   backdrop-filter: blur(18px);
+}
+
+[data-theme="dark"] .workspace,
+body[data-theme="dark"] .workspace {
+  background:
+    radial-gradient(circle at 88% 8%, rgba(183, 103, 139, 0.15), transparent 28rem),
+    radial-gradient(circle at 18% 45%, rgba(192, 124, 82, 0.12), transparent 30rem),
+    linear-gradient(145deg, #182b2e, #21383b 58%, #17282b);
 }
 
 .brand-mark {
