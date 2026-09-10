@@ -4,6 +4,9 @@ import { educationalTools, recommendTools } from "./toolMatcher.js";
 import { generateAAC, materialToMarkdown } from "./aacGenerator.js";
 import { teacherCoach, streamTeacherCoach, renderMarkdown } from "./chatbot.js?v=gemini4";
 import { createProgressEntry, summarizeProgress, generateParentReport } from "./evaluation.js";
+import "./vendor/jspdf.umd.min.js";
+
+document.documentElement.dataset.pdfExporter = typeof window.jspdf?.jsPDF === "function" ? "ready" : "missing";
 
 const teacherRoutes = [
   ["dashboard", "PN", "Paneli"],
@@ -36,7 +39,9 @@ const state = {
   recommendations: [],
   progressEntries: [],
   progressByStudent: {},
+  progressHistoryStudentId: "all",
   reportsByStudent: {},
+  planAnalysesByStudent: {},
   progressSummary: summarizeProgress([]),
   chatMessages: [],
   completedGoals: new Set(),
@@ -51,6 +56,7 @@ const state = {
   teachingMaterials: JSON.parse(localStorage.getItem("atlas-teaching-materials") || "[]"),
   uploadedPlanText: "",
   uploadedPlanFileName: "",
+  pendingPlanAnalysis: null,
   theme: "light"
 };
 
@@ -187,7 +193,8 @@ async function init() {
   state.students.forEach((student) => { state.progressByStudent[student.id] ||= []; });
   state.progressEntries = state.progressByStudent[state.currentStudent.id];
   persistProgress();
-  state.reportsByStudent = Object.fromEntries(state.students.map((student) => [student.id, []]));
+  state.reportsByStudent = readStoredObject("atlas-parent-reports");
+  state.planAnalysesByStudent = readStoredObject("atlas-plan-analyses");
   refreshDerivedState();
   state.activity = [
     { title: "Profili shembull u ngarkua", detail: `Plani mbështetës për ${state.currentStudent.name} është gati.` },
@@ -272,6 +279,23 @@ function bindGlobalEvents() {
   window.setInterval(refreshParentLiveData, 15000);
 }
 
+function readStoredObject(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistReports() {
+  localStorage.setItem("atlas-parent-reports", JSON.stringify(state.reportsByStudent));
+}
+
+function persistPlanAnalyses() {
+  localStorage.setItem("atlas-plan-analyses", JSON.stringify(state.planAnalysesByStudent));
+}
+
 function handleLiveDataUpdate(event) {
   if (event.key === "atlas-progress" && event.newValue) {
     try {
@@ -350,11 +374,18 @@ function handleClick(event) {
     },
     "close-modal": closeModal,
     "parse-plan": generatePlan,
+    "confirm-plan-save": openPlanStudentPicker,
+    "show-plan-save-options": openPlanSaveConfirmation,
+    "skip-plan-save": skipPlanSave,
+    "assign-plan-student": () => assignPlanToStudent(studentId),
     "tool-details": () => showToolDetails(toolId),
     "generate-aac": generateAACFromInput,
     "copy-material": copyMaterial,
     "print-view": () => window.print(),
+    "print-parent-report": printParentReport,
     "download-report-pdf": printReportAsPdf,
+    "edit-parent-report": () => setReportEditMode(true),
+    "cancel-report-edit": () => setReportEditMode(false),
     "download-placeholder": () => toast("Eksporti PDF është gati si funksion provë për integrim të ardhshëm."),
     "edit-material": enableMaterialEditing,
     "regenerate-material": generateAACFromInput,
@@ -430,8 +461,133 @@ function showReportList() {
   navigate("reports");
 }
 
-function printReportAsPdf() {
-  toast("Zgjidhni 'Ruaj si PDF' në dritaren e printimit.");
+async function printReportAsPdf() {
+  const report = document.getElementById("parentReport");
+  const button = document.querySelector('[data-action="download-report-pdf"]');
+  if (!report) return toast("Raporti nuk u gjet.");
+  if (typeof window.jspdf?.jsPDF !== "function") {
+    toast("Eksportuesi PDF nuk u ngarkua. Rifreskoni faqen dhe provoni përsëri.");
+    return;
+  }
+  const safeName = (state.currentStudent?.name || "nxenesi").replace(/[^a-zA-Z0-9çëÇË_-]+/g, "-");
+  const originalButtonContent = button?.innerHTML || "Shkarko PDF";
+  if (button) {
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    button.innerHTML = `<span class="button-spinner" aria-hidden="true"></span> Edhe pak, po gjenerohet PDF…`;
+  }
+  toast("Edhe pak, po gjenerohet PDF…");
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
+    drawParentReportPdf(pdf, getParentReport(state.currentStudent), state.currentStudent);
+    pdf.save(`Raporti-${safeName}.pdf`);
+    toast("Raporti u shkarkua si PDF.");
+  } catch (error) {
+    console.error("PDF export failed", error);
+    toast("PDF-ja nuk mund të krijohej. Rifreskoni faqen dhe provoni përsëri.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+      button.innerHTML = originalButtonContent;
+    }
+  }
+}
+
+function drawParentReportPdf(pdf, reportData, student) {
+  const margin = 16;
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const contentWidth = pageWidth - margin * 2;
+  let y = 18;
+
+  const addPageIfNeeded = (needed) => {
+    if (y + needed <= pageHeight - 18) return;
+    pdf.addPage();
+    y = 18;
+  };
+  const writeWrapped = (text, x, width, options = {}) => {
+    const lines = pdf.splitTextToSize(String(text || ""), width);
+    pdf.text(lines, x, y, options);
+    y += lines.length * 5;
+  };
+
+  pdf.setFillColor(232, 246, 244);
+  pdf.roundedRect(margin, y, contentWidth, 31, 5, 5, "F");
+  pdf.setTextColor(35, 67, 82);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.text("PlanifikoMeAtlas", margin + 8, y + 9);
+  pdf.setFontSize(17);
+  pdf.text(pdf.splitTextToSize(reportData.title, contentWidth - 16), margin + 8, y + 18);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(92, 111, 122);
+  pdf.text(`${student.initials} · ${new Date().toLocaleDateString("sq-AL")}`, margin + 8, y + 27);
+  y += 39;
+
+  pdf.setTextColor(74, 92, 103);
+  pdf.setFontSize(10);
+  writeWrapped("Përmbledhje e qartë e progresit, e përgatitur për familjen.", margin, contentWidth);
+  y += 3;
+
+  const sections = [
+    ["Pikat e forta", reportData.strengths],
+    ["Rezultatet e arritura", reportData.achievements],
+    ["Fusha që duan mbështetje", reportData.support],
+    ["Aktivitete të sugjeruara në shtëpi", reportData.homeActivities]
+  ];
+  sections.forEach(([title, items]) => {
+    const normalizedItems = Array.isArray(items) && items.length ? items : ["Nuk ka të dhëna të regjistruara."];
+    const itemLines = normalizedItems.map((item) => pdf.splitTextToSize(`• ${item}`, contentWidth - 14));
+    const sectionHeight = 15 + itemLines.reduce((sum, lines) => sum + lines.length * 5 + 2, 0);
+    addPageIfNeeded(Math.min(sectionHeight, pageHeight - 36));
+    const boxStart = y;
+    pdf.setFillColor(249, 252, 251);
+    pdf.setDrawColor(222, 234, 234);
+    pdf.roundedRect(margin, boxStart, contentWidth, sectionHeight, 4, 4, "FD");
+    y += 9;
+    pdf.setTextColor(35, 67, 82);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(12);
+    pdf.text(title, margin + 7, y);
+    y += 8;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.setTextColor(55, 72, 82);
+    itemLines.forEach((lines) => {
+      pdf.text(lines, margin + 7, y);
+      y += lines.length * 5 + 2;
+    });
+    y = Math.max(y + 5, boxStart + sectionHeight + 6);
+  });
+
+  const totalPages = pdf.getNumberOfPages();
+  for (let page = 1; page <= totalPages; page += 1) {
+    pdf.setPage(page);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(120, 132, 140);
+    pdf.text(`Faqja ${page} nga ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: "right" });
+  }
+}
+
+function setReportEditMode(enabled) {
+  const form = document.getElementById("parentReportEditForm");
+  const paper = document.getElementById("parentReport");
+  if (form) form.hidden = !enabled;
+  if (paper) paper.hidden = enabled;
+}
+
+async function printParentReport() {
+  const report = document.getElementById("parentReport");
+  if (!report) return toast("Raporti nuk u gjet.");
+  if (report.hidden) setReportEditMode(false);
+  if (document.fonts?.ready) await document.fonts.ready;
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   window.print();
 }
 
@@ -526,6 +682,9 @@ async function handleSubmit(event) {
   if (event.target.id === "studentProfileForm") {
     saveStudentProfile(new FormData(event.target));
   }
+  if (event.target.id === "parentReportEditForm") {
+    saveParentReport(new FormData(event.target));
+  }
   if (event.target.id === "teachingMaterialForm") {
     await addTeachingMaterial(event.target, new FormData(event.target));
   }
@@ -550,6 +709,11 @@ function handleInput(event) {
 }
 
 function handleChange(event) {
+  if (event.target.id === "progressHistoryFilter") {
+    state.progressHistoryStudentId = event.target.value;
+    navigate("progress");
+    return;
+  }
   if (event.target.matches("[data-schedule-date-picker]")) {
     selectScheduleDate(event.target.value);
     return;
@@ -1584,26 +1748,37 @@ function escapeHtml(value) {
 
 function renderProgress() {
   const students = visibleStudents();
+  const historyEntries = getProgressHistoryEntries(students);
   return `
-    <section class="student-preview-grid progress-student-picker">${students.map((student) => `<button class="student-preview-card" type="button" data-action="select-progress-student" data-student-id="${student.id}"><span class="animal-avatar">${animalIcon(student.animal)}</span><span class="student-preview-name">${student.nickname}</span><span class="student-preview-initials">${student.id === state.currentStudent.id ? "I zgjedhur" : "Zgjidh"}</span></button>`).join("")}</section>
+    <section class="student-preview-grid progress-student-picker">${students.map((student) => `<button class="student-preview-card" type="button" data-action="select-progress-student" data-student-id="${student.id}"><span class="animal-avatar">${animalIcon(student.animal)}</span><span class="student-preview-name">${escapeHtml(student.name)}</span><span class="student-preview-initials">${student.id === state.currentStudent.id ? "I zgjedhur" : "Zgjidh"}</span></button>`).join("")}</section>
     <section class="progress-results-layout">
       <form class="glass-card progress-result-form" id="progressForm">
         <p class="eyebrow">Rezultat i ri</p>
         <h2>Ndiq progresin</h2>
-        <p>Shënoni me fjalë të qarta çfarë arriti fëmija.</p>
+        <p>Po regjistroni rezultat për <strong>${escapeHtml(state.currentStudent.name)}</strong>.</p>
         ${field("Data", `<input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" />`)}
         ${field("Objektivi", `<input name="goal" value="${state.currentStudent.immediateObjectives[0]}" />`)}
         ${field("Rezultati i arritur", `<textarea name="result" placeholder="P.sh. Kërkoi ndihmë pa kujtesë dhe përfundoi detyrën." required></textarea>`)}
         <button class="primary-button" type="submit">Ruaj rezultatin</button>
       </form>
       <section class="glass-card recorded-results">
-        <div class="card-header"><div><p class="eyebrow">Historia</p><h2>Rezultatet e arritura</h2></div><span class="badge">${state.progressEntries.length} shënime</span></div>
+        <div class="card-header progress-history-header"><div><p class="eyebrow">Historia</p><h2>Rezultatet e arritura</h2></div><span class="badge">${historyEntries.length} shënime</span></div>
+        ${field("Filtro sipas nxënësit", `<select id="progressHistoryFilter"><option value="all" ${state.progressHistoryStudentId === "all" ? "selected" : ""}>Të gjithë nxënësit</option>${students.map((student) => `<option value="${student.id}" ${state.progressHistoryStudentId === student.id ? "selected" : ""}>${escapeHtml(student.name)}</option>`).join("")}</select>`)}
         <ul class="result-list">
-          ${state.progressEntries.slice().reverse().map((entry) => `<li><time>${escapeHtml(entry.date)}</time><div><strong>${escapeHtml(entry.goal)}</strong><p>${escapeHtml(entry.result)}</p></div></li>`).join("")}
+          ${historyEntries.length ? historyEntries.map(({ entry, student }) => `<li><div class="result-entry-meta"><time>${escapeHtml(entry.date)}</time><span class="result-student-name">${escapeHtml(student.name)}</span></div><div><strong>${escapeHtml(entry.goal)}</strong><p>${escapeHtml(entry.result)}</p></div></li>`).join("") : `<li class="empty-result-history">Nuk ka rezultate të regjistruara për këtë filtër.</li>`}
         </ul>
       </section>
     </section>
   `;
+}
+
+function getProgressHistoryEntries(students = visibleStudents()) {
+  const allowedStudents = state.progressHistoryStudentId === "all"
+    ? students
+    : students.filter((student) => student.id === state.progressHistoryStudentId);
+  return allowedStudents
+    .flatMap((student) => getStudentProgress(student.id).map((entry) => ({ entry, student })))
+    .sort((a, b) => String(b.entry.date || "").localeCompare(String(a.entry.date || "")));
 }
 
 function renderParentProgress() {
@@ -1623,14 +1798,16 @@ function renderParentReports() {
 function renderReports() {
   if (!state.reportPreviewOpen) return renderReportList();
 
-  const report = generateParentReport(state.currentStudent, state.progressEntries);
+  const report = getParentReport(state.currentStudent);
+  const canEdit = activeRole === "teacher";
   return `
     <button class="student-back-button" type="button" data-action="back-report-list">← Kthehu te raportet</button>
     <section class="report-preview-toolbar">
       <div><p class="eyebrow">Preview</p><h2>Raporti i ${state.currentStudent.nickname}</h2></div>
       <div class="report-actions">
-        <button class="primary-button" data-action="download-report-pdf">Shkarko PDF</button>
-        <button class="secondary-button" data-action="print-view">Printo</button>
+        ${canEdit ? `<button class="secondary-button" type="button" data-action="edit-parent-report">Ndrysho raportin</button>` : ""}
+        <button class="primary-button" type="button" data-action="download-report-pdf">Shkarko PDF</button>
+        <button class="secondary-button" type="button" data-action="print-parent-report">Printo</button>
       </div>
     </section>
     <article class="report-paper" id="parentReport">
@@ -1646,7 +1823,52 @@ function renderReports() {
         ${profileCard("Aktivitete të sugjeruara në shtëpi", report.homeActivities)}
       </section>
     </article>
+    ${canEdit ? renderParentReportEditor(report) : ""}
   `;
+}
+
+function reportLines(value) {
+  return escapeHtml((Array.isArray(value) ? value : []).join("\n"));
+}
+
+function getParentReport(student) {
+  const generated = generateParentReport(student, getStudentProgress(student.id));
+  const plan = state.planAnalysesByStudent[student.id]?.summary;
+  if (plan) {
+    if (plan.strengths?.length) generated.strengths = plan.strengths;
+    if (plan.challenges?.length) generated.support = plan.challenges;
+  }
+  return { ...generated, ...(state.reportsByStudent[student.id] || {}) };
+}
+
+function renderParentReportEditor(report) {
+  return `<form class="glass-card report-edit-form" id="parentReportEditForm" hidden>
+    <div class="card-header"><div><p class="eyebrow">Modifikimi nga mësuesja</p><h2>Ndrysho raportin</h2><p>Shkruani një pikë për çdo rresht. Ndryshimet ruhen për këtë nxënës.</p></div></div>
+    ${field("Titulli", `<input name="title" maxlength="160" value="${escapeHtml(report.title)}" required />`)}
+    ${field("Pikat e forta", `<textarea name="strengths" rows="4">${reportLines(report.strengths)}</textarea>`)}
+    ${field("Rezultatet e arritura", `<textarea name="achievements" rows="6">${reportLines(report.achievements)}</textarea>`)}
+    ${field("Fushat që duan mbështetje", `<textarea name="support" rows="4">${reportLines(report.support)}</textarea>`)}
+    ${field("Aktivitete të sugjeruara në shtëpi", `<textarea name="homeActivities" rows="4">${reportLines(report.homeActivities)}</textarea>`)}
+    <div class="toolbar"><button class="primary-button" type="submit">Ruaj ndryshimet</button><button class="secondary-button" type="button" data-action="cancel-report-edit">Anulo</button></div>
+  </form>`;
+}
+
+function saveParentReport(formData) {
+  if (activeRole !== "teacher") return toast("Vetëm mësuesja mund ta ndryshojë raportin.");
+  const studentId = state.currentStudent?.id;
+  if (!studentId) return;
+  state.reportsByStudent[studentId] = {
+    title: String(formData.get("title") || "").trim(),
+    strengths: linesFrom(formData, "strengths"),
+    achievements: linesFrom(formData, "achievements"),
+    support: linesFrom(formData, "support"),
+    homeActivities: linesFrom(formData, "homeActivities"),
+    updatedAt: new Date().toISOString(),
+    updatedBy: activeUser?.id || "teacher"
+  };
+  persistReports();
+  navigate("reports", { keepReportPreview: true });
+  toast("Ndryshimet në raport u ruajtën.");
 }
 
 function renderReportList() {
@@ -1773,36 +1995,102 @@ async function generatePlan() {
 
   output.innerHTML = document.getElementById("loadingTemplate").innerHTML;
 
+  const locallyParsed = normalizeParsedStudent(await parseIEP(userInputValue, ""));
+  let summary = buildPlanSummary(locallyParsed);
+  let analysisSource = "lokal";
   try {
     const response = await fetch("http://localhost:5001/api/generate-plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: [
-          { role: "system", content: "Përmblidh shkurt planin e nxënësit në shqip. Jep vetëm tri pjesë të shkurtra: Pikat e forta, Sfidat kryesore dhe Objektivat e sugjeruara. Mos përfshi emra, iniciale ose diagnoza." },
+          { role: "system", content: "Analizo planin në shqip. Kthe VETËM JSON të vlefshëm me çelësat strengths, challenges, objectives; secili duhet të jetë listë me 2-5 fjali të shkurtra, konkrete dhe të bazuara vetëm në dokument. Mos përfshi emra, iniciale, diagnoza ose terma mjekësorë." },
           { role: "user", content: userInputValue }
-        ]
+        ],
+        response_format: { type: "json_object" }
       })
     });
 
-    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+    if (!response.ok) throw new Error(`Kërkesa dështoi me statusin ${response.status}`);
 
     const data = await response.json();
-    output.innerHTML = `
-      <section class="glass-card plan-summary">
-        <p class="eyebrow">Përmbledhja e planit</p>
-        <h3>Përmbledhje e shkurtër</h3>
-        <div id="generatedPlan"></div>
-      </section>`;
-    document.getElementById("generatedPlan").textContent = data.plan ?? "";
-    toast("Përmbledhja u krijua.");
+    const candidate = typeof data.plan === "string" ? JSON.parse(data.plan) : data.plan;
+    summary = normalizePlanSummary(candidate, summary);
+    analysisSource = "AI";
   } catch (error) {
-    console.error(error);
-    const parsed = normalizeParsedStudent(await parseIEP(userInputValue, ""));
-    const summary = buildPlanSummary(parsed);
-    output.innerHTML = `<section class="glass-card plan-summary"><p class="eyebrow">Përmbledhja e planit</p><h3>Përmbledhje e shkurtër</h3><div class="plan-summary-grid">${summaryCard("Pikat e forta", summary.strengths)}${summaryCard("Sfidat kryesore", summary.challenges)}${summaryCard("Objektivat e sugjeruara", summary.objectives)}</div></section>`;
-    toast("Përmbledhja u krijua lokalisht.");
+    console.warn("Analiza AI nuk ishte e disponueshme; u përdor analizuesi lokal.", error);
   }
+
+  state.pendingPlanAnalysis = {
+    fileName: state.uploadedPlanFileName,
+    sanitizedText: userInputValue,
+    summary,
+    source: analysisSource,
+    analyzedAt: new Date().toISOString()
+  };
+  output.innerHTML = `<section class="glass-card plan-summary"><p class="eyebrow">Përmbledhja e planit</p><h3>Përmbledhje e strukturuar</h3><div class="plan-summary-grid">${summaryCard("Pikat e forta", summary.strengths)}${summaryCard("Sfidat kryesore", summary.challenges)}${summaryCard("Objektivat e sugjeruara", summary.objectives)}</div><p class="plan-save-status" id="planSaveStatus">Përmbledhja është gati, por nuk është lidhur me asnjë nxënës.</p><button class="text-button" id="planSaveOptionsButton" type="button" data-action="show-plan-save-options">Zgjidh ruajtjen</button></section>`;
+  openPlanSaveConfirmation();
+  toast("Përmbledhja u krijua. Zgjidhni nëse dëshironi ta ruani.");
+}
+
+function openPlanSaveConfirmation() {
+  openModal("Ruajtja e PIA", "A dëshironi ta ruani te një nxënës?", `
+    <p class="modal-choice-copy">Përmbledhja mund të shikohet edhe pa u lidhur me një profil.</p>
+    <div class="toolbar modal-choice-actions">
+      <button class="primary-button" type="button" data-action="confirm-plan-save">Po</button>
+      <button class="secondary-button" type="button" data-action="skip-plan-save">Jo</button>
+    </div>
+  `);
+}
+
+function openPlanStudentPicker() {
+  if (!state.pendingPlanAnalysis) {
+    closeModal();
+    return toast("Nuk ka përmbledhje në pritje për ruajtje.");
+  }
+  const students = visibleStudents();
+  openModal("Zgjidhni profilin", "Te cili nxënës dëshironi ta ruani?", students.length ? `
+    <div class="plan-student-picker" role="list">
+      ${students.map((student) => `<button class="student-preview-card plan-student-choice" type="button" data-action="assign-plan-student" data-student-id="${student.id}"><span class="animal-avatar" aria-hidden="true">${animalIcon(student.animal)}</span><span class="student-preview-name">${escapeHtml(student.name)}</span></button>`).join("")}
+    </div>
+    <button class="text-button" type="button" data-action="skip-plan-save">Mos e ruaj</button>
+  ` : `<p>Nuk ka nxënës të disponueshëm për këtë llogari.</p><button class="secondary-button" type="button" data-action="skip-plan-save">Mbyll</button>`);
+}
+
+function skipPlanSave() {
+  state.pendingPlanAnalysis = null;
+  closeModal();
+  const status = document.getElementById("planSaveStatus");
+  if (status) status.textContent = "Përmbledhja po shfaqet pa u lidhur me ndonjë profil nxënësi.";
+  document.getElementById("planSaveOptionsButton")?.remove();
+  toast("Përmbledhja nuk u lidh me asnjë nxënës.");
+}
+
+function assignPlanToStudent(studentId) {
+  const analysis = state.pendingPlanAnalysis;
+  const student = visibleStudents().find((item) => item.id === studentId);
+  if (!analysis || !student) return toast("Zgjidhni një nxënës të vlefshëm.");
+  state.planAnalysesByStudent[student.id] = { ...analysis, studentId: student.id };
+  persistPlanAnalyses();
+  state.pendingPlanAnalysis = null;
+  closeModal();
+  const status = document.getElementById("planSaveStatus");
+  if (status) status.textContent = `U ruajt te ${student.name} · Analizë ${analysis.source === "AI" ? "me AI" : "lokale"}`;
+  document.getElementById("planSaveOptionsButton")?.remove();
+  toast(`Plani PIA u ruajt te ${student.name}.`);
+}
+
+function normalizePlanSummary(value, fallback) {
+  const cleanList = (items, defaultItems) => {
+    if (!Array.isArray(items)) return defaultItems;
+    const cleaned = items.map((item) => sanitizePlanText(String(item))).filter(Boolean).slice(0, 5);
+    return cleaned.length ? cleaned : defaultItems;
+  };
+  return {
+    strengths: cleanList(value?.strengths, fallback.strengths),
+    challenges: cleanList(value?.challenges, fallback.challenges),
+    objectives: cleanList(value?.objectives, fallback.objectives)
+  };
 }
 
 function buildPlanSummary(student) {
@@ -1815,7 +2103,7 @@ function buildPlanSummary(student) {
 
 function summaryCard(title, items) {
   const safeItems = items.length ? items : ["Për t'u plotësuar nga mësuesja"];
-  return `<article class="plan-summary-card"><h4>${title}</h4><ul>${safeItems.map((item) => `<li>${item}</li>`).join("")}</ul></article>`;
+  return `<article class="plan-summary-card"><h4>${escapeHtml(title)}</h4><ul>${safeItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></article>`;
 }
 
 function privatizeStudent(student) {
@@ -1913,6 +2201,8 @@ function addProgressEntry(formData) {
     goal: formData.get("goal"),
     result: formData.get("result")
   });
+  entry.studentId = state.currentStudent.id;
+  entry.studentName = state.currentStudent.name;
   state.progressEntries.push(entry);
   persistProgress();
   state.activity.unshift({ title: "Rezultati u regjistrua", detail: `${entry.goal}: ${entry.result}` });

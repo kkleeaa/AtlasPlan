@@ -246,8 +246,11 @@ async function handleAtlasChat(req, res) {
       ? normalizeAtlasMessages(req.body.messages, message)
       : [...sessionHistory, { role: 'user', parts: [{ text: message }] }];
     const systemInstruction = atlasInstructionWithContext(req.body?.context);
-    const stream = openrouter
-      ? await openrouter.chat.completions.create({
+    let stream;
+    let provider = '';
+    if (openrouter) {
+      try {
+        stream = await openrouter.chat.completions.create({
           model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: systemInstruction },
@@ -255,16 +258,29 @@ async function handleAtlasChat(req, res) {
           ],
           max_tokens: 800,
           stream: true
-        })
-      : await gemini.models.generateContentStream({
+        });
+        provider = 'openrouter';
+      } catch (openrouterError) {
+        console.warn('Atlas OpenRouter unavailable; trying Gemini fallback.', {
+          message: openrouterError.message,
+          status: openrouterError.status,
+          code: openrouterError.code
+        });
+      }
+    }
+    if (!stream && gemini) {
+      stream = await gemini.models.generateContentStream({
           model: 'gemini-2.5-flash',
           contents,
           config: { systemInstruction }
         });
+      provider = 'gemini';
+    }
+    if (!stream) throw new Error('Asnjë ofrues AI nuk ishte i disponueshëm.');
     let responseText = '';
     for await (const chunk of stream) {
       if (finished) break;
-      const text = openrouter ? chunk.choices?.[0]?.delta?.content : chunk.text;
+      const text = provider === 'openrouter' ? chunk.choices?.[0]?.delta?.content : chunk.text;
       if (text) {
         responseText += text;
         res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);
@@ -277,7 +293,12 @@ async function handleAtlasChat(req, res) {
       res.end();
     }
   } catch (error) {
-    console.error('Gemini chat error:', error.message);
+    console.error('Atlas chat error:', {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      cause: error.cause?.message
+    });
     atlasChatSessions.delete(sessionId);
     if (!finished) {
       finished = true;

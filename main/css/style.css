@@ -2243,16 +2243,139 @@ textarea {
   box-shadow: none;
 }
 
+.progress-history-header {
+  margin-bottom: 0.75rem;
+}
+
+.recorded-results > .field {
+  margin-bottom: 1rem;
+}
+
+.result-entry-meta {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+}
+
+.result-student-name {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: #e6f5ef;
+  color: #276a57;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.result-list .empty-result-history {
+  display: block;
+  color: var(--muted);
+  text-align: center;
+}
+
+.report-edit-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.report-edit-form[hidden],
+.report-paper[hidden] {
+  display: none !important;
+}
+
+.report-edit-form textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.button-spinner {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+.plan-save-status {
+  margin: 1rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+  color: #52716a;
+  font-size: 0.85rem;
+  font-weight: 750;
+}
+
+.modal-choice-copy {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.modal-choice-actions {
+  justify-content: flex-end;
+}
+
+.plan-student-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.plan-student-choice {
+  min-height: 7rem;
+  text-align: center;
+}
+
 @media print {
+  @page { size: A4 portrait; margin: 14mm; }
+  html,
+  body {
+    width: 100%;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
   body * { visibility: hidden !important; }
   #parentReport,
   #parentReport * { visibility: visible !important; }
   #parentReport {
-    position: absolute;
-    inset: 0;
-    width: 100%;
+    display: block !important;
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border: 0;
+    border-radius: 0;
     box-shadow: none;
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  #parentReport::before,
+  #parentReport::after { display: none !important; }
+  #parentReport .report-paper-header,
+  #parentReport .report-intro,
+  #parentReport .profile-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  #parentReport .report-paper-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8mm !important;
+  }
+  #parentReport .profile-card {
+    margin: 0 !important;
+    box-shadow: none !important;
   }
 }
 
