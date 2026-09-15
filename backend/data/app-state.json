@@ -1,0 +1,1440 @@
+{
+  "students": [
+    {
+      "id": "30edb259-399f-4e7c-b0e7-ba6df874bc9c",
+      "name": "Maya Johnson",
+      "nickname": "Maya Johnson",
+      "initials": "M.J.",
+      "birthday": "14/03/2018",
+      "animal": "bear",
+      "evaluationType": "STANDARD",
+      "teacherId": "teacher-demo",
+      "parentId": "parent-demo",
+      "learningStyle": "Përfiton nga mbështetja vizuale, frazat e shkurtra dhe rutinat e qarta.",
+      "age": 8,
+      "diagnosis": "Profil mësimor",
+      "communication": "Përdor fraza të shkurtra, zgjedhje me figura dhe përgjigje po/jo. Përfiton nga koha e pritjes dhe mbështetjet vizuale.",
+      "fineMotorGoals": [
+        "Të përmirësojë kapjen me gishta për mjetet e klasës",
+        "Të presë përgjatë vijave të lakuara me gërshërë të përshtatura",
+        "Të shkruajë emrin me formim të qëndrueshëm të shkronjave"
+      ],
+      "grossMotorGoals": [
+        "Të ndjekë një rutinë lëvizjeje me tre hapa",
+        "Të rrisë ekuilibrin gjatë kalimeve në këndin e lojës"
+      ],
+      "speechGoals": [
+        "Të përdorë kërkesë me pesë fjalë me mbështetje vizuale",
+        "T'u përgjigjet pyetjeve kush/çfarë/ku pas një tregimi"
+      ],
+      "sensoryNeeds": [
+        "Ulja e zhurmës gjatë mbledhjeve",
+        "Pushime lëvizjeje çdo 45 minuta",
+        "Qasje në kënd të qetë pas ndryshimeve të papritura"
+      ],
+      "behaviorTriggers": [
+        "Kalime me zhurmë",
+        "Ndryshime të papritura të orarit",
+        "Detyra të gjata shkrimi pa pushime"
+      ],
+      "allergies": [
+        "Nuk janë shënuar alergji"
+      ],
+      "reinforcers": [
+        "Zgjedhje ngjitëseje",
+        "Kohë për vizatim",
+        "Puzzle pesëminutëshe",
+        "Zgjedhje e rolit ndihmës në klasë"
+      ],
+      "immediateObjectives": [
+        "Të përdorë tabelën së pari/pastaj gjatë kohës së shkrimit",
+        "Të kërkojë pushim duke përdorur kartë me figurë",
+        "Të përfundojë sekuencën e larjes së duarve me dy udhëzime ose më pak"
+      ],
+      "longTermObjectives": [
+        "Të përdorë në mënyrë të pavarur orarin vizual gjatë ditës shkollore",
+        "Të komunikojë nevojat me të folur, AAC ose shkëmbim figurash",
+        "Të kryejë rutinat e kujdesit personal me pak udhëzim nga i rrituri"
+      ],
+      "strengths": [
+        "Kujtesë e fortë vizuale",
+        "I pëlqen të ndihmojë shokët",
+        "Përgjigjet mirë ndaj rutinave të parashikueshme",
+        "Ka kureshtje për shkencën dhe artin"
+      ],
+      "challenges": [
+        "Vështirësi në mjedise me zhurmë",
+        "Ka nevojë për mbështetje për të nisur lojën me shokët",
+        "Qëndrueshmëria në shkrim është e kufizuar"
+      ],
+      "notes": [],
+      "completedGoals": [
+        "Përgjigjet ndaj gjuhës së pari/pastaj me një kujtesë"
+      ],
+      "photoColor": "#0ea5e9",
+      "createdAt": "2026-09-09T12:31:40.782Z"
+    },
+    {
+      "id": "6dc09577-01e7-4a64-a424-ab94b42b512c",
+      "name": "Arion Krasniqi",
+      "nickname": "Arion Krasniqi",
+      "initials": "A.K.",
+      "birthday": "02/07/2017",
+      "animal": "lion",
+      "evaluationType": "STANDARD",
+      "teacherId": "teacher-demo",
+      "parentId": "parent-demo",
+      "learningStyle": "Mëson mirë përmes shembujve praktikë, zgjedhjeve dhe lëvizjes së shkurtër.",
+      "age": 9,
+      "diagnosis": "Profil mësimor",
+      "communication": "Përdor fraza të shkurtra, zgjedhje me figura dhe përgjigje po/jo. Përfiton nga koha e pritjes dhe mbështetjet vizuale.",
+      "fineMotorGoals": [
+        "Të përmirësojë kapjen me gishta për mjetet e klasës",
+        "Të presë përgjatë vijave të lakuara me gërshërë të përshtatura",
+        "Të shkruajë emrin me formim të qëndrueshëm të shkronjave"
+      ],
+      "grossMotorGoals": [
+        "Të ndjekë një rutinë lëvizjeje me tre hapa",
+        "Të rrisë ekuilibrin gjatë kalimeve në këndin e lojës"
+      ],
+      "speechGoals": [
+        "Të përdorë kërkesë me pesë fjalë me mbështetje vizuale",
+        "T'u përgjigjet pyetjeve kush/çfarë/ku pas një tregimi"
+      ],
+      "sensoryNeeds": [
+        "Ulja e zhurmës gjatë mbledhjeve",
+        "Pushime lëvizjeje çdo 45 minuta",
+        "Qasje në kënd të qetë pas ndryshimeve të papritura"
+      ],
+      "behaviorTriggers": [
+        "Kalime me zhurmë",
+        "Ndryshime të papritura të orarit",
+        "Detyra të gjata shkrimi pa pushime"
+      ],
+      "allergies": [
+        "Nuk janë shënuar alergji"
+      ],
+      "reinforcers": [
+        "Zgjedhje ngjitëseje",
+        "Kohë për vizatim",
+        "Puzzle pesëminutëshe",
+        "Zgjedhje e rolit ndihmës në klasë"
+      ],
+      "immediateObjectives": [
+        "Të ndjekë një udhëzim me dy hapa",
+        "Të kërkojë ndihmë me një frazë të shkurtër"
+      ],
+      "longTermObjectives": [
+        "Të përdorë në mënyrë të pavarur orarin vizual gjatë ditës shkollore",
+        "Të komunikojë nevojat me të folur, AAC ose shkëmbim figurash",
+        "Të kryejë rutinat e kujdesit personal me pak udhëzim nga i rrituri"
+      ],
+      "strengths": [
+        "Kujtesë e fortë vizuale",
+        "I pëlqen të ndihmojë shokët",
+        "Përgjigjet mirë ndaj rutinave të parashikueshme",
+        "Ka kureshtje për shkencën dhe artin"
+      ],
+      "challenges": [
+        "Vështirësi në mjedise me zhurmë",
+        "Ka nevojë për mbështetje për të nisur lojën me shokët",
+        "Qëndrueshmëria në shkrim është e kufizuar"
+      ],
+      "notes": [],
+      "completedGoals": [
+        "Përgjigjet ndaj gjuhës së pari/pastaj me një kujtesë"
+      ],
+      "photoColor": "#0ea5e9",
+      "createdAt": "2026-09-09T12:31:40.782Z"
+    },
+    {
+      "id": "87eddd4e-c36f-4900-a6d7-3481722a8d93",
+      "name": "Elira Rexha",
+      "nickname": "Elira Rexha",
+      "initials": "E.R.",
+      "birthday": "21/09/2019",
+      "animal": "rabbit",
+      "evaluationType": "STANDARD",
+      "teacherId": "teacher-demo",
+      "parentId": "parent-demo",
+      "learningStyle": "Përfiton nga ritmi i qetë, koha për përgjigje dhe materialet me figura.",
+      "age": 7,
+      "diagnosis": "Profil mësimor",
+      "communication": "Përdor fraza të shkurtra, zgjedhje me figura dhe përgjigje po/jo. Përfiton nga koha e pritjes dhe mbështetjet vizuale.",
+      "fineMotorGoals": [
+        "Të përmirësojë kapjen me gishta për mjetet e klasës",
+        "Të presë përgjatë vijave të lakuara me gërshërë të përshtatura",
+        "Të shkruajë emrin me formim të qëndrueshëm të shkronjave"
+      ],
+      "grossMotorGoals": [
+        "Të ndjekë një rutinë lëvizjeje me tre hapa",
+        "Të rrisë ekuilibrin gjatë kalimeve në këndin e lojës"
+      ],
+      "speechGoals": [
+        "Të përdorë kërkesë me pesë fjalë me mbështetje vizuale",
+        "T'u përgjigjet pyetjeve kush/çfarë/ku pas një tregimi"
+      ],
+      "sensoryNeeds": [
+        "Ulja e zhurmës gjatë mbledhjeve",
+        "Pushime lëvizjeje çdo 45 minuta",
+        "Qasje në kënd të qetë pas ndryshimeve të papritura"
+      ],
+      "behaviorTriggers": [
+        "Kalime me zhurmë",
+        "Ndryshime të papritura të orarit",
+        "Detyra të gjata shkrimi pa pushime"
+      ],
+      "allergies": [
+        "Nuk janë shënuar alergji"
+      ],
+      "reinforcers": [
+        "Zgjedhje ngjitëseje",
+        "Kohë për vizatim",
+        "Puzzle pesëminutëshe",
+        "Zgjedhje e rolit ndihmës në klasë"
+      ],
+      "immediateObjectives": [
+        "Të zgjedhë mes dy aktiviteteve",
+        "Të përfundojë rutinën e mëngjesit",
+        "Të përdorë kartën e pushimit"
+      ],
+      "longTermObjectives": [
+        "Të përdorë në mënyrë të pavarur orarin vizual gjatë ditës shkollore",
+        "Të komunikojë nevojat me të folur, AAC ose shkëmbim figurash",
+        "Të kryejë rutinat e kujdesit personal me pak udhëzim nga i rrituri"
+      ],
+      "strengths": [
+        "Kujtesë e fortë vizuale",
+        "I pëlqen të ndihmojë shokët",
+        "Përgjigjet mirë ndaj rutinave të parashikueshme",
+        "Ka kureshtje për shkencën dhe artin"
+      ],
+      "challenges": [
+        "Vështirësi në mjedise me zhurmë",
+        "Ka nevojë për mbështetje për të nisur lojën me shokët",
+        "Qëndrueshmëria në shkrim është e kufizuar"
+      ],
+      "notes": [],
+      "completedGoals": [
+        "Përgjigjet ndaj gjuhës së pari/pastaj me një kujtesë"
+      ],
+      "photoColor": "#0ea5e9",
+      "createdAt": "2026-09-09T12:31:40.782Z"
+    },
+    {
+      "id": "bffaed99-a1c8-4ad8-ac6c-2dd287a383f1",
+      "name": "Luan Berisha",
+      "nickname": "Luan Berisha",
+      "initials": "L.B.",
+      "birthday": "08/12/2015",
+      "animal": "fox",
+      "evaluationType": "STANDARD",
+      "teacherId": "teacher-demo",
+      "parentId": "",
+      "learningStyle": "Angazhohet më shumë me tregime, vizatim dhe detyra të ndara në hapa të vegjël.",
+      "age": 10,
+      "diagnosis": "Profil mësimor",
+      "communication": "Përdor fraza të shkurtra, zgjedhje me figura dhe përgjigje po/jo. Përfiton nga koha e pritjes dhe mbështetjet vizuale.",
+      "fineMotorGoals": [
+        "Të përmirësojë kapjen me gishta për mjetet e klasës",
+        "Të presë përgjatë vijave të lakuara me gërshërë të përshtatura",
+        "Të shkruajë emrin me formim të qëndrueshëm të shkronjave"
+      ],
+      "grossMotorGoals": [
+        "Të ndjekë një rutinë lëvizjeje me tre hapa",
+        "Të rrisë ekuilibrin gjatë kalimeve në këndin e lojës"
+      ],
+      "speechGoals": [
+        "Të përdorë kërkesë me pesë fjalë me mbështetje vizuale",
+        "T'u përgjigjet pyetjeve kush/çfarë/ku pas një tregimi"
+      ],
+      "sensoryNeeds": [
+        "Ulja e zhurmës gjatë mbledhjeve",
+        "Pushime lëvizjeje çdo 45 minuta",
+        "Qasje në kënd të qetë pas ndryshimeve të papritura"
+      ],
+      "behaviorTriggers": [
+        "Kalime me zhurmë",
+        "Ndryshime të papritura të orarit",
+        "Detyra të gjata shkrimi pa pushime"
+      ],
+      "allergies": [
+        "Nuk janë shënuar alergji"
+      ],
+      "reinforcers": [
+        "Zgjedhje ngjitëseje",
+        "Kohë për vizatim",
+        "Puzzle pesëminutëshe",
+        "Zgjedhje e rolit ndihmës në klasë"
+      ],
+      "immediateObjectives": [
+        "Të organizojë materialet para aktivitetit",
+        "Të përdorë orarin vizual pa kujtesë"
+      ],
+      "longTermObjectives": [
+        "Të përdorë në mënyrë të pavarur orarin vizual gjatë ditës shkollore",
+        "Të komunikojë nevojat me të folur, AAC ose shkëmbim figurash",
+        "Të kryejë rutinat e kujdesit personal me pak udhëzim nga i rrituri"
+      ],
+      "strengths": [
+        "Kujtesë e fortë vizuale",
+        "I pëlqen të ndihmojë shokët",
+        "Përgjigjet mirë ndaj rutinave të parashikueshme",
+        "Ka kureshtje për shkencën dhe artin"
+      ],
+      "challenges": [
+        "Vështirësi në mjedise me zhurmë",
+        "Ka nevojë për mbështetje për të nisur lojën me shokët",
+        "Qëndrueshmëria në shkrim është e kufizuar"
+      ],
+      "notes": [],
+      "completedGoals": [
+        "Përgjigjet ndaj gjuhës së pari/pastaj me një kujtesë"
+      ],
+      "photoColor": "#0ea5e9",
+      "createdAt": "2026-09-09T12:31:40.782Z"
+    },
+    {
+      "id": "54123c21-9099-4f29-801b-418ef7884d3d",
+      "name": "arta krasniqi",
+      "nickname": "arta krasniqi",
+      "initials": "AK",
+      "birthday": "Nuk është shënuar",
+      "animal": "fox",
+      "evaluationType": "STANDARD",
+      "teacherId": "teacher-demo",
+      "parentId": "",
+      "learningStyle": "Profili mësimor mund të plotësohet me mbështetje praktike dhe rutina të qarta.",
+      "age": "Nuk është shënuar",
+      "diagnosis": "Profil mësimor",
+      "communication": "Përfiton nga udhëzimet e qarta dhe mbështetja vizuale.",
+      "fineMotorGoals": [],
+      "grossMotorGoals": [],
+      "speechGoals": [],
+      "sensoryNeeds": [],
+      "behaviorTriggers": [
+        "Shkaktarët do të plotësohen nga mësuesja"
+      ],
+      "allergies": [
+        "Nuk janë shënuar alergji"
+      ],
+      "reinforcers": [
+        "Përforcuesit do të plotësohen nga mësuesja"
+      ],
+      "immediateObjectives": [],
+      "longTermObjectives": [],
+      "strengths": [
+        "Pikat e forta do të plotësohen nga mësuesja"
+      ],
+      "challenges": [
+        "Nevojat praktike do të plotësohen nga mësuesja"
+      ],
+      "notes": [],
+      "completedGoals": [
+        "Përgjigjet ndaj gjuhës së pari/pastaj me një kujtesë"
+      ],
+      "photoColor": "#ff8c42",
+      "createdAt": "2026-09-09T23:55:09.829Z"
+    }
+  ],
+  "updatedAt": "2026-09-15T09:21:41.756Z",
+  "scheduleByStudent": {
+    "30edb259-399f-4e7c-b0e7-ba6df874bc9c": [
+      [
+        {
+          "id": "0-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Art dhe krijimtari",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "1-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Lojë e udhëhequr",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "2-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Muzikë",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "3-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Punë në grup",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "4-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Planifikimi i ditës",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Reflektim javor",
+          "goal": "",
+          "completed": false
+        }
+      ]
+    ],
+    "6dc09577-01e7-4a64-a424-ab94b42b512c": [
+      [
+        {
+          "id": "0-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Art dhe krijimtari",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "1-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Lojë e udhëhequr",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "2-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Muzikë",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "3-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Punë në grup",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "4-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Planifikimi i ditës",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Reflektim javor",
+          "goal": "",
+          "completed": false
+        }
+      ]
+    ],
+    "87eddd4e-c36f-4900-a6d7-3481722a8d93": [
+      [
+        {
+          "id": "0-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Art dhe krijimtari",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "1-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Lojë e udhëhequr",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "2-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Muzikë",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "3-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Punë në grup",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "4-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Planifikimi i ditës",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Reflektim javor",
+          "goal": "",
+          "completed": false
+        }
+      ]
+    ],
+    "bffaed99-a1c8-4ad8-ac6c-2dd287a383f1": [
+      [
+        {
+          "id": "0-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Art dhe krijimtari",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "1-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Lojë e udhëhequr",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "2-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Muzikë",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "3-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Punë në grup",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "4-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Planifikimi i ditës",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Reflektim javor",
+          "goal": "",
+          "completed": false
+        }
+      ]
+    ],
+    "54123c21-9099-4f29-801b-418ef7884d3d": [
+      [
+        {
+          "id": "0-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "0-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Art dhe krijimtari",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "1-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "1-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Lojë e udhëhequr",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "2-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Mirëseardhja",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "2-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Muzikë",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "3-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Rrethi i mëngjesit",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Shkencë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Gjuhë shqipe",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "3-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Punë në grup",
+          "goal": "",
+          "completed": false
+        }
+      ],
+      [
+        {
+          "id": "4-0",
+          "start": "08:00",
+          "end": "08:45",
+          "activity": "Planifikimi i ditës",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-1",
+          "start": "08:45",
+          "end": "09:30",
+          "activity": "Lexim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-2",
+          "start": "09:45",
+          "end": "10:30",
+          "activity": "Matematikë",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-3",
+          "start": "10:30",
+          "end": "11:00",
+          "activity": "Pushim",
+          "goal": "",
+          "completed": false
+        },
+        {
+          "id": "4-4",
+          "start": "11:00",
+          "end": "11:45",
+          "activity": "Reflektim javor",
+          "goal": "",
+          "completed": false
+        }
+      ]
+    ]
+  },
+  "progressByStudent": {
+    "30edb259-399f-4e7c-b0e7-ba6df874bc9c": [
+      {
+        "id": "0eb41db0-e534-4961-b23e-6e8d4a196aae",
+        "date": "2026-07-08",
+        "goal": "Përdor orarin vizual",
+        "result": "Kontrolloi orarin pas një kujtese të shkurtër.",
+        "notes": ""
+      },
+      {
+        "id": "a0ddb8e9-61cd-4288-a362-ec2f8faaa1aa",
+        "date": "2026-07-09",
+        "goal": "Kërkon pushim",
+        "result": "Përdori kartën e pushimit në mënyrë të pavarur.",
+        "notes": ""
+      },
+      {
+        "id": "83f31abf-4a4d-4432-96f4-a4f59651ac24",
+        "date": "2026-07-10",
+        "goal": "Sekuenca e larjes së duarve",
+        "result": "Përfundoi hapat e sapunit dhe shpëlarjes pa ndihmë.",
+        "notes": ""
+      }
+    ],
+    "6dc09577-01e7-4a64-a424-ab94b42b512c": [],
+    "87eddd4e-c36f-4900-a6d7-3481722a8d93": [
+      {
+        "id": "2102a936-e737-4dbe-9087-c2a5de5270de",
+        "date": "2026-09-09",
+        "goal": "Të zgjedhë mes dy aktiviteteve",
+        "result": "teeesst",
+        "notes": ""
+      }
+    ],
+    "bffaed99-a1c8-4ad8-ac6c-2dd287a383f1": [],
+    "54123c21-9099-4f29-801b-418ef7884d3d": []
+  }
+}

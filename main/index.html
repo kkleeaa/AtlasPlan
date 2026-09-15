@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <meta name="description" content="PlanifikoMeAtlas — hapësirë e ngrohtë për planifikim, profile, orare dhe raporte." />
     <title>PlanifikoMeAtlas</title>
   <link rel="stylesheet" href="css/style.css?v=16" />
@@ -20,7 +23,7 @@
           <button class="role-choice role-admin" type="button" data-login-role="admin"><span class="role-figure" aria-hidden="true">🧑‍💻</span><strong>Admin</strong><small>Menaxhoni profilet dhe lidhjet</small></button>
         </div>
       </section>
-      <form class="role-login-card hidden" id="roleLoginForm">
+      <form class="role-login-card hidden" id="roleLoginForm" action="" novalidate>
         <button class="text-button" id="backToRoles" type="button">← Kthehu te rolet</button>
         <p class="eyebrow">Hyrje e sigurt</p>
         <h1 id="roleLoginTitle">Hyr në AtlasPlan</h1>
@@ -58,6 +61,45 @@
     <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
     <div class="modal-backdrop hidden" id="modalBackdrop" role="presentation"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><button class="icon-button modal-close" data-action="close-modal" aria-label="Mbyll dritaren">×</button><p class="eyebrow" id="modalEyebrow">Detaje</p><h2 id="modalTitle">Detaje</h2><div id="modalBody"></div></section></div>
     <template id="loadingTemplate"><div class="loading-state"><span class="spinner" aria-hidden="true"></span><strong>Analizuesi po e shqyrton planin me kujdes...</strong><p>Po anonimizohen të dhënat dhe po përgatitet përmbledhja.</p><span class="analysis-progress" aria-hidden="true"><span></span></span></div></template>
-  <script type="module" src="js/app.js?v=34"></script>
+  <script>
+    (() => {
+      const form = document.getElementById("roleLoginForm");
+      const welcome = document.getElementById("roleWelcome");
+      const error = document.getElementById("loginError");
+      const selectedRole = document.getElementById("selectedRole");
+      const titles = { admin: "Admin", teacher: "Mësues", parent: "Prind" };
+      const demos = { admin: ["admin@atlas.al", "Atlas123"], teacher: ["mesues@atlas.al", "Atlas123"], parent: ["prind@atlas.al", "Atlas123"] };
+      const showRoles = () => {
+        form.reset();
+        form.classList.add("hidden");
+        welcome.classList.remove("hidden");
+        error.classList.add("hidden");
+      };
+      document.querySelectorAll("[data-login-role]").forEach((button) => button.addEventListener("click", () => {
+        selectedRole.value = button.dataset.loginRole;
+        document.getElementById("roleLoginTitle").textContent = `Hyr si ${titles[selectedRole.value]}`;
+        welcome.classList.add("hidden");
+        form.classList.remove("hidden");
+        error.classList.add("hidden");
+      }));
+      document.getElementById("backToRoles").addEventListener("click", showRoles);
+      document.getElementById("demoLogin").addEventListener("click", () => {
+        const account = demos[selectedRole.value];
+        if (!account) return showRoles();
+        form.elements.email.value = account[0];
+        form.elements.password.value = account[1];
+        form.requestSubmit();
+      });
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        window.AtlasPendingLogin = Object.fromEntries(new FormData(form).entries());
+        window.dispatchEvent(new CustomEvent("atlas-login", { detail: window.AtlasPendingLogin }));
+      });
+      window.AtlasAuth = Object.freeze({ showRoles });
+    })();
+  </script>
+  <script src="js/fallbackData.js?v=2"></script>
+  <script src="js/reliability.js?v=3"></script>
+  <script type="module" src="js/app.js?v=69"></script>
   </body>
 </html>

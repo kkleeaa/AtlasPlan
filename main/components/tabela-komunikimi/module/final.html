@@ -297,6 +297,26 @@
             background: #f7fbff;
             border: 1px solid #d6eaf8;
         }
+        .word-variants {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+            justify-content: center;
+        }
+        .word-variant-btn {
+            border: 1px solid #bfd6ea;
+            background: #ffffff;
+            color: #28587a;
+            border-radius: 999px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .word-variant-btn:active {
+            transform: scale(0.97);
+        }
         .historia-paragraf {
             background: #fffde7;
             padding: 12px;
@@ -379,10 +399,15 @@
             transform: none;
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 249, 214, 0.98) 100%);
             color: #213547;
-            padding: 16px 18px;
-            border-radius: 30px;
+            padding: 22px 34px;
+            border-radius: 50% / 38%;
             border: 3px solid #213547;
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+            box-shadow:
+                -14px -5px 0 -7px #fff9d6,
+                14px -7px 0 -7px #fff9d6,
+                -18px 7px 0 -9px #fff9d6,
+                18px 8px 0 -9px #fff9d6,
+                0 10px 24px rgba(0, 0, 0, 0.18);
             font-size: 20px;
             line-height: 1.35;
             font-family: "Comic Sans MS", "Trebuchet MS", "Arial Rounded MT Bold", sans-serif;
@@ -390,7 +415,16 @@
             letter-spacing: 0.2px;
             text-align: center;
         }
-        .story-caption::before, .story-caption::after { display: none; }
+        .story-caption::before,
+        .story-caption::after {
+            content: "";
+            position: absolute;
+            background: #fff9d6;
+            border: 3px solid #213547;
+            border-radius: 50%;
+        }
+        .story-caption::before { width: 20px; height: 20px; left: 28px; bottom: -17px; }
+        .story-caption::after { width: 10px; height: 10px; left: 17px; bottom: -29px; }
         .print-book-pages { display: none; }
         .result-panel {
             margin-top: 26px;
@@ -429,10 +463,8 @@
                 bottom: 16px;
                 transform: none;
             }
-            .story-caption::before,
-            .story-caption::after {
-                display: none;
-            }
+            .story-caption::before { width: 17px; height: 17px; }
+            .story-caption::after { width: 9px; height: 9px; }
         }
         .child-badge {
             display: flex;
@@ -468,34 +500,11 @@
         <input type="text" id="tema" placeholder="Shkruaj qëllimin që mësuesi do që fëmija ta kuptojë...">
         <button class="btn-gjenero" onclick="gjeneroPaketen()">Gjenero Materialin</button>
     </div>
-    <p class="helper-text">Mësuesi shkruan qëllimin, zgjedh modulin dhe aplikacioni gjeneron vetëm atë material në shqip.</p>
-
     <div id="storySetup" class="story-setup">
-        <div class="story-choice-grid">
-            <label class="choice-card">
-                <input type="radio" name="storyCharacterMode" id="storyUseChild" value="child" checked>
-                <span>
-                    <strong>Përdor fëmijën si personazh</strong><br>
-                    Libri krijon një personazh të ngjashëm me fëmijën, vetëm nëse prindi jep pëlqimin.
-                </span>
-            </label>
-            <label class="choice-card">
-                <input type="radio" name="storyCharacterMode" id="storyUseFavorite" value="favorite">
-                <span>
-                    <strong>Përdor personazhin e preferuar</strong><br>
-                    Nëse nuk jepet pëlqim për foton, libri përdor personazhin e preferuar të fëmijës.
-                </span>
-            </label>
-        </div>
+        <input type="radio" name="storyCharacterMode" id="storyUseChild" value="child" checked hidden>
+        <p class="helper-text"><strong>Libër i personalizuar:</strong> ngarkoni një foto të fëmijës. Fëmija do të jetë personazhi kryesor i ilustruar në të 10 faqet. Te fusha e qëllimit mund të shkruani edhe një aktivitet të preferuar të fëmijës.</p>
 
         <div id="childModeFields">
-            <div class="consent-row">
-                <input type="checkbox" id="storyConsent">
-                <div>
-                    <strong>Jap pëlqimin për përdorimin e fotos së fëmijës për personalizimin e librit virtual.</strong>
-                    <div style="font-size: 13px; color: #6e5600;">Fotoja përdoret vetëm për të krijuar një personazh ilustrues të ngjashëm me fëmijën, në mënyrë që materiali të jetë më i kuptueshëm, më i afërt dhe më motivues për të. Fotoja nuk shfaqet si identitet publik dhe përdoret vetëm gjatë gjenerimit të këtij materiali.</div>
-                </div>
-            </div>
             <div class="story-setup-grid">
                 <div>
                     <label for="childName">Emri i fëmijës</label>
@@ -514,23 +523,11 @@
                 <img id="photoPreviewImg" alt="Parapamje e fëmijës">
                 <div>
                     <strong>Foto e ngarkuar</strong>
-                    <div style="font-size: 13px; color: #607d8b;">Kontrolloni që fytyra, trupi i plotë, qëndrimi dhe çdo pajisje ndihmëse të duken qartë. Fotoja përdoret vetëm pasi është dhënë pëlqimi.</div>
+                    <div style="font-size: 13px; color: #607d8b;">Zgjidhni një foto të qartë, që personazhi i ilustruar të ruajë fytyrën, flokët, veshjen, qëndrimin dhe çdo pajisje ndihmëse të dukshme.</div>
                 </div>
             </div>
         </div>
 
-        <div id="favoriteModeFields" class="simple-hidden">
-            <div class="story-setup-grid">
-                <div>
-                    <label for="favoriteCharacter">Personazhi i preferuar</label>
-                    <input type="text" id="favoriteCharacter" placeholder="P.sh. Barbie, Spiderman, Elsa">
-                </div>
-                <div>
-                    <label for="childNameFallback">Emri i fëmijës (opsionale)</label>
-                    <input type="text" id="childNameFallback" placeholder="P.sh. Ardi">
-                </div>
-            </div>
-        </div>
     </div>
 
     <div id="outputPanel" class="module-box result-panel modul-fshehur">
@@ -539,6 +536,9 @@
     </div>
 </div>
 
+<script src="../../../js/fallbackData.js?v=2"></script>
+<script src="../../../js/preSavedRoutines.js?v=1"></script>
+<script src="../../../js/reliability.js?v=3"></script>
 <script>
 let childPhotoDataUrl = "";
 const audioCache = new Map();
@@ -549,8 +549,44 @@ const flashcardImageCache = new Map();
 const storyImageCache = new Map();
 const boardSymbolCache = new Map();
 const photoProfileCache = new Map();
+const faceCropCache = new Map();
 const characterReferenceCache = new Map();
 const generatedMaterialCache = new Map();
+let imageRequestQueue = Promise.resolve();
+let lastImageRequestStartedAt = 0;
+const IMAGE_REQUEST_INTERVAL_MS = 12500;
+let generatedImageDbPromise = null;
+
+function openGeneratedImageDb() {
+  if (!('indexedDB' in window)) return Promise.resolve(null);
+  if (generatedImageDbPromise) return generatedImageDbPromise;
+  generatedImageDbPromise = new Promise((resolve) => {
+    const request = indexedDB.open('atlas-generated-media', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('images');
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+  return generatedImageDbPromise;
+}
+
+async function getPersistentGeneratedImage(key) {
+  const db = await openGeneratedImageDb();
+  if (!db) return '';
+  return new Promise((resolve) => {
+    const request = db.transaction('images', 'readonly').objectStore('images').get(key);
+    request.onsuccess = () => resolve(typeof request.result === 'string' ? request.result : '');
+    request.onerror = () => resolve('');
+  });
+}
+
+async function savePersistentGeneratedImage(key, dataUrl) {
+  const db = await openGeneratedImageDb();
+  if (!db) return;
+  await new Promise((resolve) => {
+    const request = db.transaction('images', 'readwrite').objectStore('images').put(dataUrl, key);
+    request.onsuccess = request.onerror = () => resolve();
+  });
+}
 
 const moduleMap = {
   "Moduli 1: Sekuencat me Fjalë": "outputContent",
@@ -566,16 +602,53 @@ const moduleTitles = {
   "Moduli 4: Social Story (Libri Virtual)": "Moduli 4: Social Story (Libri Virtual)"
 };
 
+const frozenModuleTypes = {
+  "Moduli 1: Sekuencat me Fjalë": "sequences",
+  "Moduli 2: Flashcards": "flashcards",
+  "Moduli 3: Tabela e Komunikimit": "communication",
+  "Moduli 4: Social Story (Libri Virtual)": "book"
+};
+
+function frozenRoutineStorageKey(moduleType, topic) {
+  const normalizedTopic = window.AtlasPreSavedRoutines?.topicKey(topic) || normalizeWord(topic);
+  const versionByModule = {
+    sequences: "v2",
+    communication: "v3"
+  };
+  const version = versionByModule[moduleType] || "v1";
+  return `atlas-frozen-routine-${version}:${moduleType}:${normalizedTopic}`;
+}
+
+function getFrozenRoutine(moduleType, topic) {
+  const preSaved = window.AtlasPreSavedRoutines?.get(moduleType, topic);
+  if (preSaved) return preSaved;
+  try {
+    const cached = localStorage.getItem(frozenRoutineStorageKey(moduleType, topic));
+    return cached ? JSON.parse(cached) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveFrozenRoutine(moduleType, topic, value) {
+  if (moduleType === "book") return;
+  try {
+    localStorage.setItem(frozenRoutineStorageKey(moduleType, topic), JSON.stringify(value));
+  } catch (error) {
+    console.warn("Materiali nuk mund të ruhej lokalisht.", error);
+  }
+}
+
 function wantsChildPhotoStory() {
   return Boolean(document.getElementById("storyUseChild")?.checked);
 }
 
 function hasStoryConsent() {
-  return Boolean(document.getElementById("storyConsent")?.checked);
+  return true;
 }
 
 function getActiveStoryPhotoDataUrl() {
-  return wantsChildPhotoStory() && hasStoryConsent() ? childPhotoDataUrl : "";
+  return wantsChildPhotoStory() ? childPhotoDataUrl : "";
 }
 
 function getFavoriteCharacterName() {
@@ -598,33 +671,66 @@ function getStoryProtagonistName(childName = "") {
 }
 
 async function lexoMeZe(teksti) {
-  const text = String(teksti || "").trim();
-  if (!text) return;
+  const audioCacheVersion = "module3-tts-20260911-pronunciation-1";
+  const chunks = window.AtlasReliability.chunkTtsText(teksti, 249);
+  if (!chunks.length) return;
   currentAudio?.pause();
   if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
 
-  let blob = audioCache.get(text);
-  if (!blob) {
-    const response = await fetch(apiUrl("/api/text-to-speech"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || "Audioja nuk mund të gjenerohet.");
+  async function speakWithBrowserFallback(text) {
+    if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance !== "function") {
+      throw new Error("Audioja nuk është e disponueshme.");
     }
-    blob = await response.blob();
-    audioCache.set(text, blob);
+    return new Promise((resolve, reject) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices?.() || [];
+      const albanianVoice = voices.find((voice) => /^sq([-_]|$)/i.test(String(voice.lang || "")))
+        || voices.find((voice) => /alban/i.test(String(voice.name || "")));
+      if (albanianVoice) utterance.voice = albanianVoice;
+      utterance.lang = albanianVoice?.lang || "sq-AL";
+      utterance.rate = 0.92;
+      utterance.pitch = 1;
+      utterance.onend = () => resolve();
+      utterance.onerror = () => reject(new Error("Audioja rezervë nuk mund të luhet."));
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    });
   }
-  currentAudioUrl = URL.createObjectURL(blob);
-  currentAudio = new Audio(currentAudioUrl);
-  await currentAudio.play();
+
+  for (const text of chunks) {
+    try {
+      const cacheKey = `${audioCacheVersion}:${text}`;
+      let blob = audioCache.get(cacheKey);
+      if (!blob) {
+        const response = await window.AtlasReliability.fetchWithRetry(apiUrl("/api/text-to-speech"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        blob = await response.blob();
+        audioCache.set(cacheKey, blob);
+      }
+      currentAudioUrl = URL.createObjectURL(blob);
+      currentAudio = new Audio(currentAudioUrl);
+      await currentAudio.play();
+      await new Promise((resolve, reject) => {
+        currentAudio.addEventListener("ended", resolve, { once: true });
+        currentAudio.addEventListener("error", () => reject(new Error("Audioja nuk mund të luhet.")), { once: true });
+      });
+      URL.revokeObjectURL(currentAudioUrl);
+      currentAudioUrl = "";
+    } catch (error) {
+      console.warn("OpenAI audio failed, using browser Albanian voice fallback.", error);
+      await speakWithBrowserFallback(text);
+    }
+  }
 }
+
 
 async function analyzeChildPhoto(childName, childDescription) {
   const activePhotoDataUrl = getActiveStoryPhotoDataUrl();
-  const cacheKey = `${childName}::${childDescription}::${activePhotoDataUrl ? "photo" : "no-photo"}`;
+  const cacheKey = `${childName}::${childDescription}::${activePhotoDataUrl ? getPhotoIdentityKey() : "no-photo"}`;
+
   if (photoProfileCache.has(cacheKey)) {
     return photoProfileCache.get(cacheKey);
   }
@@ -638,6 +744,9 @@ async function analyzeChildPhoto(childName, childDescription) {
     clothing_english: childDescription || "simple child clothes",
     mobility_aids: "none visible",
     full_body_notes: "Show the full body whenever possible.",
+    full_body_visible: null,
+    mobility_aid_fully_visible: null,
+    face_box_normalized: null,
     consistency_rules: [
       "Keep the exact same child identity on every page.",
       "Do not change the child into another gender presentation.",
@@ -678,10 +787,13 @@ Return JSON with exactly these keys:
 {
   "child_name": "string",
   "gender_presentation": "girl | boy | unclear",
-  "visual_profile_english": "1-3 concise English sentences describing face, hair, skin tone, body shape/posture, and overall appearance to preserve in illustrations",
+  "visual_profile_english": "2-4 precise English sentences describing distinctive face shape, eye shape and spacing, eyebrows, nose, mouth, cheeks, hairline, hair texture and color, skin tone, body proportions, posture, clothing, and identifying visible traits",
   "clothing_english": "short English description of visible clothing",
   "mobility_aids": "none visible | wheelchair | crutches | prosthetic leg | cane | other visible aid",
   "full_body_notes": "brief English note about body visibility/posture",
+  "full_body_visible": true,
+  "mobility_aid_fully_visible": true,
+  "face_box_normalized": [0.25, 0.1, 0.5, 0.4],
   "consistency_rules": ["short rule 1", "short rule 2", "short rule 3"]
 }
 
@@ -689,6 +801,10 @@ Rules:
 - If the child appears to be a girl, say girl. If appears to be a boy, say boy. If not clear, say unclear.
 - If no mobility aid is visible, write exactly "none visible".
 - Never infer a wheelchair, prosthetic leg, or other medical device unless it is clearly visible.
+- Set full_body_visible to true only when the child's head, torso, arms, and legs or complete seated physique are visible clearly enough to reproduce.
+- If a mobility aid is present, set mobility_aid_fully_visible to true only when its important shape and relationship to the child's body are visible.
+- face_box_normalized must be the tight bounding box around the child's complete face as [x, y, width, height], with every value from 0 to 1 relative to the full image. Use null only when no face is visible.
+- Describe what makes this child visually distinct from a generic child. Do not beautify or replace traits with idealized cartoon features.
 - The goal is to preserve the same child across all book pages.`
               },
               {
@@ -711,10 +827,24 @@ Rules:
       clothing_english: parsed.clothing_english || fallbackProfile.clothing_english,
       mobility_aids: parsed.mobility_aids || fallbackProfile.mobility_aids,
       full_body_notes: parsed.full_body_notes || fallbackProfile.full_body_notes,
+      full_body_visible: typeof parsed.full_body_visible === "boolean" ? parsed.full_body_visible : null,
+      mobility_aid_fully_visible: typeof parsed.mobility_aid_fully_visible === "boolean" ? parsed.mobility_aid_fully_visible : null,
+      face_box_normalized: Array.isArray(parsed.face_box_normalized) && parsed.face_box_normalized.length === 4
+        ? parsed.face_box_normalized.map(Number)
+        : null,
       consistency_rules: Array.isArray(parsed.consistency_rules) && parsed.consistency_rules.length
         ? parsed.consistency_rules
         : fallbackProfile.consistency_rules
     };
+    if (profile.face_box_normalized) {
+      const faceIdentity = await analyzeFaceIdentityDetails(activePhotoDataUrl, profile.face_box_normalized, childName);
+      if (faceIdentity?.face_identity_english) {
+        profile.visual_profile_english = `${profile.visual_profile_english} ${faceIdentity.face_identity_english}`.trim();
+      }
+      if (faceIdentity?.do_not_change?.length) {
+        profile.consistency_rules = [...profile.consistency_rules, ...faceIdentity.do_not_change].slice(0, 6);
+      }
+    }
     photoProfileCache.set(cacheKey, profile);
     return profile;
   } catch (error) {
@@ -724,10 +854,129 @@ Rules:
   }
 }
 
+async function createFaceCropDataUrl(photoDataUrl, faceBox, scaleMultiplier = 1.65, outputSize = 1024) {
+  if (!photoDataUrl || !Array.isArray(faceBox) || faceBox.length !== 4) return "";
+  const values = faceBox.map(Number);
+  if (values.some((value) => !Number.isFinite(value))) return "";
+  const cacheKey = `${getPhotoIdentityKey()}::${values.join(",")}::${scaleMultiplier}::${outputSize}`;
+  if (faceCropCache.has(cacheKey)) return faceCropCache.get(cacheKey);
+
+  const image = await new Promise((resolve, reject) => {
+    const source = new Image();
+    source.onload = () => resolve(source);
+    source.onerror = () => reject(new Error("Fotografia e fytyrës nuk mund të përpunohej."));
+    source.src = photoDataUrl;
+  });
+  const [x, y, width, height] = values;
+  const faceSize = Math.max(width * image.width, height * image.height);
+  const cropSize = Math.min(Math.max(faceSize * scaleMultiplier, 1), Math.min(image.width, image.height));
+  const centerX = (x + width / 2) * image.width;
+  const centerY = (y + height / 2) * image.height;
+  const sourceX = Math.max(0, Math.min(image.width - cropSize, centerX - cropSize / 2));
+  const sourceY = Math.max(0, Math.min(image.height - cropSize, centerY - cropSize / 2));
+  const canvas = document.createElement("canvas");
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+  canvas.getContext("2d").drawImage(image, sourceX, sourceY, cropSize, cropSize, 0, 0, outputSize, outputSize);
+  const result = canvas.toDataURL("image/png");
+  faceCropCache.set(cacheKey, result);
+  return result;
+}
+
+async function createTightFaceCropDataUrl(photoDataUrl, faceBox) {
+  return createFaceCropDataUrl(photoDataUrl, faceBox, 1.2, 1024);
+}
+
+function buildPhotoIdentitySpec(profile = {}) {
+  const visualProfile = String(profile?.visual_profile_english || "").trim();
+  const consistencyRules = Array.isArray(profile?.consistency_rules)
+    ? profile.consistency_rules.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const specParts = [];
+  if (visualProfile) specParts.push(`Identity analysis: ${visualProfile}`);
+  if (consistencyRules.length) specParts.push(`Do not change rules: ${consistencyRules.join("; ")}`);
+  return specParts.join("\n");
+}
+
+async function analyzeFaceIdentityDetails(photoDataUrl, faceBox, childName) {
+  const faceCropDataUrl = await createFaceCropDataUrl(photoDataUrl, faceBox);
+  if (!faceCropDataUrl) return null;
+
+  try {
+    const data = await fetchJsonWithRetry(apiUrl("/api/generate-plan"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: "You analyze only the face identity of one child for an illustrated social story. Return only valid JSON. Do not beautify, idealize, or generalize the child."
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Analyze this child's face closely so the illustrated character stays recognizable as the same child.
+
+Child name: ${childName || "Unknown"}
+
+Return exactly:
+{
+  "face_identity_english": "2-3 precise English sentences describing the child's most recognizable facial identity markers",
+  "do_not_change": ["short rule 1", "short rule 2", "short rule 3"]
+}
+
+Rules:
+- Focus on exact face shape, eye shape and spacing, eyebrows, nose, mouth, cheeks, hairline, hairstyle framing the face, and skin tone.
+- Describe what would make family members instantly say this is the same child.
+- Do not say generic things like cute, pretty, nice smile, beautiful eyes.
+- Do not invent hidden features.`
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: faceCropDataUrl
+                }
+              }
+            ]
+          }
+        ]
+      })
+    }, 1, 45000);
+
+    const parsed = JSON.parse(data.choices?.[0]?.message?.content || "{}");
+    return {
+      face_identity_english: String(parsed.face_identity_english || "").trim(),
+      do_not_change: Array.isArray(parsed.do_not_change)
+        ? parsed.do_not_change.map((item) => String(item || "").trim()).filter(Boolean)
+        : []
+    };
+  } catch (error) {
+    console.warn("Face identity refinement skipped.", error);
+    return null;
+  }
+}
+
 function delay(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+async function waitForImageGenerationSlot() {
+  const previous = imageRequestQueue;
+  let releaseQueue;
+  imageRequestQueue = new Promise((resolve) => { releaseQueue = resolve; });
+  await previous;
+  const remaining = IMAGE_REQUEST_INTERVAL_MS - (Date.now() - lastImageRequestStartedAt);
+  if (remaining > 0) await delay(remaining);
+  lastImageRequestStartedAt = Date.now();
+  releaseQueue();
 }
 
 function resolveApiBaseUrl() {
@@ -752,6 +1001,36 @@ function apiUrl(path) {
   return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+function extractGeneratedImageDataUrl(payload) {
+  const directUrl = payload?.imageUrl || payload?.url || payload?.image_url;
+  if (directUrl) return directUrl;
+
+  const firstImage = payload?.data?.[0];
+  if (firstImage?.b64_json) {
+    return `data:image/png;base64,${firstImage.b64_json}`;
+  }
+  if (firstImage?.url) {
+    return firstImage.url;
+  }
+
+  return "";
+}
+
+async function ensureGenerationBackend() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2500);
+  try {
+    const response = await fetch(apiUrl("/api/health"), { signal: controller.signal });
+    const health = response.ok ? await response.json() : null;
+    return Boolean(health?.ok && health?.openaiConfigured);
+  } catch (error) {
+    console.error("Generation backend unavailable.", error);
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function runWithConcurrency(tasks, limit = 3) {
   const results = new Array(tasks.length);
   let nextIndex = 0;
@@ -766,67 +1045,51 @@ async function runWithConcurrency(tasks, limit = 3) {
   return results;
 }
 
-async function fetchJsonWithRetry(url, options = {}, attempts = 3) {
-  let lastError;
-  const timeoutMs = /\/(generate-image|edit-image)$/.test(url) ? 180000 : 60000;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(url, { ...options, signal: controller.signal });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const error = new Error(data?.error || `Kërkesa dështoi (${response.status}).`);
-        error.retryable = response.status === 408 || response.status === 429 || response.status >= 500;
-        throw error;
-      }
-      return data;
-    } catch (error) {
-      lastError = error;
-      const retryable = error.name === "AbortError" || error instanceof TypeError || error.retryable;
-      if (!retryable || attempt === attempts) break;
-      await delay(700 * attempt);
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-  console.error("Backend request failed after retries.", lastError);
-  if (lastError?.name === "AbortError") {
-    throw new Error("Gjenerimi i figurës zgjati shumë. Ju lutem provoni përsëri.");
-  }
-  throw new Error(lastError?.message || "Shërbimi online nuk u lidh dot për momentin.");
+async function fetchJsonWithRetry(url, options = {}, attempts = 3, timeoutMs = 10000) {
+  const response = await window.AtlasReliability.fetchWithRetry(url, options, { attempts, timeoutMs });
+  return response.json();
 }
 
-function createBookFallbackImage(pageText, childName) {
-  const safeText = escapeHtml(pageText || "");
-  const safeName = escapeHtml(childName || "Fëmija");
-  const activePhotoDataUrl = getActiveStoryPhotoDataUrl();
-  const photoMarkup = activePhotoDataUrl
-    ? `<image href="${activePhotoDataUrl}" x="155" y="48" width="290" height="290" preserveAspectRatio="xMidYMid slice" clip-path="url(#photoClip)"/>`
-    : `<circle cx="300" cy="190" r="118" fill="#fff2cf"/><text x="300" y="225" text-anchor="middle" font-size="118">🧒</text>`;
+async function withTimeout(taskPromise, timeoutMs, timeoutMessage = "Kërkesa zgjati shumë.") {
+  let timeoutId = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+  });
+  try {
+    return await Promise.race([taskPromise, timeoutPromise]);
+  } finally {
+    if (timeoutId !== null) window.clearTimeout(timeoutId);
+  }
+}
 
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="768" viewBox="0 0 1024 768">
-      <defs>
-        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stop-color="#f8fbff"/>
-          <stop offset="100%" stop-color="#e5f1ff"/>
-        </linearGradient>
-        <clipPath id="photoClip">
-          <circle cx="300" cy="190" r="118"/>
-        </clipPath>
-      </defs>
-      <rect width="1024" height="768" rx="34" fill="url(#bg)"/>
-      <rect x="58" y="58" width="908" height="652" rx="30" fill="#ffffff" stroke="#d4e5f4" stroke-width="6"/>
-      <circle cx="300" cy="190" r="128" fill="#dff1ff"/>
-      ${photoMarkup}
-      <rect x="500" y="110" width="360" height="170" rx="26" fill="#fff6da"/>
-      <text x="680" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#30516b">${safeName}</text>
-      <text x="680" y="230" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#30516b">po mëson këtë hap</text>
-      <rect x="120" y="420" width="784" height="170" rx="28" fill="#eef7ff"/>
-      <text x="512" y="500" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" fill="#30516b">${safeText}</text>
-    </svg>`;
+function showModuleWarning(message) {
+  document.getElementById("moduleFallbackWarning")?.remove();
+  const warning = document.createElement("div");
+  warning.id = "moduleFallbackWarning";
+  warning.setAttribute("role", "status");
+  warning.style.cssText = "position:sticky;top:8px;z-index:20;margin:8px 0;padding:10px 14px;border-radius:12px;background:#fff0d8;color:#79502f;border:1px solid #f0cca8;box-shadow:0 6px 18px rgba(121,80,47,.12)";
+  warning.textContent = message;
+  document.querySelector(".container")?.prepend(warning);
+  setTimeout(() => warning.remove(), 7000);
+}
 
+function createAacFallbackImage(word) {
+  const label = escapeHtml(String(word || ""));
+  const normalized = normalizeWord(word);
+  const water = containsAny(normalized, ["uj", "shpëlaj", "shpelaj"]);
+  const teeth = containsAny(normalized, ["furç", "furc", "dhëmb", "dhemb", "fërkoj", "ferkoj"]);
+  const person = containsAny(normalized, ["unë", "une", "ti"]);
+  const sequence = containsAny(normalized, ["pastaj", "përsëri", "perseri", "nga", "në", "ne", "me"]);
+  const symbol = water
+    ? '<path d="M256 72C218 135 154 211 154 286a102 102 0 0 0 204 0c0-75-64-151-102-214Z" fill="#74c9ee" stroke="#294451" stroke-width="12"/><path d="M204 296c8 30 28 47 57 52" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round"/>'
+    : teeth
+      ? '<rect x="118" y="230" width="276" height="48" rx="24" fill="#72c6e8" stroke="#294451" stroke-width="12"/><rect x="306" y="174" width="92" height="60" rx="14" fill="#fff" stroke="#294451" stroke-width="12"/><path d="M318 174v-35m22 35v-43m22 43v-35m22 35v-43" stroke="#ef8faf" stroke-width="12" stroke-linecap="round"/>'
+      : person
+        ? '<circle cx="256" cy="158" r="64" fill="#ffd4b8" stroke="#294451" stroke-width="12"/><path d="M142 352c12-86 56-128 114-128s102 42 114 128" fill="#efb8ce" stroke="#294451" stroke-width="12" stroke-linejoin="round"/><path d="M256 250v88" stroke="#294451" stroke-width="12" stroke-linecap="round"/>'
+        : sequence
+          ? '<circle cx="150" cy="238" r="42" fill="#f6c9d9"/><circle cx="362" cy="238" r="42" fill="#b9dff0"/><path d="M204 238h98m-28-30 30 30-30 30" fill="none" stroke="#294451" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>'
+          : '<circle cx="256" cy="220" r="112" fill="#f8d8a8" stroke="#294451" stroke-width="12"/><path d="M198 220h116M256 162v116" stroke="#fff" stroke-width="18" stroke-linecap="round"/>';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" rx="54" fill="#fffdf8"/><rect x="58" y="42" width="396" height="330" rx="42" fill="#eaf5ff"/>${symbol}<rect x="48" y="390" width="416" height="76" rx="30" fill="#ffe8ef"/><text x="256" y="439" text-anchor="middle" font-family="Arial,sans-serif" font-size="32" font-weight="700" fill="#294451">${label}</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
@@ -857,6 +1120,118 @@ function getPhotoIdentityKey() {
   return `${activePhotoDataUrl.length}:${activePhotoDataUrl.slice(0, 80)}`;
 }
 
+function localBookStorageKey(topic, childName) {
+  const identity = getPhotoIdentityKey();
+  let hash = 2166136261;
+  for (const character of `${identity}|${childName}|${topic}`) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `atlas-virtual-book-v5:${(hash >>> 0).toString(16)}`;
+}
+
+function characterAnchorStorageKey(childName = "") {
+  const identity = getPhotoIdentityKey();
+  const normalizedName = normalizeWord(childName || "femija") || "femija";
+  let hash = 2166136261;
+  for (const character of `${identity}|${normalizedName}`) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `atlas-virtual-book-character-anchor-v5:${(hash >>> 0).toString(16)}`;
+}
+
+function getSavedCharacterAnchor(childName = "") {
+  try {
+    const saved = JSON.parse(localStorage.getItem(characterAnchorStorageKey(childName)) || "null");
+    const imageUrl = String(saved?.imageUrl || "");
+    return saved?.version === 5 && isRasterDataUrl(imageUrl) ? imageUrl : "";
+  } catch {
+    return "";
+  }
+}
+
+function saveCharacterAnchor(childName = "", imageUrl = "") {
+  if (!isRasterDataUrl(imageUrl)) return false;
+  try {
+    localStorage.setItem(characterAnchorStorageKey(childName), JSON.stringify({
+      version: 5,
+      imageUrl
+    }));
+    return true;
+  } catch (error) {
+    console.warn("Referenca e personazhit nuk u ruajt lokalisht.", error);
+    return false;
+  }
+}
+
+async function compressBookImage(dataUrl) {
+  const image = await new Promise((resolve, reject) => {
+    const node = new Image();
+    node.onload = () => resolve(node);
+    node.onerror = reject;
+    node.src = dataUrl;
+  });
+  const width = Math.min(720, image.width);
+  const height = Math.round(image.height * (width / image.width));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", 0.68);
+}
+
+async function saveBookLocally(topic, childName, book, pages) {
+  try {
+    const compactPages = [];
+    for (const page of pages) compactPages.push({ ...page, imageUrl: await compressBookImage(page.imageUrl) });
+    localStorage.setItem(localBookStorageKey(topic, childName), JSON.stringify({ version: 5, book, pages: compactPages }));
+    return true;
+  } catch (error) {
+    console.warn("Libri ishte shumë i madh për ruajtjen lokale.", error);
+    return false;
+  }
+}
+
+function getLocalBook(topic, childName) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(localBookStorageKey(topic, childName)) || "null");
+    return saved?.version === 5 && Array.isArray(saved.pages) && saved.pages.length === 10
+      && saved.pages.every((page) => {
+        const imageUrl = String(page?.imageUrl || "");
+        return Boolean(imageUrl && !imageUrl.includes("/assets/placeholders/") && String(page?.teksti_faqes || "").trim());
+      }) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearVirtualBookCache() {
+  storyImageCache.clear();
+  characterReferenceCache.clear();
+  photoProfileCache.clear();
+  faceCropCache.clear();
+}
+
+function clearVirtualBookSavedAssets() {
+  try {
+    const keysToRemove = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key && (key.startsWith("atlas-virtual-book-v") || key.startsWith("atlas-frozen-routine-v1:book:") || key.startsWith("atlas-virtual-book-character-anchor-v"))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  } catch (error) {
+    console.warn("Nuk u pastrua cache e librit virtual.", error);
+  }
+}
+
+function createStoryFallbackImage(pageText, protagonistName) {
+  return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='1200' viewBox='0 0 900 1200'><rect width='100%' height='100%' fill='%23fff8ef'/><rect x='70' y='80' width='760' height='1040' rx='38' fill='%23ffffff' stroke='%23f0d6b8' stroke-width='8'/><circle cx='450' cy='360' r='110' fill='%23ffd7ba'/><path d='M340 320 Q450 220 560 320' fill='%238a5a44'/><rect x='315' y='470' width='270' height='330' rx='90' fill='%2397c9ff'/><rect x='215' y='555' width='120' height='260' rx='50' fill='%2397c9ff'/><rect x='565' y='555' width='120' height='260' rx='50' fill='%2397c9ff'/><rect x='360' y='790' width='60' height='170' rx='30' fill='%235b4636'/><rect x='480' y='790' width='60' height='170' rx='30' fill='%235b4636'/><ellipse cx='390' cy='985' rx='60' ry='24' fill='%234b6478'/><ellipse cx='510' cy='985' rx='60' ry='24' fill='%234b6478'/><rect x='250' y='870' width='400' height='120' rx='45' fill='%23fff9d6' stroke='%23213547' stroke-width='8'/></svg>`;
+}
+
 function dataUrlToFile(dataUrl, fileBaseName) {
   const blob = dataUrlToBlob(dataUrl);
   const extension = blob.type === "image/jpeg" ? "jpg" : "png";
@@ -865,19 +1240,363 @@ function dataUrlToFile(dataUrl, fileBaseName) {
   });
 }
 
-async function generateImageFromReferenceSet(referenceDataUrls, prompt, size = "1024x1536", quality = "medium") {
-  const data = await fetchJsonWithRetry(apiUrl("/api/edit-image"), {
+async function generateImageFromReferenceSet(referenceDataUrls, prompt, size = "1024x1536", quality = "medium", options = {}) {
+  if (!options?.skipClientQueue) {
+    await waitForImageGenerationSlot();
+  }
+  const sanitizedReferences = Array.from(new Set((Array.isArray(referenceDataUrls) ? referenceDataUrls : [])
+    .map((item) => String(item || "").trim())
+    .filter((item) => isRasterDataUrl(item)))).slice(0, 3);
+  if (!sanitizedReferences.length) {
+    throw new Error("Nuk ka referenca të vlefshme raster për gjenerimin e imazhit.");
+  }
+  
+  try {
+    const data = await fetchJsonWithRetry(apiUrl("/api/edit-image"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        images: sanitizedReferences,
+        prompt,
+        size,
+        quality,
+        ...(options?.priorityClass ? { priority_class: options.priorityClass } : {}),
+        ...(options?.model ? { model: options.model } : {}),
+        ...(options?.input_fidelity ? { input_fidelity: options.input_fidelity } : {})
+      })
+    }, options?.attempts ?? 2, options?.timeoutMs ?? 240000);
+
+    // 1. First check if backend returned a standard HTTP URL or data URL directly
+    const directUrl = data?.imageUrl || data?.url || data?.image_url;
+    if (directUrl) {
+      return directUrl;
+    }
+
+    // 2. Second check if backend returned a b64_json payload
+    const b64 = data?.data?.[0]?.b64_json;
+    if (b64) {
+      return `data:image/png;base64,${b64}`;
+    }
+
+    // 3. Third check if backend returned standard URL inside data array
+    const arrayUrl = data?.data?.[0]?.url;
+    if (arrayUrl) {
+      return arrayUrl;
+    }
+
+    throw new Error("Përgjigjja nga backend nuk përmbante URL të imazhit.");
+
+  } catch (error) {
+    console.error("Dall-E generation failed, returning clean fallback SVG:", error);
+
+    // Fallback inline SVG so the UI NEVER renders a broken browser image icon
+    return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'><rect width='100%' height='100%' fill='%23f8f9fa'/><rect x='15' y='15' width='570' height='370' rx='12' fill='none' stroke='%23dee2e6' stroke-width='2'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' fill='%23dc3545' font-family='sans-serif' font-size='16' font-weight='bold'>Imazhi nuk mund të gjenerohej</text><text x='50%' y='58%' dominant-baseline='middle' text-anchor='middle' fill='%236c757d' font-family='sans-serif' font-size='12'>Provo të rigjenerosh përsëri</text></svg>";
+  }
+}
+
+function isRasterDataUrl(imageUrl) {
+  return /^data:image\/(?:png|jpeg|jpg|webp);base64,/i.test(String(imageUrl || ""));
+}
+
+const FROZEN_STORYBOOK_STYLE_GUIDE = `Frozen storybook style to preserve across every generated book page:
+- Match the clean, sharp, polished children's-book look of the approved first reference style.
+- Use crisp edges, clear subject separation, defined facial features, and readable object shapes.
+- Keep the palette warm and friendly, but not pastel-washed, chalky, hazy, faded, or low-contrast.
+- Use smooth digital shading, gentle depth, and clean highlights instead of watercolor bloom, powdery texture, grain, or soft painted blur.
+- Keep the image bright, approachable, child-friendly, and premium-looking.
+- Make the character feel natural, expressive, and human, not babyish, mushy, overly soft, or dreamy.
+- Avoid soft pastel storybook rendering, washed-out colors, fuzzy contours, cloudy lighting, and painterly texture.`;
+
+async function createIdentityLockedCharacterFromPhoto(prompt, activePhotoDataUrl, profile = {}, providedFaceReference = "") {
+  if (!activePhotoDataUrl) return "";
+
+  const faceReference = providedFaceReference || (profile?.face_box_normalized
+    ? await createFaceCropDataUrl(activePhotoDataUrl, profile.face_box_normalized)
+    : "");
+  const tightFaceReference = profile?.face_box_normalized
+    ? await createTightFaceCropDataUrl(activePhotoDataUrl, profile.face_box_normalized)
+    : "";
+  const identitySpec = buildPhotoIdentitySpec(profile);
+  const references = [];
+  if (tightFaceReference) references.push(tightFaceReference);
+  if (faceReference && !references.includes(faceReference)) references.push(faceReference);
+  references.push(activePhotoDataUrl);
+
+  const imageUrl = await generateImageFromReferenceSet(
+    references.slice(0, 3),
+    `Transform the uploaded child into a clean 2D digital illustration while preserving identity as faithfully as possible.
+
+Base character prompt:
+${prompt}
+
+${identitySpec || "Identity analysis: preserve the exact same child."}
+${FROZEN_STORYBOOK_STYLE_GUIDE}
+
+Identity preservation instructions:
+- This must be the same child, not a lookalike and not a generic cartoon child.
+- Match the uploaded child as closely as possible so the child instantly recognizes himself or herself.
+- Preserve the exact face silhouette, forehead, eyebrows, eye shape, eye spacing, eye size, nose shape, mouth shape, lips, cheeks, jawline, chin, ears, hairline, hairstyle, hair texture, hair color, and skin tone.
+- Preserve any visible glasses, earrings, necklace, and the exact way those visible items sit on the real person.
+- The tight face crop is the most important identity reference for the eyes, eyebrows, nose, mouth, jawline, glasses, and smile shape.
+- Preserve the child's real age impression, gender presentation, body proportions, posture, clothing cues, and visible mobility details.
+- Keep the face natural and proportional to the body. Do not make the head oversized.
+- Use a clean, sharp 2D digital illustration style with natural human facial modeling, realistic proportions, controlled contour lines, and subtle dimensional shading.
+- Keep the face close to the real photo first, then apply only a very light illustration finish.
+- Keep the face natural, human-like, realistic in structure, and never icon-like or doll-like.
+- Remove any colored-pencil, painted, textured, grainy, or soft storybook rendering.
+- Do not use preschool cartoon proportions, chibi features, flat vector simplification, oversized eyes, tiny nose, oversized head, rounded baby-like face simplification, plastic skin, or mannequin-like features.
+- Show one complete child character only with a plain, clean background and no text.
+- Do not invent disability aids, prosthetics, casts, wheelchairs, crutches, or body traits that are not visible in the uploaded photo.
+- If the photo is cropped, preserve every visible trait exactly and do not guess hidden anatomy.
+- If there is any conflict between cute style and exact resemblance, choose exact resemblance.`,
+    "1024x1536",
+    "high",
+    {
+      model: "gpt-image-1",
+      input_fidelity: "high",
+      attempts: 2,
+      timeoutMs: 180000,
+      skipClientQueue: true
+    }
+  );
+
+  return isRasterDataUrl(imageUrl) ? imageUrl : "";
+}
+async function assessCharacterLikeness(originalPhoto, illustratedCharacter) {
+  try {
+    const data = await fetchJsonWithRetry(apiUrl("/api/compare-character-likeness"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ originalPhoto, illustratedCharacter })
+    }, 2, 60000);
+    return {
+      score: Number(data.likeness_score) || 0,
+      sameChildLikely: data.same_child_likely === true,
+      correctionPrompt: String(data.correction_prompt || "").trim()
+    };
+  } catch (error) {
+    console.warn("Likeness validation was unavailable; using the high-fidelity edit result.", error);
+    return null;
+  }
+}
+
+async function improveCharacterLikeness(candidateImageUrl, prompt, activePhotoDataUrl, profile, providedFaceReference = "") {
+  if (!candidateImageUrl || !activePhotoDataUrl) return candidateImageUrl;
+
+  const faceReference = providedFaceReference || (profile?.face_box_normalized
+    ? await createFaceCropDataUrl(activePhotoDataUrl, profile.face_box_normalized)
+    : "");
+  const tightFaceReference = profile?.face_box_normalized
+    ? await createTightFaceCropDataUrl(activePhotoDataUrl, profile.face_box_normalized)
+    : "";
+  const identitySpec = buildPhotoIdentitySpec(profile);
+  const likeness = await assessCharacterLikeness(tightFaceReference || faceReference || activePhotoDataUrl, candidateImageUrl);
+  if (!likeness || likeness.score >= 94) return candidateImageUrl;
+
+  const references = [candidateImageUrl];
+  if (tightFaceReference) references.push(tightFaceReference);
+  else if (faceReference) references.push(faceReference);
+  references.push(activePhotoDataUrl);
+
+  const correctionPrompt = likeness.correctionPrompt || "Make the illustrated person look much more like the uploaded child while preserving the same clean 2D human-like digital illustration style.";
+  const improvedData = await fetchJsonWithRetry(apiUrl("/api/edit-image"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ images: referenceDataUrls, prompt, size, quality })
+    body: JSON.stringify({
+      images: references.slice(0, 3),
+      prompt: `Keep this same illustrated child character and the same clean 2D human-like digital illustration style.
+
+Base character prompt:
+${prompt}
+
+${identitySpec || "Identity analysis: preserve the exact same child."}
+${FROZEN_STORYBOOK_STYLE_GUIDE}
+
+Critical identity lock:
+- Match the uploaded child as closely as possible so the child can recognize himself or herself immediately.
+- Preserve the child's exact face silhouette, forehead, eyebrows, eye shape, eye spacing, nose shape, mouth shape, lips, cheeks, jawline, chin, ears, hairline, hairstyle, hair texture, hair color, and skin tone.
+- Preserve any visible glasses, jewelry, and distinctive styling details exactly as seen in the uploaded child.
+- Use the tight face crop as the main reference for facial identity.
+- Preserve the child's real age impression, gender presentation, and visible physique cues.
+- Keep the head naturally proportioned to the body. Do not enlarge the face or make the head oversized.
+- Do not beautify, idealize, age, stylize away, or turn the child into a generic cartoon child.
+- Keep realistic human facial ratios and a natural smile shape. Avoid toddler-cartoon simplification.
+- Use clean, crisp digital illustration lines with realistic human facial modeling and subtle dimensional shading.
+- Keep the face human-like, photo-faithful, and naturally expressive, not icon-like, doll-like, or plastic.
+- Remove painted texture, colored-pencil texture, grain, and soft storybook rendering.
+- Avoid pastel haze, washed-out colors, blurry edges, and powdery or watercolor softness.
+- Keep one single child only, with no extra face, no collage, no split layout, and no icon treatment.
+- If there is any conflict between cute illustration and true resemblance, choose true resemblance.
+
+Specific correction request:
+${correctionPrompt}`,
+      size: "1024x1536",
+      quality: "high",
+      model: "gpt-image-1",
+      input_fidelity: "high"
+    })
+  }, 1, 180000).catch((error) => {
+    console.warn("Character identity-lock edit failed.", error);
+    return null;
   });
 
-  const b64 = data?.data?.[0]?.b64_json;
-  if (!b64) {
-    throw new Error("OpenAI nuk ktheu figurë nga image edit.");
+  const improved = improvedData ? extractGeneratedImageDataUrl(improvedData) : "";
+  if (!improved) return candidateImageUrl;
+
+  const improvedLikeness = await assessCharacterLikeness(tightFaceReference || faceReference || activePhotoDataUrl, improved);
+  if (improvedLikeness && improvedLikeness.score < (likeness.score || 0)) {
+    return candidateImageUrl;
   }
 
-  return `data:image/png;base64,${b64}`;
+  return improved;
+}
+
+async function assessCandidateLikenessScore(candidateImageUrl, activePhotoDataUrl, faceReference = "") {
+  if (!candidateImageUrl || !activePhotoDataUrl) return 0;
+  const likeness = await assessCharacterLikeness(faceReference || activePhotoDataUrl, candidateImageUrl);
+  if (!likeness) return 0;
+  const baseScore = Number(likeness.score) || 0;
+  return likeness.sameChildLikely ? Math.max(baseScore, 94) : baseScore;
+}
+
+async function strengthenCharacterAnchor(prompt, activePhotoDataUrl, profile = {}, candidateImageUrl = "", providedFaceReference = "") {
+  if (!candidateImageUrl || !activePhotoDataUrl) return candidateImageUrl;
+
+  const faceReference = providedFaceReference || (profile?.face_box_normalized
+    ? await createFaceCropDataUrl(activePhotoDataUrl, profile.face_box_normalized)
+    : "");
+  const identitySpec = buildPhotoIdentitySpec(profile);
+  const references = [candidateImageUrl];
+  if (faceReference) references.push(faceReference);
+  references.push(activePhotoDataUrl);
+
+  const reinforced = await generateImageFromReferenceSet(
+    references.slice(0, 3),
+    `Keep this exact illustrated child character style, but lock the identity much more tightly to the uploaded child photo.
+
+Base character prompt:
+${prompt}
+
+${identitySpec || "Identity analysis: preserve the exact same child."}
+${FROZEN_STORYBOOK_STYLE_GUIDE}
+
+Critical identity lock:
+- This must be the same exact child from the uploaded photo, not just similar.
+- Preserve the child's exact face silhouette, forehead height, eyebrow thickness and curvature, eye shape, eye spacing, eyelids, nose bridge and tip, mouth width and lip shape, cheeks, jawline, chin, ears, hairline, hair texture, hair color, and visible skin tone.
+- Preserve any visible glasses, jewelry, and the exact placement and scale of those visible items on the face and body.
+- Preserve the child's real age impression, gender presentation, body proportions, posture, visible physique, and visible clothing cues.
+- Keep the face naturally sized relative to the body. Do not enlarge the head.
+- Use the face crop to preserve exact identity details.
+- Use the full photo to preserve body proportions, clothing, and posture.
+- Keep the same clean 2D human-like digital illustration style already established by the candidate reference image.
+- Keep facial anatomy realistic and photo-faithful, not simplified into a generic cartoon.
+- Use smooth, crisp digital linework with realistic human facial modeling and subtle dimensional shading.
+- Keep the face human-like and highly recognizable before applying illustration styling.
+- Remove painted texture, colored-pencil texture, grain, and soft storybook rendering.
+- Avoid pastel softness, watercolor haze, fuzzy borders, and washed-out storybook coloring.
+- Do not introduce large round eyes, toy-like facial ratios, flat preschool-book styling, plastic skin, or mannequin-like features.
+- Full body portrait whenever possible, plain clean background, one child only, no text.
+- Do not invent disabilities, mobility aids, medical devices, or missing body traits.
+- If there is any conflict between style and resemblance, choose resemblance.`,
+    "1024x1536",
+    "high",
+    {
+      model: "gpt-image-1",
+      input_fidelity: "high",
+      attempts: 2,
+      timeoutMs: 240000,
+      skipClientQueue: true
+    }
+  );
+
+  return isRasterDataUrl(reinforced) ? reinforced : candidateImageUrl;
+}
+
+async function selectBestCharacterCandidate(candidates, activePhotoDataUrl, faceReference = "") {
+  const uniqueCandidates = Array.from(new Set((Array.isArray(candidates) ? candidates : []).filter(Boolean)));
+  if (!uniqueCandidates.length) return "";
+
+  let bestImage = uniqueCandidates[0];
+  let bestScore = -1;
+
+  for (const candidate of uniqueCandidates) {
+    const score = await assessCandidateLikenessScore(candidate, activePhotoDataUrl, faceReference).catch(() => 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestImage = candidate;
+    }
+  }
+
+  return bestImage;
+}
+
+async function improveStoryPageLikeness(pageImageUrl, pageText, activePhotoDataUrl, profile, scenePlan = {}, masterCharacterReference = "", providedFaceReference = "") {
+  if (!pageImageUrl || !activePhotoDataUrl) return pageImageUrl;
+
+  const faceReference = providedFaceReference || (profile?.face_box_normalized
+    ? await createFaceCropDataUrl(activePhotoDataUrl, profile.face_box_normalized)
+    : "");
+  const tightFaceReference = profile?.face_box_normalized
+    ? await createTightFaceCropDataUrl(activePhotoDataUrl, profile.face_box_normalized)
+    : "";
+  const references = [pageImageUrl];
+  if (tightFaceReference) references.push(tightFaceReference);
+  else if (faceReference) references.push(faceReference);
+  if (activePhotoDataUrl) references.push(activePhotoDataUrl);
+  else if (isRasterDataUrl(masterCharacterReference)) references.push(masterCharacterReference);
+
+  let bestImage = pageImageUrl;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const likeness = await assessCharacterLikeness(faceReference || activePhotoDataUrl, bestImage);
+    if (!likeness) break;
+    if (likeness.score >= 98) break;
+
+    const correctionPrompt = likeness.correctionPrompt || "Make the child's face match the uploaded child much more closely while preserving the exact same page scene.";
+    const improvedData = await fetchJsonWithRetry(apiUrl("/api/edit-image"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        images: references.slice(0, 3),
+        prompt: `Keep this exact children's book page composition, activity, pose, clothing, background, and camera framing.
+
+Current page action: ${pageText}
+Scene continuity: ${scenePlan?.sceneInstructionEnglish || "Keep the exact same action and page scene."}
+Identity profile: ${profile?.visual_profile_english || "Keep the exact same child identity."}
+Clothing: ${profile?.clothing_english || "Preserve clothing."}
+Rules to obey exactly: ${(Array.isArray(profile?.consistency_rules) && profile.consistency_rules.length) ? profile.consistency_rules.join("; ") : "Keep the same child identity."}
+
+Critical similarity upgrade:
+- Use the uploaded child photo as the identity source of truth.
+- Change only the child's identity details so the character looks much more like the uploaded child.
+- Preserve the exact face silhouette, forehead, eyebrows, eye shape, eye spacing, eye size, nose shape, mouth shape, lips, cheeks, jawline, chin, ears, hairline, hairstyle around the face, hair texture, and visible skin tone.
+- Keep the same page action and the same overall visual style.
+- The child must be immediately recognizable as the same real child from the uploaded photo.
+- Keep realistic human facial proportions. Do not enlarge the head or simplify the face.
+- Keep natural human facial depth, real-looking eyes, believable nose structure, and a real smile shape.
+- Do not redesign the scene or replace the pose.
+- Do not change gender presentation.
+- Do not add or remove mobility aids.
+- Do not render any letters, subtitles, captions, speech bubbles, thought bubbles, or text inside the image.
+- If there is any conflict between style and resemblance, choose resemblance.
+
+Correction pass ${attempt + 1}: ${correctionPrompt}`,
+        size: "1024x1536",
+        quality: "high",
+        model: "gpt-image-1",
+        input_fidelity: "high"
+      })
+    }, 1, 240000).catch((error) => {
+      console.warn("Story page likeness correction failed.", error);
+      return null;
+    });
+
+    const improved = improvedData ? extractGeneratedImageDataUrl(improvedData) : "";
+    if (!improved) break;
+    bestImage = improved;
+  }
+
+  return bestImage;
 }
 
 async function generateStoryCharacterReference(childName, childDescription, childVisualProfile) {
@@ -885,10 +1604,19 @@ async function generateStoryCharacterReference(childName, childDescription, chil
   if (!activePhotoDataUrl) return "";
 
   const profile = childVisualProfile || {};
-  const cacheKey = `identity-v2::${getPhotoIdentityKey()}::${childName}::${childDescription}::${JSON.stringify(profile)}`;
+  const cacheKey = `identity-freeze-v2::${getPhotoIdentityKey()}::${childName}::${childDescription}::${JSON.stringify(profile)}`;
   if (characterReferenceCache.has(cacheKey)) {
     return characterReferenceCache.get(cacheKey);
   }
+  const savedAnchor = getSavedCharacterAnchor(childName);
+  if (savedAnchor) {
+    characterReferenceCache.set(cacheKey, savedAnchor);
+    return savedAnchor;
+  }
+  const tightFaceReference = profile?.face_box_normalized
+    ? await createTightFaceCropDataUrl(activePhotoDataUrl, profile.face_box_normalized).catch(() => "")
+    : "";
+  const identitySpec = buildPhotoIdentitySpec(profile);
 
   const prompt = `Turn the uploaded child photo into a simple illustrated children's book character reference.
 
@@ -898,10 +1626,16 @@ Gender presentation to preserve: ${profile.gender_presentation || "unclear"}
 Visual profile to preserve: ${profile.visual_profile_english || "same child identity"}
 Visible clothing to preserve: ${profile.clothing_english || "same visible clothing"}
 Visible mobility aids: ${profile.mobility_aids || "none visible"}
+${identitySpec || ""}
+${FROZEN_STORYBOOK_STYLE_GUIDE}
 
 Critical rules:
 - Keep the exact same child identity from the uploaded photo.
 - Identity preservation is the highest priority: the result must be immediately recognizable as the same child, not a generic child.
+- Build the illustrated character directly from the uploaded child's real face and real visible body traits.
+- The face must read as the same real child first and only then as a children's-book illustration.
+- Preserve the child's most recognizable real-life identity markers exactly: facial proportions, eye shape and spacing, eyebrow thickness and curve, nose bridge and tip, mouth shape, smile line, jawline, chin, forehead, hairline, hair texture, hair volume, skin tone, and any visible glasses or accessories.
+- Do not average the face into a generic child and do not beautify, soften, or replace distinctive traits.
 - Preserve exact facial geometry and distinctive traits: face shape, eye shape and spacing, eyebrows, nose, mouth, cheeks, hairstyle, hairline, hair color, skin tone, body proportions, posture, and visible clothing.
 - Do not beautify, age up, age down, change ethnicity, change facial proportions, or replace distinctive features.
 - If visible mobility aids are "none visible", do not add a wheelchair, prosthetic leg, crutches, cane, cast, or any medical device.
@@ -909,103 +1643,202 @@ Critical rules:
 - Full body portrait whenever possible.
 - Plain clean background.
 - Keep the pose and full physique visible from the source photo, including any visible mobility equipment.
+- Use the uploaded child's real face as the source of truth. The result must look like a copy of the same child in book form.
+- Freeze the visual style to the approved sharp, clean, polished children's-book look with crisp edges and warm clear colors.
+- Do not use pastel-washed, chalky, hazy, blurry, watercolor-like, or overly soft rendering.
+- Preserve the exact eyes, eyebrow shape, nose, mouth, jawline, hairline, hairstyle, and real facial proportions from the uploaded child.
 - Trace the child's recognizable facial structure and distinctive features faithfully before applying a lightly animated 2D storybook treatment.
 - Keep illustration stylization subtle, especially on the face. Do not simplify the face into a generic cartoon.
 - Plain clean background, no text.`;
 
-  const imageUrl = await generateImageFromReferenceSet([activePhotoDataUrl], prompt, "1024x1536", "high");
-  characterReferenceCache.set(cacheKey, imageUrl);
-  return imageUrl;
+  const imageUrl = await generateImageFromReferenceSet(
+    tightFaceReference ? [tightFaceReference, activePhotoDataUrl] : [activePhotoDataUrl],
+    prompt,
+    "1024x1536",
+    "high",
+    {
+      skipClientQueue: true,
+      attempts: 1,
+      timeoutMs: 120000,
+      priorityClass: "storybook"
+    }
+  );
+  const safeImageUrl = isRasterDataUrl(imageUrl) ? imageUrl : "";
+  if (safeImageUrl) {
+    saveCharacterAnchor(childName, safeImageUrl);
+  }
+  characterReferenceCache.set(cacheKey, safeImageUrl);
+  return safeImageUrl;
 }
 
+  function resolveVisualMeaning(word, meaningHint) {
+    const normalized = normalizeWord(word);
+    const visualDictionary = {
+      "dhëmbët": "a child-friendly mouth showing clean teeth",
+      "dhembet": "a child-friendly mouth showing clean teeth",
+      "furçën": "a child toothbrush for brushing teeth",
+      "furcen": "a child toothbrush for brushing teeth",
+      "pastën": "toothpaste in a dental hygiene tube beside a toothbrush; absolutely no spaghetti, noodles, pasta food, plate, fork, or meal",
+      "pasten": "toothpaste in a dental hygiene tube beside a toothbrush; absolutely no spaghetti, noodles, pasta food, plate, fork, or meal",
+      "gojën": "a child mouth rinsing with water",
+      "gojen": "a child mouth rinsing with water",
+      "dollapin": "a small bathroom cabinet holding a toothbrush",
+      "banjën": "a simple bathroom sink area",
+      "banjen": "a simple bathroom sink area",
+      "duart": "two child hands ready to wash",
+      "sapunin": "a hand soap bar or soap pump",
+      "lavamanin": "a bathroom sink",
+      "peshqirin": "a clean hand towel",
+      "rubinetin": "a bathroom faucet with water control",
+      "ujin": "clean running water",
+      "ujë": "clean rinsing water",
+      "në": "an object inside a place or container",
+      "te": "a child arriving at a sink or object",
+      "me": "two things used together side by side",
+      "nga": "an arrow moving from one place to another",
+      "mbi": "one thing placed on top of another thing",
+      "dhe": "two actions connected together",
+      "e": "one object linked to the next action",
+      "pastaj": "two steps shown in order with an arrow",
+      "tani": "a clock showing now",
+      "ngadalë": "a turtle moving slowly",
+      "marr": "a child taking an object with the hand",
+      "vendos": "putting one object onto another",
+      "fërkoj": "rubbing hands or brushing teeth with a repeated motion",
+      "ferkoj": "rubbing hands or brushing teeth with a repeated motion",
+      "shpëlaj": "rinsing with clean water",
+      "shpelaj": "rinsing with clean water",
+      "thaj": "drying with a towel",
+      "lag": "getting hands wet under water",
+      "lë": "putting an object back in its place",
+      "le": "putting an object back in its place",
+      "lexoj": "a child reading a word from a book",
+      "shkronjën": "a large printed letter on a page",
+      "shkronjen": "a large printed letter on a page"
+    };
+    if (visualDictionary[normalized]) {
+      return visualDictionary[normalized];
+    }
+    if (["pastë", "paste", "pasta", "pastën", "pasten"].includes(normalized)) {
+      return "toothpaste in a dental hygiene tube beside a toothbrush; absolutely no spaghetti, noodles, pasta food, plate, fork, or meal";
+    }
+    if (["furçë", "furce", "furça", "furca", "furçën", "furcen"].includes(normalized)) {
+      return "a toothbrush used to brush teeth, dental hygiene object";
+    }
+    return String(meaningHint || word || "").trim();
+  }
+
 async function generateFlashcardImage(word, meaningHint) {
-  const cacheKey = `${String(word).trim().toLowerCase()}::${String(meaningHint || "").trim().toLowerCase()}`;
+  const intendedMeaning = resolveVisualMeaning(word, meaningHint);
+  const cacheKey = `semantic-v2::${String(word).trim().toLowerCase()}::${intendedMeaning.toLowerCase()}`;
   if (flashcardImageCache.has(cacheKey)) {
     return flashcardImageCache.get(cacheKey);
   }
+  const persistedImage = await getPersistentGeneratedImage(`flashcard:${cacheKey}`);
+  if (persistedImage) {
+    flashcardImageCache.set(cacheKey, persistedImage);
+    return persistedImage;
+  }
 
+  await waitForImageGenerationSlot();
   const data = await fetchJsonWithRetry(apiUrl("/api/generate-image"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      prompt: `Create a very simple children's AAC flashcard illustration that clearly explains the Albanian word "${word}". Intended meaning in English: ${meaningHint || word}. Use the intended meaning, not words that only sound similar. Flat clean shapes, white background, minimal detail, child-friendly, no text, no letters, no emoji, not photorealistic.`,
+      prompt: `Create a very simple children's AAC flashcard illustration that clearly explains the Albanian word "${word}". Intended meaning in English: ${intendedMeaning}. Follow this exact semantic meaning and reject unrelated homonyms. Flat clean shapes, white background, minimal detail, child-friendly, no text, no letters, no emoji, not photorealistic.`,
       size: "1024x1024",
       quality: "low",
       output_format: "png"
     })
-  });
+  }, 2, 120000);
 
-  const b64 = data?.data?.[0]?.b64_json;
-  if (!b64) {
+  const dataUrl = extractGeneratedImageDataUrl(data);
+  if (!dataUrl) {
     throw new Error("OpenAI nuk ktheu figurë për flashcard-in.");
   }
 
-  const dataUrl = `data:image/png;base64,${b64}`;
   flashcardImageCache.set(cacheKey, dataUrl);
+  await savePersistentGeneratedImage(`flashcard:${cacheKey}`, dataUrl);
   return dataUrl;
 }
 
 function shouldGenerateBoardSymbol(kategoria, fjala, visualHint) {
-  const category = String(kategoria || "").toLowerCase();
-  const word = String(fjala || "").toLowerCase();
-  if (String(visualHint || "").trim()) {
-    return true;
-  }
-  const blockedCategories = ["parafjal", "lidhëz", "lidhez", "konjug", "përem", "perem", "artikull"];
-  if (blockedCategories.some((part) => category.includes(part))) {
-    return false;
-  }
-
-  const blockedWords = ["dhe", "me", "në", "ne", "te", "të", "për", "per", "nga", "si", "ose", "jam", "je", "është", "eshte", "dua", "do", "po"];
-  return !blockedWords.includes(word);
+  const category = normalizeWord(kategoria);
+  const word = normalizeWord(fjala);
+  if (!word) return false;
+  if (/përem|perem/.test(category)) return false;
+  return true;
 }
 
 async function generateBoardSymbolImage(word, meaningHint) {
-  const cacheKey = `${String(word).trim().toLowerCase()}::${String(meaningHint || "").trim().toLowerCase()}`;
+  const intendedMeaning = resolveVisualMeaning(word, meaningHint);
+  const cacheKey = `semantic-v2::${String(word).trim().toLowerCase()}::${intendedMeaning.toLowerCase()}`;
   if (boardSymbolCache.has(cacheKey)) {
     return boardSymbolCache.get(cacheKey);
   }
+  const persistedImage = await getPersistentGeneratedImage(`aac:${cacheKey}`);
+  if (persistedImage) {
+    boardSymbolCache.set(cacheKey, persistedImage);
+    return persistedImage;
+  }
 
-  const data = await fetchJsonWithRetry(apiUrl("/api/generate-image"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      prompt: `Create a very simple AAC visual symbol for the Albanian word "${word}". Intended meaning in English: ${meaningHint || word}. Show one clear child-friendly object or action symbol on a plain white background. Use the intended meaning, not words that only sound similar. No text, no letters, no emoji, flat simple illustration, easy for a child to understand.`,
-      size: "1024x1024",
-      quality: "low",
-      output_format: "png"
-    })
-  });
+  await waitForImageGenerationSlot();
+  let dataUrl = "";
+  const prompts = [
+    `Create a very simple AAC visual image for the Albanian word "${word}". Intended meaning in English: ${intendedMeaning}. Follow this exact semantic meaning and reject unrelated homonyms. Show one clear child-friendly object or action symbol on a plain white background. No text, no letters, no emoji, flat simple illustration, easy for a child to understand.`,
+    `Create one simple AAC picture on a white background for: ${intendedMeaning}. Only one object or one action. Child-friendly educational symbol. No text.`
+  ];
 
-  const b64 = data?.data?.[0]?.b64_json;
-  if (!b64) {
+  for (const prompt of prompts) {
+    try {
+      const data = await fetchJsonWithRetry(apiUrl("/api/generate-image"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          size: "1024x1024",
+          quality: "low",
+          output_format: "png"
+        })
+      }, 2, 120000);
+      dataUrl = extractGeneratedImageDataUrl(data);
+      if (dataUrl) break;
+    } catch (error) {
+      console.warn(`Board symbol generation attempt failed for "${word}".`, error);
+    }
+  }
+
+  if (!dataUrl) {
     throw new Error("OpenAI nuk ktheu simbol për tabelën e komunikimit.");
   }
 
-  const dataUrl = `data:image/png;base64,${b64}`;
   boardSymbolCache.set(cacheKey, dataUrl);
+  await savePersistentGeneratedImage(`aac:${cacheKey}`, dataUrl);
   return dataUrl;
 }
 
-async function generateStoryPageImage(pageText, childName, childDescription, childVisualProfile, scenePlan = {}, previousPageText = "", nextPageText = "") {
+async function generateStoryPageImage(pageText, childName, childDescription, childVisualProfile, scenePlan = {}, previousPageText = "", nextPageText = "", masterCharacterReference = "", activePhotoOverride = "", providedFaceReference = "") {
   const profileKey = JSON.stringify(childVisualProfile || {});
   const sceneKey = JSON.stringify(scenePlan || {});
-  const cacheKey = `likeness-v3::${getPhotoIdentityKey()}::${childName}::${childDescription}::${profileKey}::${sceneKey}::${previousPageText}::${pageText}::${nextPageText}`;
+  const cacheKey = `likeness-freeze-v2::${getPhotoIdentityKey()}::${childName}::${childDescription}::${profileKey}::${sceneKey}::${previousPageText}::${pageText}::${nextPageText}`;
   if (storyImageCache.has(cacheKey)) {
     return storyImageCache.get(cacheKey);
   }
 
   let imageDataUrl = "";
 
-  const activePhotoDataUrl = getActiveStoryPhotoDataUrl();
+  const activePhotoDataUrl = activePhotoOverride || getActiveStoryPhotoDataUrl();
   const hasPhotoReference = Boolean(activePhotoDataUrl);
   const profile = childVisualProfile || {};
   const favoriteCharacter = getFavoriteCharacterName();
   const consistencyRules = Array.isArray(profile.consistency_rules) ? profile.consistency_rules.join(" ") : "";
+  const tightFaceReference = providedFaceReference || (hasPhotoReference && profile?.face_box_normalized
+    ? await createTightFaceCropDataUrl(activePhotoDataUrl, profile.face_box_normalized).catch(() => "")
+    : "");
   const identityRule = hasPhotoReference
     ? "Keep the exact same child identity on every page of the book."
     : `Keep the exact same protagonist identity on every page of the book. The protagonist is ${favoriteCharacter || childName}.`;
@@ -1031,6 +1864,7 @@ Full body note: ${profile.full_body_notes || "Show the full body whenever possib
 Consistency rules: ${consistencyRules}
 Scene direction: ${scenePlan?.sceneInstructionEnglish || "Show the exact action from the page text in a logical setting."}
 Continuity note: ${scenePlan?.continuityNote || "Keep continuity with nearby pages."}
+${FROZEN_STORYBOOK_STYLE_GUIDE}
 
 Critical rules:
 - ${identityRule}
@@ -1042,28 +1876,54 @@ Critical rules:
 - Show the child doing only the requested scene.
 - The scene must make sense with the previous and next page.
 - Never jump backward to an illogical place or posture if the previous page already moved the child forward in the routine.
+- The image must literally match the action sentence on this page. If the text says the child sits, show sitting. If the text says the child lies in bed, show lying in bed. If the text says the child reads, show reading. If the text says the child plays piano, show piano and never another instrument.
+- Keep the same main object, tool, and environment required by the activity unless the page text clearly changes to a new step inside the same routine.
+- Never replace the named activity object with a similar but wrong object.
 - Show the whole child whenever possible.
-- Make the art look a little more animated and attractive for children: expressive face, gentle cartoon energy, warm bright colors, rounded shapes.
-- Simple 2D storybook illustration, child-safe, no text, not photorealistic.`;
+- The child must look like the exact same real child from the uploaded photo, not a similar child.
+- The body pose, arm position, hand position, and orientation must change to match the exact action of this page. Do not keep the character frozen in the same position across pages.
+- Make the art look animated, attractive, and polished for children: expressive face, crisp forms, warm clear colors, and approachable natural features.
+- Simple 2D storybook illustration, child-safe, no text, not photorealistic, and never pastel-washed or painterly-soft.`;
 
   if (hasPhotoReference) {
-    const characterReferenceUrl = await generateStoryCharacterReference(childName, childDescription, childVisualProfile);
-    const referenceImages = [activePhotoDataUrl];
-    if (characterReferenceUrl) {
+    const characterReferenceUrl = masterCharacterReference || await generateStoryCharacterReference(childName, childDescription, childVisualProfile);
+    const referenceImages = [];
+    if (tightFaceReference) referenceImages.push(tightFaceReference);
+    referenceImages.push(activePhotoDataUrl);
+    if (isRasterDataUrl(characterReferenceUrl)) {
       referenceImages.push(characterReferenceUrl);
     }
     const referencePrompt = `${generationPrompt}
 
 Reference image rules:
 - Use the uploaded photo as the identity source of truth.
+- Use the tight face crop as the strongest reference for the exact face.
 - Use the illustrated reference image to keep the same illustrated character across all pages.
+- Freeze the page style to the approved sharp, clean, polished children's-book look with crisp lines, warm clear colors, and no pastel haze.
+- The character on this page must be clearly recognizable as the exact same child from the uploaded photo, not a generic similar child.
+- Preserve the child's exact real-life identity markers across every page: face proportions, eye spacing, eyebrow shape, nose shape, mouth shape, hairline, hairstyle, hair texture, skin tone, visible clothing cues, and full visible physique.
+- Keep natural human facial structure and realistic proportions while staying in the existing book style.
 - Match the uploaded child's facial geometry, eyes, nose, mouth, cheeks, hairline, skin tone, body proportions, posture, clothing, and mobility equipment with high fidelity.
 - Preserve distinctive facial asymmetry, smile shape, eye spacing, eyebrow shape, hair texture, and any visible identifying features from the uploaded photo.
 - Apply the illustrated style mainly to colors, outlines, lighting, and texture. Do not redraw or idealize the child's facial proportions.
 - When the original photo and illustrated reference differ, always follow the original uploaded photo.
 - The child on this page must look like the uploaded child first and a storybook illustration second. Never substitute a generic child.
-- Never drift into a different face, different child, different gender presentation, or invented disability traits.`;
-    imageDataUrl = await generateImageFromReferenceSet(referenceImages, referencePrompt, "1024x1536", "high");
+- Never drift into a different face, different child, different gender presentation, or invented disability traits.
+- Keep the same main object and activity across the story. Do not replace the piano with a guitar or any other object.
+- The page image must stay literal to the page sentence and must preserve the correct object, place, and body position for that exact step.
+- Change the body's pose and hand placement to match the exact action in this page.`;
+    imageDataUrl = await generateImageFromReferenceSet(
+      referenceImages.slice(0, 3),
+      referencePrompt,
+      "1024x1536",
+      "high",
+      {
+        skipClientQueue: true,
+        attempts: 1,
+        timeoutMs: 120000,
+        priorityClass: "storybook"
+      }
+    );
   } else {
     const data = await fetchJsonWithRetry(apiUrl("/api/generate-image"), {
       method: "POST",
@@ -1074,21 +1934,21 @@ Reference image rules:
         prompt: generationPrompt,
         size: "1024x1536",
         quality: "low",
+        priority_class: "storybook",
         output_format: "png"
       })
-    });
+    }, 2, 120000);
 
-    const b64 = data?.data?.[0]?.b64_json;
-    if (!b64) {
-      throw new Error("OpenAI nuk ktheu figurë për faqen e librit.");
-    }
-    imageDataUrl = `data:image/png;base64,${b64}`;
+    imageDataUrl = extractGeneratedImageDataUrl(data);
+  }
+
+  if (!imageDataUrl) {
+    throw new Error("OpenAI nuk ktheu figurë për faqen e librit.");
   }
 
   storyImageCache.set(cacheKey, imageDataUrl);
   return imageDataUrl;
 }
-
 function updateStorySetupVisibility() {
   const moduli = document.getElementById("moduli")?.value;
   document.getElementById("storySetup")?.classList.toggle("visible", moduli === "Moduli 4: Social Story (Libri Virtual)");
@@ -1100,13 +1960,12 @@ function updateStoryModeVisibility() {
   const favoriteModeFields = document.getElementById("favoriteModeFields");
   const photoPreview = document.getElementById("photoPreview");
   const useChild = wantsChildPhotoStory();
-  const consent = hasStoryConsent();
 
   childModeFields?.classList.toggle("simple-hidden", !useChild);
   favoriteModeFields?.classList.toggle("simple-hidden", useChild);
 
   if (photoPreview) {
-    photoPreview.classList.toggle("visible", Boolean(useChild && consent && childPhotoDataUrl));
+    photoPreview.classList.toggle("visible", Boolean(useChild && childPhotoDataUrl));
   }
 }
 
@@ -1124,9 +1983,1150 @@ function isReadingGoal(tema) {
   return containsAny(normalized, ["lex", "shkronj", "rrok", "fjal", "lib", "book", "read", "reading", "alphabet"]);
 }
 
+function isPianoGoal(tema) {
+  const normalized = normalizeWord(tema);
+  return containsAny(normalized, ["piano", "pianon", "pianino", "tastier", "muzik"]);
+}
+
+function isBallPlayGoal(tema) {
+  const normalized = normalizeWord(tema);
+  return containsAny(normalized, ["top", "topi", "topin", "luaj me top", "loj me top", "ball", "futboll", "basketboll"]);
+}
+
+function detectStoryMainObject(tema) {
+  const normalized = normalizeWord(tema);
+  if (containsAny(normalized, ["piano", "pianon", "pianino"])) return "piano";
+  if (containsAny(normalized, ["top", "topi", "topin", "ball", "futboll", "basketboll"])) return "ball";
+  if (containsAny(normalized, ["kitar", "guitar"])) return "guitar";
+  if (containsAny(normalized, ["lib", "lex", "shkronj"])) return "book";
+  if (containsAny(normalized, ["shtrat", "gjum", "fle"])) return "bed";
+  if (containsAny(normalized, ["dhëmb", "dhemb", "furç", "furc"])) return "toothbrush";
+  if (containsAny(normalized, ["duar", "sapun", "lavaman"])) return "sink";
+  return "";
+}
+
+function inferPoseInstructionFromText(text) {
+  if (containsAny(text, ["ulet", "ulur", "ulet te", "zë vend", "ze vend"])) {
+    return "The child must be sitting, not standing.";
+  }
+  if (containsAny(text, ["shkon", "ec", "afrohet"])) {
+    return "Show movement toward the target, not a frozen static pose.";
+  }
+  if (containsAny(text, ["shtri", "fle", "mbulohet"])) {
+    return "The child must be lying down in the correct resting position.";
+  }
+  if (containsAny(text, ["luan", "prek", "shtyp", "fërkon", "ferkon", "marr", "vendos"])) {
+    return "Show the arms and hands actively doing the page action, not a frozen neutral pose.";
+  }
+  if (containsAny(text, ["ngrihet", "qëndron", "qendron"])) {
+    return "The child must be standing upright.";
+  }
+  return "Change the body pose and hand position to match the exact action of this page.";
+}
+
 function isTeethBrushingGoal(tema) {
   const normalized = normalizeWord(tema);
   return containsAny(normalized, ["dhëmb", "dhemb", "furç", "furc", "pastë dhëmb", "paste dhemb", "brush teeth", "toothbrush"]);
+}
+
+function isHandWashingGoal(tema) {
+  const normalized = normalizeWord(tema);
+  return containsAny(normalized, ["duar", "dora", "dore", "sapun", "lavaman", "wash hands", "hand washing"]);
+}
+
+function isEatingGoal(tema) {
+  const normalized = normalizeWord(tema);
+  return containsAny(normalized, ["ha", "ngr", "ushq", "dark", "drek", "mengjes", "mëngjes", "eat", "eating", "food"]);
+}
+
+function isBeachBathingGoal(tema) {
+  const normalized = normalizeWord(tema);
+  return containsAny(normalized, ["plazh", "det", "rërë", "rere", "not", "bregdet", "lahem", "lahet"])
+    && containsAny(normalized, ["plazh", "det", "rërë", "rere", "not", "bregdet"]);
+}
+
+function getGoalScenario(tema) {
+  if (isBeachBathingGoal(tema)) return "beach";
+  if (isTeethBrushingGoal(tema)) return "teeth";
+  if (isHandWashingGoal(tema)) return "hands";
+  if (isEatingGoal(tema)) return "eating";
+  if (isSleepGoal(tema)) return "sleep";
+  if (isReadingGoal(tema)) return "reading";
+  return "";
+}
+
+function step(hapi, simboli, teksti_shkurter) {
+  return { hapi, simboli, teksti_shkurter };
+}
+
+function card(fjala, kuptimi_ne_anglisht, pershkrimi_vizual_anglisht) {
+  return { fjala, kuptimi_ne_anglisht, pershkrimi_vizual_anglisht };
+}
+
+function boardWord(fjala, hint) {
+  return {
+    fjala,
+    simboli: "",
+    kuptimi_ne_anglisht: hint,
+    pershkrimi_vizual_anglisht: hint
+  };
+}
+
+function boardWordDetailed(fjala, kuptimi, pershkrimiVizual = kuptimi) {
+  return {
+    fjala,
+    simboli: "",
+    kuptimi_ne_anglisht: kuptimi,
+    pershkrimi_vizual_anglisht: pershkrimiVizual,
+    forma_te_fjales: []
+  };
+}
+
+function isBoardObjectCategory(categoryName = "") {
+  return normalizeWord(categoryName).includes("objekt");
+}
+
+function inferSimpleAlbanianNounForms(word) {
+  const original = String(word || "").trim();
+  const normalized = normalizeWord(original);
+  if (!normalized) return [];
+
+  const irregular = {
+    "banjë": ["banja", "banjën"],
+    "furçë": ["furca", "furçën"],
+    "pastë": ["pasta", "pastën"],
+    "gojë": ["goja", "gojën"],
+    "ujë": ["uji", "ujin"],
+    "dhëmbë": ["dhëmbët"],
+    "duar": ["duart"],
+    "sapun": ["sapuni", "sapunin"],
+    "rubinet": ["rubineti", "rubinetin"],
+    "lavaman": ["lavamani", "lavamanin"],
+    "peshqir": ["peshqiri", "peshqirin"],
+    "dollap": ["dollapi", "dollapin"],
+    "ushqim": ["ushqimi", "ushqimin"],
+    "pjatë": ["pjata", "pjatën"],
+    "lugë": ["luga", "lugën"],
+    "pirun": ["piruni", "pirunin"],
+    "gotë": ["gota", "gotën"],
+    "tavolinë": ["tavolina", "tavolinën"],
+    "pecetë": ["peceta", "pecetën"],
+    "plazh": ["plazhi", "plazhin"],
+    "det": ["deti", "detin"],
+    "rërë": ["rëra", "rërën"],
+    "krem": ["kremi", "kremin"],
+    "lodër": ["lodra", "lodrën"],
+    "kovë": ["kova", "kovën"],
+    "top": ["topi", "topin"],
+    "fushë": ["fusha", "fushën"],
+    "portë": ["porta", "portën"],
+    "lojë": ["loja", "lojën"],
+    "skuadër": ["skuadra", "skuadrën"],
+    "shok": ["shoku", "shokun"],
+    "gol": ["goli", "golin"],
+    "rrjetë": ["rrjeta", "rrjetën"],
+    "këmbë": ["këmba", "këmbën"]
+  };
+  if (irregular[normalized]) return irregular[normalized];
+
+  if (normalized.endsWith("ë")) {
+    return [`${original.slice(0, -1)}a`, `${original.slice(0, -1)}ën`];
+  }
+
+  if (/[bcçdfghjklmnpqrstvwxzy]$/i.test(normalized)) {
+    return [`${original}i`, `${original}in`];
+  }
+
+  return [];
+}
+
+function deriveSimpleAlbanianNounBase(word) {
+  const original = String(word || "").trim();
+  const normalized = normalizeWord(original);
+  if (!normalized) return original;
+
+  const irregularBase = {
+    "banja": "banjë",
+    "banjën": "banjë",
+    "furca": "furçë",
+    "furçën": "furçë",
+    "pasta": "pastë",
+    "pastën": "pastë",
+    "goja": "gojë",
+    "gojën": "gojë",
+    "uji": "ujë",
+    "ujin": "ujë",
+    "dhëmbët": "dhëmbë",
+    "duart": "duar",
+    "sapuni": "sapun",
+    "sapunin": "sapun",
+    "ushqimi": "ushqim",
+    "ushqimin": "ushqim",
+    "pjata": "pjatë",
+    "pjatën": "pjatë",
+    "luga": "lugë",
+    "lugën": "lugë",
+    "piruni": "pirun",
+    "pirunin": "pirun",
+    "gota": "gotë",
+    "gotën": "gotë",
+    "tavolina": "tavolinë",
+    "tavolinën": "tavolinë",
+    "peceta": "pecetë",
+    "pecetën": "pecetë",
+    "plazhi": "plazh",
+    "plazhin": "plazh",
+    "deti": "det",
+    "detin": "det",
+    "rëra": "rërë",
+    "rërën": "rërë",
+    "kremi": "krem",
+    "kremin": "krem",
+    "lodra": "lodër",
+    "lodrën": "lodër",
+    "kova": "kovë",
+    "kovën": "kovë",
+    "topi": "top",
+    "topin": "top",
+    "fusha": "fushë",
+    "fushën": "fushë",
+    "porta": "portë",
+    "portën": "portë",
+    "loja": "lojë",
+    "lojën": "lojë",
+    "skuadra": "skuadër",
+    "skuadrën": "skuadër",
+    "shoku": "shok",
+    "shokun": "shok",
+    "goli": "gol",
+    "golin": "gol",
+    "rrjeta": "rrjetë",
+    "rrjetën": "rrjetë",
+    "këmba": "këmbë",
+    "këmbën": "këmbë"
+  };
+  if (irregularBase[normalized]) return irregularBase[normalized];
+
+  if (normalized.length > 3 && normalized.endsWith("ën")) return `${original.slice(0, -2)}ë`;
+  if (normalized.length > 3 && normalized.endsWith("in")) return original.slice(0, -2);
+  if (normalized.length > 3 && normalized.endsWith("a")) return `${original.slice(0, -1)}ë`;
+  if (normalized.length > 3 && normalized.endsWith("i")) return original.slice(0, -1);
+  return original;
+}
+
+function setWordForms(option, baseWord, forms = []) {
+  return {
+    ...option,
+    fjala: baseWord,
+    forma_te_fjales: forms.filter((item) => normalizeWord(item) !== normalizeWord(baseWord))
+  };
+}
+
+function enrichWordFormsForOption(option, categoryName = "") {
+  const normalized = normalizeWord(option?.fjala);
+  const formsDictionary = {
+    "banjë": ["banja", "banjën"],
+    "banjen": ["banjë", "banja"],
+    "banjën": ["banjë", "banja"],
+    "banja": ["banjë", "banjën"],
+    "furçë": ["furca", "furçën"],
+    "furca": ["furçë", "furçën"],
+    "furçën": ["furçë", "furca"],
+    "furcen": ["furçë", "furca"],
+    "pastë": ["pasta", "pastën"],
+    "pasta": ["pastë", "pastën"],
+    "pastën": ["pastë", "pasta"],
+    "pasten": ["pastë", "pasta"],
+    "gojë": ["goja", "gojën"],
+    "goja": ["gojë", "gojën"],
+    "gojën": ["gojë", "goja"],
+    "gojen": ["gojë", "goja"],
+    "ujë": ["uji", "ujin"],
+    "uji": ["ujë", "ujin"],
+    "ujin": ["ujë", "uji"],
+    "rubinet": ["rubineti", "rubinetin"],
+    "rubineti": ["rubinet", "rubinetin"],
+    "rubinetin": ["rubinet", "rubineti"],
+    "lavaman": ["lavamani", "lavamanin"],
+    "lavamani": ["lavaman", "lavamanin"],
+    "lavamanin": ["lavaman", "lavamani"],
+    "peshqir": ["peshqiri", "peshqirin"],
+    "peshqiri": ["peshqir", "peshqirin"],
+    "peshqirin": ["peshqir", "peshqiri"],
+    "dollap": ["dollapi", "dollapin"],
+    "dollapi": ["dollap", "dollapin"],
+    "dollapin": ["dollap", "dollapi"],
+    "dhëmbë": ["dhëmbët"],
+    "dhëmbët": ["dhëmbë"],
+    "duar": ["duart"],
+    "duart": ["duar"],
+    "sapun": ["sapuni", "sapunin"],
+    "sapuni": ["sapun", "sapunin"],
+    "sapunin": ["sapun", "sapuni"],
+    "ushqim": ["ushqimi", "ushqimin"],
+    "ushqimi": ["ushqim", "ushqimin"],
+    "ushqimin": ["ushqim", "ushqimi"],
+    "pjatë": ["pjata", "pjatën"],
+    "pjata": ["pjatë", "pjatën"],
+    "pjatën": ["pjatë", "pjata"],
+    "lugë": ["luga", "lugën"],
+    "luga": ["lugë", "lugën"],
+    "lugën": ["lugë", "luga"],
+    "pirun": ["piruni", "pirunin"],
+    "piruni": ["pirun", "pirunin"],
+    "pirunin": ["pirun", "piruni"],
+    "gotë": ["gota", "gotën"],
+    "gota": ["gotë", "gotën"],
+    "gotën": ["gotë", "gota"],
+    "tavolinë": ["tavolina", "tavolinën"],
+    "tavolina": ["tavolinë", "tavolinën"],
+    "tavolinën": ["tavolinë", "tavolina"],
+    "pecetë": ["peceta", "pecetën"],
+    "peceta": ["pecetë", "pecetën"],
+    "pecetën": ["pecetë", "peceta"],
+    "plazh": ["plazhi", "plazhin"],
+    "plazhi": ["plazh", "plazhin"],
+    "plazhin": ["plazh", "plazhi"],
+    "det": ["deti", "detin"],
+    "deti": ["det", "detin"],
+    "detin": ["det", "deti"],
+    "rërë": ["rëra", "rërën"],
+    "rëra": ["rërë", "rërën"],
+    "rërën": ["rërë", "rëra"],
+    "krem": ["kremi", "kremin"],
+    "kremi": ["krem", "kremin"],
+    "kremin": ["krem", "kremi"],
+    "lodër": ["lodra", "lodrën"],
+    "lodra": ["lodër", "lodrën"],
+    "lodrën": ["lodër", "lodra"],
+    "kovë": ["kova", "kovën"],
+    "kova": ["kovë", "kovën"],
+    "kovën": ["kovë", "kova"],
+    "top": ["topi", "topin"],
+    "topi": ["top", "topin"],
+    "topin": ["top", "topi"],
+    "fushë": ["fusha", "fushën"],
+    "fusha": ["fushë", "fushën"],
+    "fushën": ["fushë", "fusha"],
+    "portë": ["porta", "portën"],
+    "porta": ["portë", "portën"],
+    "portën": ["portë", "porta"],
+    "lojë": ["loja", "lojën"],
+    "loja": ["lojë", "lojën"],
+    "lojën": ["lojë", "loja"],
+    "skuadër": ["skuadra", "skuadrën"],
+    "skuadra": ["skuadër", "skuadrën"],
+    "skuadrën": ["skuadër", "skuadra"],
+    "shok": ["shoku", "shokun"],
+    "shoku": ["shok", "shokun"],
+    "shokun": ["shok", "shoku"],
+    "gol": ["goli", "golin"],
+    "goli": ["gol", "golin"],
+    "golin": ["gol", "goli"],
+    "rrjetë": ["rrjeta", "rrjetën"],
+    "rrjeta": ["rrjetë", "rrjetën"],
+    "rrjetën": ["rrjetë", "rrjeta"]
+  };
+  const baseWordDictionary = {
+    "banjen": "banjë",
+    "banjën": "banjë",
+    "banja": "banjë",
+    "furcen": "furçë",
+    "furçën": "furçë",
+    "furca": "furçë",
+    "pasten": "pastë",
+    "pastën": "pastë",
+    "pasta": "pastë",
+    "gojen": "gojë",
+    "gojën": "gojë",
+    "goja": "gojë",
+    "uji": "ujë",
+    "ujin": "ujë",
+    "rubineti": "rubinet",
+    "rubinetin": "rubinet",
+    "lavamani": "lavaman",
+    "lavamanin": "lavaman",
+    "peshqiri": "peshqir",
+    "peshqirin": "peshqir",
+    "dollapi": "dollap",
+    "dollapin": "dollap",
+    "dhëmbët": "dhëmbë",
+    "duart": "duar",
+    "sapuni": "sapun",
+    "sapunin": "sapun",
+    "topi": "top",
+    "topin": "top",
+    "fusha": "fushë",
+    "fushën": "fushë",
+    "porta": "portë",
+    "portën": "portë",
+    "loja": "lojë",
+    "lojën": "lojë",
+    "skuadra": "skuadër",
+    "skuadrën": "skuadër",
+    "shoku": "shok",
+    "shokun": "shok",
+    "goli": "gol",
+    "golin": "gol",
+    "rrjeta": "rrjetë",
+    "rrjetën": "rrjetë"
+  };
+  const baseWord = baseWordDictionary[normalized]
+    || (isBoardObjectCategory(categoryName) ? deriveSimpleAlbanianNounBase(option?.fjala) : "")
+    || option?.fjala
+    || "";
+  const forms = (formsDictionary[normalized] || formsDictionary[normalizeWord(baseWord)] || [])
+    .concat(isBoardObjectCategory(categoryName) ? inferSimpleAlbanianNounForms(baseWord) : []);
+  return {
+    ...option,
+    fjala: baseWord,
+    forma_te_fjales: Array.from(new Set((Array.isArray(option?.forma_te_fjales) ? option.forma_te_fjales : []).concat(forms)))
+      .filter((item) => normalizeWord(item) !== normalizeWord(baseWord))
+  };
+}
+
+function dedupeBoardOptions(options = [], categoryName = "") {
+  const merged = new Map();
+  options.forEach((rawOption) => {
+    const option = enrichWordFormsForOption(rawOption || {}, categoryName);
+    const key = normalizeWord(option?.fjala);
+    if (!key) return;
+    if (!merged.has(key)) {
+      merged.set(key, {
+        ...option,
+        forma_te_fjales: Array.isArray(option.forma_te_fjales) ? [...option.forma_te_fjales] : []
+      });
+      return;
+    }
+    const existing = merged.get(key);
+    existing.kuptimi_ne_anglisht = String(existing.kuptimi_ne_anglisht || "").trim() || String(option.kuptimi_ne_anglisht || "").trim();
+    existing.pershkrimi_vizual_anglisht = String(existing.pershkrimi_vizual_anglisht || "").trim() || String(option.pershkrimi_vizual_anglisht || "").trim();
+    existing.forma_te_fjales = Array.from(new Set([...(existing.forma_te_fjales || []), ...(option.forma_te_fjales || [])]))
+      .filter((item) => normalizeWord(item) !== key);
+  });
+  return Array.from(merged.values());
+}
+
+function buildKnownSequenceModule(tema) {
+  switch (getGoalScenario(tema)) {
+    case "eating":
+      return {
+        moduli_i_zgjedhur: "Moduli 1: Sekuencat me Fjalë",
+        sekuencat_me_fjale: {
+          hapat: [
+            step(1, "🪑", "Unë ulem te tavolina."),
+            step(2, "🍽️", "Unë marr pjatën."),
+            step(3, "🥄", "Unë marr lugën."),
+            step(4, "🥘", "Unë marr ushqimin."),
+            step(5, "😋", "Unë ha drekën."),
+            step(6, "😮", "Unë përtypem ngadalë."),
+            step(7, "🥤", "Unë pi ujë."),
+            step(8, "🧻", "Unë fshij gojën me pecetë.")
+          ]
+        }
+      };
+    case "hands":
+      return {
+        moduli_i_zgjedhur: "Moduli 1: Sekuencat me Fjalë",
+        sekuencat_me_fjale: {
+          hapat: [
+            step(1, "🚶", "Unë shkoj në banjë."),
+            step(2, "🚰", "Unë hap rubinetin."),
+            step(3, "💧", "Unë lag duart me ujë."),
+            step(4, "🧼", "Unë marr sapunin."),
+            step(5, "🫧", "Unë fërkoj duart me sapun."),
+            step(6, "💦", "Unë shpëlaj duart me ujë."),
+            step(7, "✋", "Unë mbyll rubinetin."),
+            step(8, "🧻", "Unë thaj duart me peshqir.")
+          ]
+        }
+      };
+    case "teeth":
+      return {
+        moduli_i_zgjedhur: "Moduli 1: Sekuencat me Fjalë",
+        sekuencat_me_fjale: {
+          hapat: [
+            step(1, "🚶", "Unë shkoj në banjë."),
+            step(2, "🪥", "Unë marr furçën."),
+            step(3, "🦷", "Unë marr pastën."),
+            step(4, "➕", "Unë vendos pastë në furçë."),
+            step(5, "🪥", "Unë fërkoj dhëmbët ngadalë."),
+            step(6, "💧", "Unë shpëlaj gojën me ujë."),
+            step(7, "🚰", "Unë mbyll rubinetin."),
+            step(8, "😁", "Unë buzëqesh me dhëmbë të pastër.")
+          ]
+        }
+      };
+    case "sleep":
+      return {
+        moduli_i_zgjedhur: "Moduli 1: Sekuencat me Fjalë",
+        sekuencat_me_fjale: {
+          hapat: [
+            step(1, "🚪", "Unë hyj në dhomë."),
+            step(2, "🧸", "Unë qetësohem pak."),
+            step(3, "🛏️", "Unë afrohem te shtrati."),
+            step(4, "🙂", "Unë ulem në shtrat."),
+            step(5, "🛌", "Unë shtrihem në shtrat."),
+            step(6, "🛏️", "Unë mbulohem me batanije."),
+            step(7, "😴", "Unë mbyll sytë."),
+            step(8, "🌙", "Unë fle i qetë.")
+          ]
+        }
+      };
+    case "reading":
+      return {
+        moduli_i_zgjedhur: "Moduli 1: Sekuencat me Fjalë",
+        sekuencat_me_fjale: {
+          hapat: [
+            step(1, "📘", "Unë marr librin."),
+            step(2, "👀", "Unë shikoj faqen."),
+            step(3, "👉", "Unë tregoj shkronjën."),
+            step(4, "🔤", "Unë them tingullin."),
+            step(5, "➡️", "Unë shikoj shkronjën tjetër."),
+            step(6, "🔗", "Unë bashkoj tingujt."),
+            step(7, "🗣️", "Unë lexoj fjalën."),
+            step(8, "📖", "Unë lexoj faqen me qetësi.")
+          ]
+        }
+      };
+    default:
+      return null;
+  }
+}
+
+function buildKnownFlashcards(tema) {
+  switch (getGoalScenario(tema)) {
+    case "hands":
+      return {
+        moduli_i_zgjedhur: "Moduli 2: Flashcards",
+        flashcards: [
+          card("banja", "bathroom", "a simple bathroom sink area for a child"),
+          card("rubineti", "faucet", "a simple water faucet above a sink"),
+          card("duart", "hands", "two child's hands ready to wash"),
+          card("uji", "water", "clean running water"),
+          card("sapuni", "soap", "a simple hand soap bar or pump bottle"),
+          card("fërkoj", "rub hands", "a child rubbing soapy hands together"),
+          card("shpëlaj", "rinse", "hands being rinsed under water"),
+          card("peshqiri", "towel", "a clean towel for drying hands")
+        ]
+      };
+    case "teeth":
+      return {
+        moduli_i_zgjedhur: "Moduli 2: Flashcards",
+        flashcards: [
+          card("dhëmbët e papastër", "dirty teeth", "simple unbrushed teeth"),
+          card("furça", "toothbrush", "a simple toothbrush"),
+          card("pasta", "toothpaste", "a toothpaste tube for brushing teeth"),
+          card("goja", "mouth", "a simple child's mouth"),
+          card("rubineti", "faucet", "a bathroom faucet near a sink"),
+          card("fërkoj", "brush teeth", "a child brushing teeth with a toothbrush"),
+          card("uji", "water", "clean water used for rinsing mouth"),
+          card("dhëmbët e pastër", "clean teeth", "simple clean smiling teeth")
+        ]
+      };
+    case "sleep":
+      return {
+        moduli_i_zgjedhur: "Moduli 2: Flashcards",
+        flashcards: [
+          card("dhoma", "bedroom", "a calm child's bedroom"),
+          card("shtrati", "bed", "a simple child's bed"),
+          card("jastëku", "pillow", "a soft pillow"),
+          card("batanija", "blanket", "a cozy blanket on a bed"),
+          card("shtrihem", "lie down", "a child lying down on a bed"),
+          card("mbyll sytë", "close eyes", "a calm child closing eyes in bed"),
+          card("qetësi", "calm", "a peaceful bedtime scene"),
+          card("gjumë", "sleep", "a child sleeping in bed at night")
+        ]
+      };
+    case "reading":
+      return {
+        moduli_i_zgjedhur: "Moduli 2: Flashcards",
+        flashcards: [
+          card("libri", "book", "a simple children's book"),
+          card("faqja", "page", "an open book page"),
+          card("shkronja", "letter", "a big printed letter in a book"),
+          card("tingulli", "sound", "a child saying a letter sound"),
+          card("rrokja", "syllable", "two letters joined as a syllable"),
+          card("fjala", "word", "a simple printed word in a children's book"),
+          card("gishti", "finger", "a finger pointing to text"),
+          card("lexoj", "read", "a child reading from a book")
+        ]
+      };
+    default:
+      return null;
+  }
+}
+
+function buildKnownCommunicationBoard(tema) {
+  const normalizedTema = normalizeWord(tema);
+  if (containsAny(normalizedTema, ["top", "futboll", "basketboll", "loj me top", "luaj me top", "playing with the ball", "ball"])) {
+    return {
+      moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",
+      tabela_komunikimit: {
+        kategorite: [
+          {
+            emri_kategorise: "Veprimet",
+            opsionet: [
+              boardWordDetailed("luaj", "play", "a child playing with a ball"),
+              boardWordDetailed("marr", "take", "a child taking a ball with both hands"),
+              boardWordDetailed("mbaj", "hold", "a child holding a ball"),
+              boardWordDetailed("pasoj", "pass", "a child passing a ball to another child"),
+              boardWordDetailed("gjuaj", "kick or shoot", "a child kicking or shooting a ball toward a goal"),
+              boardWordDetailed("kap", "catch", "a child catching a ball"),
+              boardWordDetailed("dribloj", "dribble", "a child bouncing or controlling a ball while moving"),
+              boardWordDetailed("mbroj", "defend", "a child defending the ball or blocking another player"),
+              boardWordDetailed("vrapoj", "run", "a child running after a ball")
+            ]
+          },
+          {
+            emri_kategorise: "Objektet",
+            opsionet: [
+              setWordForms(boardWordDetailed("top", "ball", "one simple play ball"), "top", ["topi", "topin"]),
+              setWordForms(boardWordDetailed("fushë", "field", "a simple sports field"), "fushë", ["fusha", "fushën"]),
+              setWordForms(boardWordDetailed("portë", "goal", "a child-friendly football goal"), "portë", ["porta", "portën"]),
+              setWordForms(boardWordDetailed("gol", "goal point", "scoring a goal in a sports game"), "gol", ["goli", "golin"]),
+              setWordForms(boardWordDetailed("shok", "friend or teammate", "a teammate waiting for the ball"), "shok", ["shoku", "shokun"]),
+              setWordForms(boardWordDetailed("skuadër", "team", "a small children's sports team"), "skuadër", ["skuadra", "skuadrën"]),
+              setWordForms(boardWordDetailed("rrjetë", "net", "a goal net behind a football goal"), "rrjetë", ["rrjeta", "rrjetën"]),
+              setWordForms(boardWordDetailed("këmbë", "foot or leg", "a child's foot next to a ball"), "këmbë", ["këmba", "këmbën"])
+            ]
+          },
+          { emri_kategorise: "Përemrat", opsionet: [boardWordDetailed("unë", "I", "a child pointing to self"), boardWordDetailed("ti", "you", "a child pointing to another person")] },
+          {
+            emri_kategorise: "Fjalë Lidhëse/Parafjalë",
+            opsionet: [
+              boardWordDetailed("në", "in", "a ball in the field"),
+              boardWordDetailed("me", "with", "a child with a ball"),
+              boardWordDetailed("nga", "from", "an arrow moving from one player to another"),
+              boardWordDetailed("te", "to or at", "a ball moving to a teammate"),
+              boardWordDetailed("drejt", "toward", "an arrow moving toward the goal"),
+              boardWordDetailed("dhe", "and", "two actions connected together"),
+              boardWordDetailed("e", "it", "the ball linked to the next action"),
+              boardWordDetailed("pastaj", "then", "two game steps in order with an arrow")
+            ]
+          },
+          {
+            emri_kategorise: "Ndajfoljet",
+            opsionet: [
+              boardWordDetailed("shpejt", "quickly", "speed lines showing fast movement"),
+              boardWordDetailed("ngadalë", "slowly", "a slow gentle ball movement"),
+              boardWordDetailed("mirë", "well", "a correct pass with a check mark"),
+              boardWordDetailed("bashkë", "together", "two children playing together")
+            ]
+          }
+        ]
+      }
+    };
+  }
+
+  switch (getGoalScenario(tema)) {
+    case "beach":
+      return {
+        moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",
+        tabela_komunikimit: {
+          kategorite: [
+            {
+              emri_kategorise: "Veprimet",
+              opsionet: [
+                boardWordDetailed("shkoj", "go", "a child going to the beach"),
+                boardWordDetailed("ulem", "sit", "a child sitting calmly on the beach"),
+                boardWordDetailed("lahem", "bathe or wash myself", "a child washing or bathing at the beach with water"),
+                boardWordDetailed("luaj", "play", "a child playing on the beach"),
+                boardWordDetailed("mbush", "fill", "a child filling a bucket with sand"),
+                boardWordDetailed("ndërtoj", "build", "a child building a sandcastle"),
+                boardWordDetailed("lyej", "apply", "applying sunscreen on the skin"),
+                boardWordDetailed("mbaj", "hold", "a child holding a ball or beach toy"),
+                boardWordDetailed("fshihem", "dry myself", "a child drying with a towel")
+              ]
+            },
+            {
+              emri_kategorise: "Objektet",
+              opsionet: [
+                setWordForms(boardWordDetailed("plazh", "beach", "a simple child-friendly beach"), "plazh", ["plazhi", "plazhin"]),
+                setWordForms(boardWordDetailed("det", "sea", "the sea near a beach"), "det", ["deti", "detin"]),
+                setWordForms(boardWordDetailed("rërë", "sand", "clean beach sand"), "rërë", ["rëra", "rërën"]),
+                setWordForms(boardWordDetailed("top", "ball", "a simple beach ball"), "top", ["topi", "topin"]),
+                setWordForms(boardWordDetailed("krem", "sunscreen", "a sunscreen bottle for children at the beach"), "krem", ["kremi", "kremin"]),
+                setWordForms(boardWordDetailed("peshqir", "towel", "a beach towel"), "peshqir", ["peshqiri", "peshqirin"]),
+                setWordForms(boardWordDetailed("lodër", "toy", "a simple sand toy for the beach"), "lodër", ["lodra", "lodrën"]),
+                setWordForms(boardWordDetailed("kovë", "bucket", "a beach bucket for sand"), "kovë", ["kova", "kovën"])
+              ]
+            },
+            { emri_kategorise: "Përemrat", opsionet: [boardWordDetailed("unë", "I", "a child pointing to self"), boardWordDetailed("ti", "you", "a child pointing to another person")] },
+            {
+              emri_kategorise: "Fjalë Lidhëse/Parafjalë",
+              opsionet: [
+                boardWordDetailed("në", "in", "a child in the sea or in the sand"),
+                boardWordDetailed("te", "at", "a child arriving at the beach"),
+                boardWordDetailed("me", "with", "a child with a ball or sunscreen"),
+                boardWordDetailed("nga", "from", "coming from the water or from the sand"),
+                boardWordDetailed("mbi", "on", "sunscreen on the skin or sand on a toy"),
+                boardWordDetailed("dhe", "and", "two beach actions connected together"),
+                boardWordDetailed("e", "it", "one object linked to the next action"),
+                boardWordDetailed("pastaj", "then", "two beach steps in order with an arrow")
+              ]
+            },
+            {
+              emri_kategorise: "Ndajfoljet",
+              opsionet: [
+                boardWordDetailed("ngadalë", "slowly", "a calm slow beach movement"),
+                boardWordDetailed("mirë", "well", "a correct beach routine action with a check mark"),
+                boardWordDetailed("tani", "now", "a clock showing now"),
+                boardWordDetailed("bashkë", "together", "children playing together on the beach")
+              ]
+            }
+          ]
+        }
+      };
+    case "eating":
+      return {
+        moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",
+        tabela_komunikimit: {
+          kategorite: [
+            {
+              emri_kategorise: "Veprimet",
+              opsionet: [
+                boardWordDetailed("ulem", "sit", "a child sitting at a table ready to eat"),
+                boardWordDetailed("marr", "take", "a child taking a spoon or food"),
+                boardWordDetailed("ha", "eat", "a child eating lunch"),
+                boardWordDetailed("përtypem", "chew", "a child chewing food calmly"),
+                boardWordDetailed("pi", "drink", "a child drinking water from a cup"),
+                boardWordDetailed("mbaj", "hold", "a child holding a spoon or cup"),
+                boardWordDetailed("vendos", "put", "putting food on a spoon"),
+                boardWordDetailed("gëlltit", "swallow", "a child swallowing food safely"),
+                boardWordDetailed("fshij", "wipe", "wiping the mouth with a napkin")
+              ]
+            },
+            {
+              emri_kategorise: "Objektet",
+              opsionet: [
+                setWordForms(boardWordDetailed("ushqim", "food", "a simple plate of lunch food"), "ushqim", ["ushqimi", "ushqimin"]),
+                setWordForms(boardWordDetailed("ujë", "water", "a cup of clean drinking water"), "ujë", ["uji", "ujin"]),
+                setWordForms(boardWordDetailed("pjatë", "plate", "a child-friendly lunch plate with food"), "pjatë", ["pjata", "pjatën"]),
+                setWordForms(boardWordDetailed("lugë", "spoon", "a simple spoon for eating"), "lugë", ["luga", "lugën"]),
+                setWordForms(boardWordDetailed("pirun", "fork", "a simple eating fork"), "pirun", ["piruni", "pirunin"]),
+                setWordForms(boardWordDetailed("gotë", "cup", "a simple cup for water"), "gotë", ["gota", "gotën"]),
+                setWordForms(boardWordDetailed("tavolinë", "table", "a table ready for lunch"), "tavolinë", ["tavolina", "tavolinën"]),
+                setWordForms(boardWordDetailed("pecetë", "napkin", "a clean napkin beside a lunch plate"), "pecetë", ["peceta", "pecetën"])
+              ]
+            },
+            { emri_kategorise: "Përemrat", opsionet: [boardWordDetailed("unë", "I", "a child pointing to self"), boardWordDetailed("ti", "you", "a child pointing to another person")] },
+            {
+              emri_kategorise: "Fjalë Lidhëse/Parafjalë",
+              opsionet: [
+                boardWordDetailed("në", "in", "food in a plate"),
+                boardWordDetailed("te", "at", "a child sitting at the table"),
+                boardWordDetailed("me", "with", "food eaten with a spoon"),
+                boardWordDetailed("nga", "from", "taking water from a cup"),
+                boardWordDetailed("dhe", "and", "two meal actions connected together"),
+                boardWordDetailed("e", "it", "one object linked to the next action"),
+                boardWordDetailed("pastaj", "then", "two eating steps in order with an arrow"),
+                boardWordDetailed("mbi", "on", "food on a spoon")
+              ]
+            },
+            {
+              emri_kategorise: "Ndajfoljet",
+              opsionet: [
+                boardWordDetailed("ngadalë", "slowly", "a calm slow eating motion"),
+                boardWordDetailed("mirë", "well", "a correct eating action with a check mark"),
+                boardWordDetailed("tani", "now", "a clock showing now"),
+                boardWordDetailed("bashkë", "together", "two people eating together")
+              ]
+            }
+          ]
+        }
+      };
+    case "hands":
+      return {
+        moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",
+        tabela_komunikimit: {
+          kategorite: [
+            {
+              emri_kategorise: "Veprimet",
+              opsionet: [
+                boardWordDetailed("shkoj", "go", "a child going toward the bathroom"),
+                boardWordDetailed("hap", "open", "a hand opening a faucet"),
+                boardWordDetailed("lag", "wet", "hands getting wet under water"),
+                boardWordDetailed("marr", "take", "a child taking soap"),
+                boardWordDetailed("vendos", "put", "putting soap on hands"),
+                boardWordDetailed("fërkoj", "rub", "rubbing hands with soap"),
+                boardWordDetailed("shpëlaj", "rinse", "rinsing hands under water"),
+                boardWordDetailed("mbyll", "close", "a hand closing a faucet"),
+                boardWordDetailed("thaj", "dry", "drying hands with a towel")
+              ]
+            },
+            {
+              emri_kategorise: "Objektet",
+              opsionet: [
+                setWordForms(boardWordDetailed("duar", "hands", "two child hands"), "duar", ["duart"]),
+                setWordForms(boardWordDetailed("banjë", "bathroom", "a simple bathroom"), "banjë", ["banja", "banjën"]),
+                setWordForms(boardWordDetailed("rubinet", "faucet", "a bathroom faucet"), "rubinet", ["rubineti", "rubinetin"]),
+                setWordForms(boardWordDetailed("ujë", "water", "clean running water"), "ujë", ["uji", "ujin"]),
+                setWordForms(boardWordDetailed("sapun", "soap", "a hand soap bar or soap pump"), "sapun", ["sapuni", "sapunin"]),
+                setWordForms(boardWordDetailed("lavaman", "sink", "a simple bathroom sink"), "lavaman", ["lavamani", "lavamanin"]),
+                setWordForms(boardWordDetailed("peshqir", "towel", "a clean towel"), "peshqir", ["peshqiri", "peshqirin"]),
+                boardWordDetailed("mëngët", "sleeves", "shirt sleeves rolled up")
+              ]
+            },
+            { emri_kategorise: "Përemrat", opsionet: [boardWordDetailed("unë", "I", "a child pointing to self"), boardWordDetailed("ti", "you", "a child pointing to another person")] },
+            {
+              emri_kategorise: "Fjalë Lidhëse/Parafjalë",
+              opsionet: [
+                boardWordDetailed("në", "in", "an object inside a place"),
+                boardWordDetailed("te", "at", "a child arriving at the sink"),
+                boardWordDetailed("me", "with", "soap used with hands"),
+                boardWordDetailed("nga", "from", "an arrow coming from a cabinet"),
+                boardWordDetailed("dhe", "and", "two actions connected together"),
+                boardWordDetailed("e", "it", "one object connected to the next action"),
+                boardWordDetailed("pastaj", "then", "two steps in order with an arrow"),
+                boardWordDetailed("për", "for", "an item used for a purpose")
+              ]
+            },
+            {
+              emri_kategorise: "Ndajfoljet",
+              opsionet: [
+                boardWordDetailed("tani", "now", "a clock showing now"),
+                boardWordDetailed("ngadalë", "slowly", "a turtle moving slowly"),
+                boardWordDetailed("mirë", "well", "a correct action with a check mark"),
+                boardWordDetailed("përsëri", "again", "a repeat arrow")
+              ]
+            }
+          ]
+        }
+      };
+    case "teeth":
+      return {
+        moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",
+        tabela_komunikimit: {
+          kategorite: [
+            {
+              emri_kategorise: "Veprimet",
+              opsionet: [
+                boardWordDetailed("shkoj", "go", "a child going to the bathroom"),
+                boardWordDetailed("marr", "take", "a child taking a toothbrush from a cabinet"),
+                boardWordDetailed("hap", "open", "a hand opening a faucet or cabinet"),
+                boardWordDetailed("vendos", "put", "putting toothpaste on a toothbrush"),
+                boardWordDetailed("fërkoj", "brush", "a child brushing teeth"),
+                boardWordDetailed("shpëlaj", "rinse", "rinsing the mouth with water"),
+                boardWordDetailed("mbyll", "close", "a hand closing a faucet"),
+                boardWordDetailed("laj", "wash", "washing the mouth or teeth with water"),
+                boardWordDetailed("lë", "leave", "putting the toothbrush back in its place")
+              ]
+            },
+            {
+              emri_kategorise: "Objektet",
+              opsionet: [
+                setWordForms(boardWordDetailed("dhëmbë", "teeth", "clean child teeth in a mouth"), "dhëmbë", ["dhëmbët"]),
+                setWordForms(boardWordDetailed("furçë", "toothbrush", "a child toothbrush"), "furçë", ["furca", "furçën"]),
+                setWordForms(boardWordDetailed("pastë", "toothpaste", "a toothpaste tube, never food"), "pastë", ["pasta", "pastën"]),
+                setWordForms(boardWordDetailed("rubinet", "faucet", "a bathroom faucet"), "rubinet", ["rubineti", "rubinetin"]),
+                setWordForms(boardWordDetailed("gojë", "mouth", "a child mouth ready to rinse"), "gojë", ["goja", "gojën"]),
+                setWordForms(boardWordDetailed("dollap", "cabinet", "a small bathroom cabinet"), "dollap", ["dollapi", "dollapin"]),
+                setWordForms(boardWordDetailed("ujë", "water", "clean rinsing water"), "ujë", ["uji", "ujin"]),
+                setWordForms(boardWordDetailed("banjë", "bathroom", "a simple bathroom space"), "banjë", ["banja", "banjën"])
+              ]
+            },
+            { emri_kategorise: "Përemrat", opsionet: [boardWordDetailed("unë", "I", "a child pointing to self"), boardWordDetailed("ti", "you", "a child pointing to another person")] },
+            {
+              emri_kategorise: "Fjalë Lidhëse/Parafjalë",
+              opsionet: [
+                boardWordDetailed("në", "in", "an object inside a place"),
+                boardWordDetailed("me", "with", "a toothbrush used with toothpaste"),
+                boardWordDetailed("nga", "from", "an arrow coming from a cabinet"),
+                boardWordDetailed("dhe", "and", "two actions connected together"),
+                boardWordDetailed("e", "it", "one object connected to the next action"),
+                boardWordDetailed("pastaj", "then", "two steps in order with an arrow"),
+                boardWordDetailed("te", "at", "a child arriving at the sink"),
+                boardWordDetailed("mbi", "on", "toothpaste placed on a toothbrush")
+              ]
+            },
+            {
+              emri_kategorise: "Ndajfoljet",
+              opsionet: [
+                boardWordDetailed("tani", "now", "a clock showing now"),
+                boardWordDetailed("ngadalë", "slowly", "a turtle moving slowly"),
+                boardWordDetailed("mirë", "well", "clean teeth with a check mark"),
+                boardWordDetailed("përsëri", "again", "a repeat arrow")
+              ]
+            }
+          ]
+        }
+      };
+    case "sleep":
+      return {
+        moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",
+        tabela_komunikimit: {
+          kategorite: [
+            {
+              emri_kategorise: "Veprimet",
+              opsionet: [
+                boardWordDetailed("hyj", "enter", "a child entering the bedroom"),
+                boardWordDetailed("afrohem", "come near", "a child going close to the bed"),
+                boardWordDetailed("ulem", "sit", "a child sitting on the bed"),
+                boardWordDetailed("shtrihem", "lie down", "a child lying down on the bed"),
+                boardWordDetailed("mbulohem", "cover myself", "a child covering with a blanket"),
+                boardWordDetailed("vendos", "put", "putting the head on a pillow"),
+                boardWordDetailed("mbyll", "close", "closing the eyes"),
+                boardWordDetailed("fle", "sleep", "a child sleeping in bed")
+              ]
+            },
+            {
+              emri_kategorise: "Objektet",
+              opsionet: [
+                boardWordDetailed("dhomën", "bedroom", "a calm bedroom"),
+                boardWordDetailed("shtratin", "bed", "a simple child bed"),
+                boardWordDetailed("jastëkun", "pillow", "a soft pillow on a bed"),
+                boardWordDetailed("batanijen", "blanket", "a blanket over a child"),
+                boardWordDetailed("sytë", "eyes", "closed sleepy eyes"),
+                boardWordDetailed("natën", "night", "a moon and stars night scene"),
+                boardWordDetailed("trupin", "body", "a child body lying comfortably")
+              ]
+            },
+            { emri_kategorise: "Përemrat", opsionet: [boardWordDetailed("unë", "I", "a child pointing to self"), boardWordDetailed("ti", "you", "a child pointing to another person")] },
+            {
+              emri_kategorise: "Fjalë Lidhëse/Parafjalë",
+              opsionet: [
+                boardWordDetailed("në", "in", "a child in a room"),
+                boardWordDetailed("me", "with", "a child with a blanket"),
+                boardWordDetailed("dhe", "and", "two actions connected together"),
+                boardWordDetailed("e", "it", "one object connected to the next action"),
+                boardWordDetailed("pastaj", "then", "two steps in order with an arrow"),
+                boardWordDetailed("te", "at", "a child arriving at the bed"),
+                boardWordDetailed("nga", "from", "an arrow moving from the door to the bed"),
+                boardWordDetailed("mbi", "on", "a child on the bed")
+              ]
+            },
+            {
+              emri_kategorise: "Ndajfoljet",
+              opsionet: [
+                boardWordDetailed("ngadalë", "slowly", "a turtle moving slowly"),
+                boardWordDetailed("qetë", "calmly", "a calm face and soft moon"),
+                boardWordDetailed("tani", "now", "a clock showing now"),
+                boardWordDetailed("përsëri", "again", "a repeat arrow")
+              ]
+            }
+          ]
+        }
+      };
+    case "reading":
+      return {
+        moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",
+        tabela_komunikimit: {
+          kategorite: [
+            {
+              emri_kategorise: "Veprimet",
+              opsionet: [
+                boardWordDetailed("marr", "take", "a child taking a book"),
+                boardWordDetailed("hap", "open", "opening a book"),
+                boardWordDetailed("shikoj", "look", "looking closely at a page"),
+                boardWordDetailed("tregoj", "point", "a finger pointing to text"),
+                boardWordDetailed("them", "say", "a child saying a sound"),
+                boardWordDetailed("bashkoj", "join", "joining sounds or syllables"),
+                boardWordDetailed("lexoj", "read", "a child reading a word"),
+                boardWordDetailed("përsëris", "repeat", "a child repeating a word")
+              ]
+            },
+            {
+              emri_kategorise: "Objektet",
+              opsionet: [
+                boardWordDetailed("librin", "book", "a children's book"),
+                boardWordDetailed("faqen", "page", "an open book page"),
+                boardWordDetailed("shkronjën", "letter", "a big printed letter"),
+                boardWordDetailed("tingullin", "sound", "a child saying a letter sound"),
+                boardWordDetailed("rrokjen", "syllable", "two letters joined together"),
+                boardWordDetailed("fjalën", "word", "a printed word in a book"),
+                boardWordDetailed("gishtin", "finger", "a finger pointing to text")
+              ]
+            },
+            { emri_kategorise: "Përemrat", opsionet: [boardWordDetailed("unë", "I", "a child pointing to self"), boardWordDetailed("ti", "you", "a child pointing to another person")] },
+            {
+              emri_kategorise: "Fjalë Lidhëse/Parafjalë",
+              opsionet: [
+                boardWordDetailed("në", "in", "a word inside a page"),
+                boardWordDetailed("me", "with", "a child reading with a finger"),
+                boardWordDetailed("nga", "from", "an arrow from one word to another"),
+                boardWordDetailed("dhe", "and", "two actions connected together"),
+                boardWordDetailed("e", "it", "one word connected to the next action"),
+                boardWordDetailed("pastaj", "then", "two steps in order with an arrow"),
+                boardWordDetailed("te", "at", "a finger arriving at a word"),
+                boardWordDetailed("brenda", "inside", "letters inside a book")
+              ]
+            },
+            {
+              emri_kategorise: "Ndajfoljet",
+              opsionet: [
+                boardWordDetailed("ngadalë", "slowly", "a turtle moving slowly"),
+                boardWordDetailed("qartë", "clearly", "clear speech with a sound line"),
+                boardWordDetailed("tani", "now", "a clock showing now"),
+                boardWordDetailed("përsëri", "again", "a repeat arrow")
+              ]
+            }
+          ]
+        }
+      };
+    default:
+      return null;
+  }
+}
+
+function buildGenericCommunicationBoard(tema = "") {
+  const cleanTema = String(tema || "").trim();
+  const genericObjectLabel = cleanTema ? "aktivitetin" : "veprimin";
+  return {
+    moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",
+    tabela_komunikimit: {
+      kategorite: [
+        {
+          emri_kategorise: "Veprimet",
+          opsionet: [
+            boardWordDetailed("shkoj", "go", "a child going to start the activity"),
+            boardWordDetailed("ulem", "sit", "a child sitting calmly for an activity"),
+            boardWordDetailed("marr", "take", "a child taking the needed object"),
+            boardWordDetailed("mbaj", "hold", "a child holding an object"),
+            boardWordDetailed("hap", "open", "opening the needed object or place"),
+            boardWordDetailed("vendos", "put", "putting one object in the right place"),
+            boardWordDetailed("bëj", "do", "a child doing the activity"),
+            boardWordDetailed("provoj", "try", "a child trying the activity"),
+            boardWordDetailed("mbaroj", "finish", "a child finishing the activity")
+          ]
+        },
+        {
+          emri_kategorise: "Objektet",
+          opsionet: [
+            setWordForms(boardWordDetailed("aktivitet", "activity", "a simple child activity scene"), "aktivitet", ["aktiviteti", "aktivitetin"]),
+            setWordForms(boardWordDetailed("objekt", "object", "one simple object used in an activity"), "objekt", ["objekti", "objektin"]),
+            setWordForms(boardWordDetailed("vend", "place", "a simple place where the activity happens"), "vend", ["vendi", "vendin"]),
+            setWordForms(boardWordDetailed("dorë", "hand", "one child hand"), "dorë", ["dora", "dorën"]),
+            setWordForms(boardWordDetailed("ujë", "water", "clean water"), "ujë", ["uji", "ujin"]),
+            setWordForms(boardWordDetailed("tavolinë", "table", "a simple table for work or play"), "tavolinë", ["tavolina", "tavolinën"]),
+            setWordForms(boardWordDetailed("karrige", "chair", "a simple chair for a child"), "karrige", ["karrigia", "karrigen"]),
+            setWordForms(boardWordDetailed(genericObjectLabel, "the target activity or object", "the main object or activity target"), genericObjectLabel, [])
+          ]
+        },
+        {
+          emri_kategorise: "Përemrat",
+          opsionet: [
+            boardWordDetailed("unë", "I", "a child pointing to self"),
+            boardWordDetailed("ti", "you", "a child pointing to another person")
+          ]
+        },
+        {
+          emri_kategorise: "Fjalë Lidhëse/Parafjalë",
+          opsionet: [
+            boardWordDetailed("në", "in", "an object inside a place"),
+            boardWordDetailed("te", "at", "a child arriving at an object"),
+            boardWordDetailed("me", "with", "two things used together"),
+            boardWordDetailed("nga", "from", "an arrow moving from one place to another"),
+            boardWordDetailed("mbi", "on", "one object placed on another"),
+            boardWordDetailed("dhe", "and", "two actions joined together"),
+            boardWordDetailed("e", "it", "one object linked to the next action"),
+            boardWordDetailed("pastaj", "then", "two actions in sequence with an arrow")
+          ]
+        },
+        {
+          emri_kategorise: "Ndajfoljet",
+          opsionet: [
+            boardWordDetailed("tani", "now", "a clock showing now"),
+            boardWordDetailed("ngadalë", "slowly", "a calm slow movement"),
+            boardWordDetailed("mirë", "well", "a correct action with a check mark"),
+            boardWordDetailed("përsëri", "again", "a repeat arrow")
+          ]
+        }
+      ]
+    }
+  };
+}
+
+function buildKnownStoryBook(tema, protagonistName) {
+  const name = protagonistName || "Fëmija";
+
+  switch (getGoalScenario(tema)) {
+    case "hands":
+      return {
+        moduli_i_zgjedhur: "Moduli 4: Social Story (Libri Virtual)",
+        social_story_libri: {
+          titulli_tregimit: `${name} lan duart`,
+          faqet: [
+            { numri_faqes: 1, teksti_faqes: `${name} shkon në banjë.` },
+            { numri_faqes: 2, teksti_faqes: `${name} afrohet te lavamani.` },
+            { numri_faqes: 3, teksti_faqes: `${name} hap rubinetin.` },
+            { numri_faqes: 4, teksti_faqes: `${name} lag duart me ujë.` },
+            { numri_faqes: 5, teksti_faqes: `${name} merr sapunin.` },
+            { numri_faqes: 6, teksti_faqes: `${name} fërkon duart me sapun.` },
+            { numri_faqes: 7, teksti_faqes: `${name} shpëlan duart me ujë.` },
+            { numri_faqes: 8, teksti_faqes: `${name} mbyll rubinetin.` },
+            { numri_faqes: 9, teksti_faqes: `${name} than duart me peshqir.` },
+            { numri_faqes: 10, teksti_faqes: `${name} ka duar të pastra.` }
+          ]
+        }
+      };
+    case "teeth":
+      return {
+        moduli_i_zgjedhur: "Moduli 4: Social Story (Libri Virtual)",
+        social_story_libri: {
+          titulli_tregimit: `${name} lan dhëmbët`,
+          faqet: [
+            { numri_faqes: 1, teksti_faqes: `${name} shkon në banjë.` },
+            { numri_faqes: 2, teksti_faqes: `${name} merr furçën.` },
+            { numri_faqes: 3, teksti_faqes: `${name} merr pastën.` },
+            { numri_faqes: 4, teksti_faqes: `${name} vendos pastë në furçë.` },
+            { numri_faqes: 5, teksti_faqes: `${name} fërkon dhëmbët e sipërm.` },
+            { numri_faqes: 6, teksti_faqes: `${name} fërkon dhëmbët e poshtëm.` },
+            { numri_faqes: 7, teksti_faqes: `${name} shpëlan gojën me ujë.` },
+            { numri_faqes: 8, teksti_faqes: `${name} mbyll rubinetin.` },
+            { numri_faqes: 9, teksti_faqes: `${name} fshin gojën me peshqir.` },
+            { numri_faqes: 10, teksti_faqes: `${name} buzëqesh me dhëmbë të pastër.` }
+          ]
+        }
+      };
+    case "sleep":
+      return {
+        moduli_i_zgjedhur: "Moduli 4: Social Story (Libri Virtual)",
+        social_story_libri: {
+          titulli_tregimit: `${name} bëhet gati për gjumë`,
+          faqet: [
+            { numri_faqes: 1, teksti_faqes: `${name} hyn në dhomën e gjumit.` },
+            { numri_faqes: 2, teksti_faqes: `${name} afrohet te shtrati.` },
+            { numri_faqes: 3, teksti_faqes: `${name} ulet në shtrat.` },
+            { numri_faqes: 4, teksti_faqes: `${name} shtrihet në shtrat.` },
+            { numri_faqes: 5, teksti_faqes: `${name} vendos kokën në jastëk.` },
+            { numri_faqes: 6, teksti_faqes: `${name} mbulohet me batanije.` },
+            { numri_faqes: 7, teksti_faqes: `${name} mbyll sytë.` },
+            { numri_faqes: 8, teksti_faqes: `${name} merr frymë ngadalë.` },
+            { numri_faqes: 9, teksti_faqes: `${name} qëndron i qetë në shtrat.` },
+            { numri_faqes: 10, teksti_faqes: `${name} fle i qetë në shtrat.` }
+          ]
+        }
+      };
+    case "reading":
+      return {
+        moduli_i_zgjedhur: "Moduli 4: Social Story (Libri Virtual)",
+        social_story_libri: {
+          titulli_tregimit: `${name} mëson të lexojë`,
+          faqet: [
+            { numri_faqes: 1, teksti_faqes: `${name} merr librin.` },
+            { numri_faqes: 2, teksti_faqes: `${name} hap librin.` },
+            { numri_faqes: 3, teksti_faqes: `${name} shikon shkronjën e parë.` },
+            { numri_faqes: 4, teksti_faqes: `${name} tregon shkronjën me gisht.` },
+            { numri_faqes: 5, teksti_faqes: `${name} thotë tingullin e shkronjës.` },
+            { numri_faqes: 6, teksti_faqes: `${name} shikon shkronjën tjetër.` },
+            { numri_faqes: 7, teksti_faqes: `${name} bashkon tingujt.` },
+            { numri_faqes: 8, teksti_faqes: `${name} lexon rrokjen.` },
+            { numri_faqes: 9, teksti_faqes: `${name} lexon fjalën.` },
+            { numri_faqes: 10, teksti_faqes: `${name} lexon faqen me qetësi.` }
+          ]
+        }
+      };
+    default:
+      return null;
+  }
+}
+
+function getKnownModulePackage(moduliZgjedhur, tema, protagonistName) {
+  if (moduliZgjedhur === "Moduli 1: Sekuencat me Fjalë") return buildKnownSequenceModule(tema);
+  if (moduliZgjedhur === "Moduli 2: Flashcards") return buildKnownFlashcards(tema);
+  if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") return buildKnownCommunicationBoard(tema);
+  return null;
 }
 
 function enforceKnownStorySequence(paketa, tema, protagonistName) {
@@ -1161,6 +3161,58 @@ function enforceKnownStorySequence(paketa, tema, protagonistName) {
       `${name} qëndron me qetësi në shtrat.`,
       `${name} fle në shtrat.`
     ];
+  } else if (isHandWashingGoal(tema)) {
+    lines = [
+      `${name} shkon në banjë.`,
+      `${name} afrohet te lavamani.`,
+      `${name} hap rubinetin.`,
+      `${name} lag duart me ujë.`,
+      `${name} merr sapunin.`,
+      `${name} fërkon duart me sapun.`,
+      `${name} shpëlan duart me ujë.`,
+      `${name} mbyll rubinetin.`,
+      `${name} than duart me peshqir.`,
+      `${name} shikon duart e pastra.`
+    ];
+  } else if (isReadingGoal(tema)) {
+    lines = [
+      `${name} merr librin.`,
+      `${name} hap librin me kujdes.`,
+      `${name} shikon shkronjën e parë.`,
+      `${name} tregon shkronjën me gisht.`,
+      `${name} thotë tingullin e shkronjës.`,
+      `${name} shikon shkronjën tjetër.`,
+      `${name} bashkon tingujt.`,
+      `${name} lexon rrokjen.`,
+      `${name} lexon fjalën.`,
+      `${name} lexon faqen me qetësi.`
+    ];
+  } else if (isPianoGoal(tema)) {
+    lines = [
+      `${name} shkon te pianoja.`,
+      `${name} ulet para pianos.`,
+      `${name} vendos duart mbi tastet.`,
+      `${name} shikon tastet me kujdes.`,
+      `${name} shtyp tastin e parë.`,
+      `${name} shtyp edhe një tast tjetër.`,
+      `${name} luan tingujt ngadalë.`,
+      `${name} luan një melodi të shkurtër.`,
+      `${name} mbaron këngën te pianoja.`,
+      `${name} buzëqesh pranë pianos.`
+    ];
+  } else if (isBallPlayGoal(tema)) {
+    lines = [
+      `${name} merr topin.`,
+      `${name} mban topin me duar.`,
+      `${name} ecën me topin te fusha.`,
+      `${name} vendos topin për lojë.`,
+      `${name} vrapon me topin.`,
+      `${name} driblon topin.`,
+      `${name} pason topin.`,
+      `${name} kap topin përsëri.`,
+      `${name} gjuan topin drejt portës.`,
+      `${name} buzëqesh pasi luan me topin.`
+    ];
   }
 
   if (lines) {
@@ -1172,6 +3224,9 @@ function enforceKnownStorySequence(paketa, tema, protagonistName) {
 function buildStoryScenePlan(faqet, tema) {
   const sleepGoal = isSleepGoal(tema);
   const readingGoal = isReadingGoal(tema);
+  const pianoGoal = isPianoGoal(tema);
+  const ballGoal = isBallPlayGoal(tema);
+  const mainObject = detectStoryMainObject(tema);
   let bedPhaseStarted = false;
 
   return faqet.map((faqe, index) => {
@@ -1187,6 +3242,7 @@ function buildStoryScenePlan(faqet, tema) {
 
     let sceneInstructionEnglish = "Child doing the exact action from the page text in a calm child-friendly setting.";
     let continuityNote = "Keep continuity with the previous and next page.";
+    const poseInstruction = inferPoseInstructionFromText(text);
 
     if (sleepGoal) {
       if (!bedPhaseStarted) {
@@ -1239,6 +3295,53 @@ function buildStoryScenePlan(faqet, tema) {
       }
     }
 
+    if (pianoGoal) {
+      sceneInstructionEnglish = "Child in a piano activity, focused only on the piano, piano bench, keys, and hand movement needed for the exact page action.";
+      continuityNote = "Keep the same piano activity across all pages. Do not switch to guitar, another instrument, or an unrelated room action.";
+
+      if (containsAny(text, ["shkon", "afrohet"])) {
+        sceneInstructionEnglish = "Child walking toward the piano in a calm room, body moving toward the piano and not already frozen in place.";
+      }
+
+      if (containsAny(text, ["ulet", "vend"])) {
+        sceneInstructionEnglish = "Child sitting correctly on the piano bench in front of the piano, full body visible, not standing.";
+      }
+
+      if (containsAny(text, ["duart", "tastet", "tastin", "shtyp", "luan", "melodi", "tingujt"])) {
+        sceneInstructionEnglish = "Child seated at the piano with hands actively placed on or pressing the piano keys, showing the exact hand movement of the page action.";
+      }
+
+      if (containsAny(text, ["mbaron", "buzëqesh", "buzqesh"])) {
+        sceneInstructionEnglish = "Child next to or seated at the same piano after finishing, looking pleased, with the piano still clearly present.";
+      }
+    }
+
+    if (ballGoal) {
+      sceneInstructionEnglish = "Child actively playing with a ball in an open play area or sports field, matching the exact action from the page text.";
+      continuityNote = "Keep the story active and physical. The child should stay engaged with the ball in a logical play setting and should not appear seated on a chair unless the sentence explicitly says so.";
+
+      if (containsAny(text, ["merr top", "mban top", "kap top"])) {
+        sceneInstructionEnglish = "Child standing and clearly holding or taking the ball with hands in a play area.";
+      }
+
+      if (containsAny(text, ["ecen me top", "ecën me top", "vrapon", "driblon"])) {
+        sceneInstructionEnglish = "Child moving with the ball in an active play scene, standing or running, never seated.";
+      }
+
+      if (containsAny(text, ["pason", "gjuan", "drejt portes", "drejt portës"])) {
+        sceneInstructionEnglish = "Child actively passing or shooting the ball in a sports play setting, body turned toward the action.";
+      }
+
+      if (containsAny(text, ["buzëqesh", "buzqesh"])) {
+        sceneInstructionEnglish = "Child happily finishing the ball activity while still standing in the play area with the ball present.";
+      }
+    }
+
+    sceneInstructionEnglish = `${sceneInstructionEnglish} ${poseInstruction}`.trim();
+    if (mainObject) {
+      continuityNote = `${continuityNote} Keep the same main object throughout the story: ${mainObject}.`;
+    }
+
     return {
       pageText: faqe?.teksti_faqes || "",
       sceneInstructionEnglish,
@@ -1253,28 +3356,46 @@ function normalizeWord(word) {
     .toLowerCase();
 }
 
-function enrichCommunicationBoard(paketa) {
+function enrichCommunicationBoard(paketa, tema = "") {
   const tabela = paketa?.tabela_komunikimit;
   if (!tabela || !Array.isArray(tabela.kategorite)) return paketa;
 
-  const word = (fjala, hint) => ({ fjala, simboli: "", kuptimi_ne_anglisht: hint, pershkrimi_vizual_anglisht: hint });
+  const word = (fjala, hint, visualHint = hint) => ({ fjala, simboli: "", kuptimi_ne_anglisht: hint, pershkrimi_vizual_anglisht: visualHint });
   const requiredGroups = [
     {
       name: "Përemrat",
       matches: ["përem", "perem", "njerëz", "njerez"],
-      words: [word("unë", "a child pointing to self"), word("ti", "a child pointing to another person"), word("ai", "a boy"), word("ajo", "a girl"), word("ne", "a small group of children together"), word("ata", "a group of people farther away")]
+      words: [word("unë", "I", "a child pointing to self"), word("ti", "you", "a child pointing to another person")]
     },
     {
       name: "Fjalë Lidhëse dhe Parafjalë",
       matches: ["lidh", "parafjal"],
-      words: [word("në", "an object inside a box"), word("te", "a child arriving near a person"), word("me", "two things together"), word("nga", "an arrow moving away from a place"), word("për", "a wrapped gift intended for someone"), word("dhe", "two ideas joined together"), word("pastaj", "two actions in sequence with an arrow"), word("sepse", "a simple cause and result arrow")]
+      words: [word("në", "in", "an object inside a place"), word("te", "at", "a child arriving at an object"), word("me", "with", "two things used together"), word("nga", "from", "an arrow moving from a place"), word("për", "for", "an object used for a purpose"), word("dhe", "and", "two ideas joined together"), word("e", "it", "one object linked to the next action"), word("pastaj", "then", "two actions in sequence with an arrow")]
     },
     {
       name: "Ndajfoljet",
       matches: ["ndajfol"],
-      words: [word("tani", "a clock showing now"), word("ngadalë", "a turtle moving slowly"), word("përsëri", "a circular repeat arrow"), word("bashkë", "two children doing an activity together")]
+      words: [word("tani", "now", "a clock showing now"), word("ngadalë", "slowly", "a turtle moving slowly"), word("mirë", "well", "a correct action with a check mark"), word("përsëri", "again", "a circular repeat arrow")]
     }
   ];
+
+  const mergeCategoryWords = (targetCategory, sourceOptions = []) => {
+    if (!Array.isArray(targetCategory.opsionet)) targetCategory.opsionet = [];
+    const byWord = new Map(targetCategory.opsionet.map((item) => [normalizeWord(item?.fjala), item]));
+    sourceOptions.forEach((item) => {
+      const key = normalizeWord(item?.fjala);
+      if (!key) return;
+      if (byWord.has(key)) {
+        Object.assign(byWord.get(key), {
+          ...byWord.get(key),
+          ...item,
+          fjala: item.fjala
+        });
+      } else {
+        targetCategory.opsionet.push({ ...item });
+      }
+    });
+  };
 
   requiredGroups.forEach((group) => {
     let category = tabela.kategorite.find((item) => group.matches.some((part) => normalizeWord(item?.emri_kategorise).includes(part)));
@@ -1287,16 +3408,51 @@ function enrichCommunicationBoard(paketa) {
     group.words.forEach((item) => {
       if (!existing.has(normalizeWord(item.fjala))) category.opsionet.push(item);
     });
+    if (group.name === "Përemrat") category.opsionet = group.words;
     if (group.name === "Ndajfoljet") category.opsionet = category.opsionet.slice(0, 4);
   });
 
+  const knownBoard = buildKnownCommunicationBoard(tema);
+  const sourceCategories = Array.isArray(knownBoard?.tabela_komunikimit?.kategorite) ? knownBoard.tabela_komunikimit.kategorite : [];
+  sourceCategories.forEach((sourceCategory) => {
+    const sourceName = normalizeWord(sourceCategory?.emri_kategorise);
+    let targetCategory = tabela.kategorite.find((item) => normalizeWord(item?.emri_kategorise) === sourceName);
+    if (!targetCategory) {
+      targetCategory = { emri_kategorise: sourceCategory.emri_kategorise, opsionet: [] };
+      tabela.kategorite.push(targetCategory);
+    }
+    mergeCategoryWords(targetCategory, sourceCategory.opsionet);
+  });
+
+  tabela.kategorite.forEach((category) => {
+    if (!Array.isArray(category?.opsionet)) return;
+    category.opsionet = dedupeBoardOptions(category.opsionet, category.emri_kategorise);
+  });
+
   return paketa;
+}
+
+function normalizeCommunicationPackage(paketa, tema = "") {
+  const normalized = paketa && typeof paketa === "object" && !Array.isArray(paketa)
+    ? JSON.parse(JSON.stringify(paketa))
+    : {};
+
+  normalized.moduli_i_zgjedhur = "Moduli 3: Tabela e Komunikimit";
+  if (!normalized.tabela_komunikimit || typeof normalized.tabela_komunikimit !== "object" || Array.isArray(normalized.tabela_komunikimit)) {
+    normalized.tabela_komunikimit = { kategorite: [] };
+  }
+  if (!Array.isArray(normalized.tabela_komunikimit.kategorite)) {
+    normalized.tabela_komunikimit.kategorite = [];
+  }
+
+  return enrichCommunicationBoard(normalized, tema);
 }
 
 async function refineSocialStorySequence(paketa, tema, protagonistName) {
   const libri = paketa?.social_story_libri;
   const faqet = Array.isArray(libri?.faqet) ? libri.faqet : [];
   if (!libri || faqet.length < 10) return paketa;
+  const mainObject = detectStoryMainObject(tema);
 
   const shouldRefine = true;
   if (!shouldRefine) return paketa;
@@ -1324,11 +3480,23 @@ Rregulla shumë të rëndësishme:
 - Çdo faqe duhet të ketë vetëm 1 fjali shumë të shkurtër në shqip.
 - Faqet duhet të ecin në rend praktik nga fillimi deri në fund.
 - Çdo faqe duhet të lidhet qartë me faqen para dhe faqen pas saj.
+- Çdo fjali duhet të përshkruajë vetëm 1 veprim të dukshëm që mund të ilustrohet qartë në faqe.
 - Çdo faqe duhet të qëndrojë brenda qëllimit të saktë që është dhënë. Mos e zgjero temën në rutinë të përgjithshme ditore.
+- Ruaj të njëjtin objekt kryesor dhe të njëjtën veprimtari në të gjitha faqet. Mos e zëvendëso me një objekt tjetër.
+- Ruaj vendin logjik të aktivitetit. Mos e zhvendos fëmijën në një vend të palidhur me qëllimin.
 - Fundi duhet të tregojë përfundimin e qartë të qëllimit, jo një hap të rastësishëm.
 - Nëse qëllimi është të shtrihet e të flejë, faqet e fundit duhet ta tregojnë fëmijën në shtrat duke u qetësuar dhe duke fjetur, jo ulur në karrige.
 - Nëse një faqe e fut fëmijën në shtrat, faqet pasuese nuk duhet ta nxjerrin më nga shtrati pa arsye.
 - Nëse qëllimi është të mësojë të lexojë, të gjitha faqet duhet të tregojnë vetëm hapa të leximit, si shikimi i shkronjave, tingujve, rrokjeve, fjalëve ose leximi i një libri. Mos kalo te ngrënia, ecja, rutina e shtëpisë ose pjesë të tjera të ditës.
+- Nëse qëllimi është larja e duarve, të gjitha faqet duhet të tregojnë vetëm hapa të larjes së duarve nga banja deri te tharja e duarve.
+- Nëse qëllimi është larja e dhëmbëve, të gjitha faqet duhet të tregojnë vetëm hapa të larjes së dhëmbëve nga furça dhe pasta deri te goja e shpëlarë dhe dhëmbët e pastër.
+- Nëse qëllimi përmend piano, të gjitha faqet duhet të mbeten vetëm te pianoja. Mos përmend dhe mos nënkupto kitarë ose instrument tjetër.
+- Nëse qëllimi është lojë me top, të gjitha faqet duhet të tregojnë vetëm hapa aktivë të lojës me top. Mos e vendos fëmijën ulur në karrige, në tavolinë ose në një pozë pasive, përveçse kur fjalia e kërkon shprehimisht.
+- Çdo fjali duhet të tregojë një hap të ri. Mos përsërit të njëjtin pozicion ose të njëjtin veprim pa arsye.
+- Nëse fjalia thotë që fëmija ulet, faqja pasuese duhet ta mbajë ulur derisa veprimi të kërkojë ndryshim tjetër.
+- Nëse një faqe thotë që fëmija kap një objekt, faqet pasuese duhet ta ruajnë atë objekt derisa teksti të tregojë qartë një ndryshim.
+- Nëse teksti përmend një veprim shumë specifik, si lexon, luan piano, lahet, fle, ha, vizaton, atëherë çdo faqe duhet të mbetet te ai veprim dhe te mjetet e tij reale.
+- Objekti kryesor i këtij tregimi është: ${mainObject || "qëllimi i dhënë"}.
 - Mos ndrysho temën.
 - Mos shto shpjegime jashtë JSON-it.
 
@@ -1396,7 +3564,6 @@ function setupStoryModeControls() {
   document.querySelectorAll('input[name="storyCharacterMode"]').forEach((input) => {
     input.addEventListener("change", updateStoryModeVisibility);
   });
-  document.getElementById("storyConsent")?.addEventListener("change", updateStoryModeVisibility);
 }
 
 function validateModuleContent(paketa, moduliZgjedhur) {
@@ -1406,14 +3573,15 @@ function validateModuleContent(paketa, moduliZgjedhur) {
 
   if (moduliZgjedhur === "Moduli 1: Sekuencat me Fjalë") {
     const hapa = paketa?.sekuencat_me_fjale?.hapat;
-    if (!Array.isArray(hapa) || hapa.length < 7) return "Duhet të kthehen të paktën 7 hapa kronologjikë.";
+    if (!Array.isArray(hapa) || hapa.length < 7 || hapa.length > 8) return "Duhet të kthehen saktësisht 7 ose 8 hapa kronologjikë.";
     if (hapa.some((item) => !String(item?.teksti_shkurter ?? "").trim())) return "Çdo hap duhet të ketë fjali të shkurtër në shqip.";
+    if (hapa.some((item) => !String(item?.simboli ?? "").trim())) return "Çdo hap duhet të ketë një simbol të vogël.";
   }
 
   if (moduliZgjedhur === "Moduli 2: Flashcards") {
     const kartela = paketa?.flashcards;
-    if (!Array.isArray(kartela) || kartela.length < 7) return "Duhet të kthehen të paktën 7 flashcards.";
-    if (kartela.some((item) => String(item?.fjala ?? "").trim().split(/\s+/).length !== 1)) return "Çdo flashcard duhet të ketë vetëm një fjalë.";
+    if (!Array.isArray(kartela) || kartela.length < 7 || kartela.length > 8) return "Duhet të kthehen saktësisht 7 ose 8 flashcards.";
+    if (kartela.some((item) => !String(item?.fjala ?? "").trim())) return "Çdo flashcard duhet të ketë një fjalë ose togfjalësh të shkurtër.";
   }
 
   if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") {
@@ -1421,15 +3589,19 @@ function validateModuleContent(paketa, moduliZgjedhur) {
     if (!Array.isArray(kategorite) || kategorite.length < 5) return "Duhet të ketë të paktën 5 kategori.";
     const veprimet = kategorite.find((kategori) => normalizeWord(kategori?.emri_kategorise).includes("veprim"));
     if (!Array.isArray(veprimet?.opsionet) || veprimet.opsionet.length < 8) return "Duhet të ketë të paktën 8 veprime që lidhen me aktivitetin.";
-    if (kategorite.some((kategori) => {
-      const minimum = normalizeWord(kategori?.emri_kategorise).includes("ndajfol") ? 3 : 5;
-      return !Array.isArray(kategori?.opsionet) || kategori.opsionet.length < minimum;
-    })) return "Kategoritë kryesore nuk kanë mjaftueshëm fjalë për aktivitetin.";
+    const objektet = kategorite.find((kategori) => normalizeWord(kategori?.emri_kategorise).includes("objekt"));
+    const peremrat = kategorite.find((kategori) => /përem|perem/.test(normalizeWord(kategori?.emri_kategorise)));
+    const lidheset = kategorite.find((kategori) => /lidh|parafjal/.test(normalizeWord(kategori?.emri_kategorise)));
+    const ndajfoljet = kategorite.find((kategori) => normalizeWord(kategori?.emri_kategorise).includes("ndajfol"));
+    if (!Array.isArray(objektet?.opsionet) || objektet.opsionet.length < 7) return "Duhet të ketë të paktën 7 objekte të aktivitetit.";
+    if (!Array.isArray(peremrat?.opsionet) || peremrat.opsionet.length < 2) return "Duhet të përfshihen përemrat unë dhe ti.";
+    if (!Array.isArray(lidheset?.opsionet) || lidheset.opsionet.length < 6) return "Duhet të ketë të paktën 6 fjalë lidhëse ose parafjalë.";
+    if (!Array.isArray(ndajfoljet?.opsionet) || ndajfoljet.opsionet.length < 3) return "Duhet të ketë 3-4 ndajfolje të dobishme.";
   }
 
   if (moduliZgjedhur === "Moduli 4: Social Story (Libri Virtual)") {
     const faqet = paketa?.social_story_libri?.faqet;
-    if (!Array.isArray(faqet) || faqet.length < 10) return "Social Story duhet të ketë 10 faqe.";
+    if (!Array.isArray(faqet) || faqet.length !== 10) return "Libri virtual duhet të ketë saktësisht 10 faqe.";
   }
 
   return "";
@@ -1463,7 +3635,15 @@ async function generateTargetedAACBoard(goal) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ goal })
-  });
+  }, 2, 45000);
+}
+
+async function generateFrozenModuleContent(moduleType, topic, childName, childDescription) {
+  return fetchJsonWithRetry(apiUrl("/api/generate-module-content"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ moduleType, topic, childName, childDescription })
+  }, moduleType === "book" ? 1 : 2, moduleType === "book" ? 60000 : 20000);
 }
 
 function clearPreviousModule() {
@@ -1486,8 +3666,18 @@ function resetModules(moduliZgjedhurId) {
     const moduli = document.getElementById("moduli")?.value || "Rezultati";
     title.textContent = moduleTitles[moduli] || moduli;
   }
-  element.innerHTML = "<i>Duke gjeneruar materialin nga AI... Ju lutem prisni pak.</i>";
+  const moduli = document.getElementById("moduli")?.value || "";
+  const loadingMessage = moduli === "Moduli 3: Tabela e Komunikimit"
+    ? "Po gjenerohet tabela AAC me OpenAI... Ju lutem prisni pak."
+    : "Duke gjeneruar materialin nga AI... Ju lutem prisni pak.";
+  element.innerHTML = `<i>${escapeHtml(loadingMessage)}</i>`;
   element.style.color = "#333";
+}
+
+function setGenerationStatus(target, message) {
+  if (!target) return;
+  target.innerHTML = `<i>${escapeHtml(message)}</i>`;
+  target.style.color = "#333";
 }
 
 function addSaveAsPdfButton(target, label = "Ruaj si PDF") {
@@ -1518,7 +3708,7 @@ function renderSekuencat(paketa, target) {
   addSaveAsPdfButton(target);
 }
 
-async function renderFlashcards(paketa, target, generationId) {
+async function renderFlashcards(paketa, target, generationId, useOfflineImages = false) {
   const kartela = Array.isArray(paketa.flashcards) ? paketa.flashcards : [];
   if (!kartela.length) {
     target.innerHTML = "<div style='color:red;'>Nuk u kthyen flashcards për këtë modul.</div>";
@@ -1528,16 +3718,19 @@ async function renderFlashcards(paketa, target, generationId) {
   target.innerHTML = "<i>Po gjenerohen ilustrimet e flashcards me OpenAI...</i>";
 
   const kartelaMeImazhe = [];
+  let fallbackImageCount = 0;
   for (let i = 0; i < kartela.length; i += 1) {
     if (generationId !== activeGenerationId) return;
     target.innerHTML = `<i>Po gjenerohen ilustrimet e flashcards me OpenAI... ${i + 1} / ${kartela.length}</i>`;
     const item = kartela[i];
     let imageUrl;
     try {
+      if (useOfflineImages) throw new Error("offline");
       imageUrl = await generateFlashcardImage(item.fjala, item.kuptimi_ne_anglisht || item.pershkrimi_vizual_anglisht || item.fjala);
     } catch (error) {
       console.error("Flashcard image failed", item.fjala, error);
-      imageUrl = createBookFallbackImage(item.fjala, item.fjala);
+      fallbackImageCount += 1;
+      imageUrl = createAacFallbackImage(item.fjala);
     }
     kartelaMeImazhe.push({ ...item, imageUrl });
   }
@@ -1553,9 +3746,10 @@ async function renderFlashcards(paketa, target, generationId) {
   html += "</div>";
   target.innerHTML = html;
   addSaveAsPdfButton(target);
+  if (fallbackImageCount) showModuleWarning(`${fallbackImageCount} ilustrime nuk u gjeneruan online; u përdorën figura rezervë.`);
 }
 
-async function renderTabelaKomunikimit(paketa, target, generationId) {
+async function renderTabelaKomunikimit(paketa, target, generationId, useOfflineImages = false) {
   const kategorite = Array.isArray(paketa.tabela_komunikimit?.kategorite) ? paketa.tabela_komunikimit.kategorite : [];
   if (!kategorite.length) {
     target.innerHTML = "<div style='color:red;'>Nuk u kthyen kategori për këtë modul.</div>";
@@ -1575,12 +3769,28 @@ async function renderTabelaKomunikimit(paketa, target, generationId) {
   const sentenceOutput = document.getElementById("sentenceOutput");
   let currentWords = [];
 
+  function getSentenceText() {
+    if (!currentWords.length) return "";
+    const joined = currentWords.join(" ").replace(/\s+/g, " ").trim();
+    if (!joined) return "";
+    return `${joined.charAt(0).toLocaleUpperCase("sq-AL")}${joined.slice(1)}.`;
+  }
+
   function refreshSentence() {
-    sentenceOutput.textContent = currentWords.length ? `${currentWords.join(" ")}.` : "Kliko fjalët për të ndërtuar një fjali në shqip.";
+    sentenceOutput.textContent = getSentenceText() || "Kliko fjalët për të ndërtuar një fjali në shqip.";
+  }
+
+  function addWordToSentence(fjala) {
+    const cleanWord = String(fjala || "").trim();
+    if (!cleanWord) return;
+    currentWords.push(cleanWord);
+    refreshSentence();
+    lexoMeZe(cleanWord).catch((error) => console.error("Word audio failed", error));
   }
 
   document.getElementById("speakSentenceBtn")?.addEventListener("click", () => {
-    if (currentWords.length) lexoMeZe(`${currentWords.join(" ")}.`).catch((error) => {
+    const sentenceText = getSentenceText();
+    if (sentenceText) lexoMeZe(sentenceText).catch((error) => {
       console.error("Sentence audio failed", error);
       alert("Audioja nuk është e disponueshme për momentin. Materiali mund të vazhdojë të përdoret pa audio.");
     });
@@ -1591,79 +3801,127 @@ async function renderTabelaKomunikimit(paketa, target, generationId) {
     refreshSentence();
   });
 
-  target.insertAdjacentHTML("beforeend", "<div id='boardLoading' style='color:#607d8b; margin-bottom:12px;'><i>Po gjenerohen simbolet vizuale me OpenAI...</i></div>");
-
   const kategoriTePasuruara = kategorite.map((kategori) => ({
     ...kategori,
-    opsionet: Array.isArray(kategori.opsionet) ? kategori.opsionet.map((opsion) => ({ ...opsion })) : []
+    opsionet: Array.isArray(kategori.opsionet) ? dedupeBoardOptions(kategori.opsionet, kategori.emri_kategorise).map((opsion) => ({
+      ...opsion,
+      imageUrl: createAacFallbackImage(opsion.fjala),
+      imageNode: null
+    })) : []
   }));
 
-  const allVisualWordTasks = [];
+  const allVisualWords = [];
   kategoriTePasuruara.forEach((kategori) => {
     kategori.opsionet.forEach((opsion) => {
       const promptHint = opsion.kuptimi_ne_anglisht || opsion.pershkrimi_vizual_anglisht || opsion.fjala;
-      if (shouldGenerateBoardSymbol(kategori.emri_kategorise, opsion.fjala, promptHint)) {
-        const task = () => generateBoardSymbolImage(opsion.fjala, promptHint)
-          .then((imageUrl) => {
-            opsion.imageUrl = imageUrl;
-          })
-          .catch(() => {
-            opsion.imageUrl = "";
-          });
-        allVisualWordTasks.push(task);
+      if (!useOfflineImages && shouldGenerateBoardSymbol(kategori.emri_kategorise, opsion.fjala, promptHint)) {
+        allVisualWords.push({ kategori, opsion, promptHint });
       }
     });
   });
 
-  await runWithConcurrency(allVisualWordTasks, 3);
-  if (generationId !== activeGenerationId) return;
-  document.getElementById("boardLoading")?.remove();
-  {
-    document.getElementById("boardLoading")?.remove();
-    kategoriTePasuruara.forEach((kategori) => {
-      const bllok = document.createElement("div");
-      bllok.style.marginBottom = "18px";
+  const loadingNode = document.createElement("div");
+  loadingNode.id = "boardLoading";
+  loadingNode.style.cssText = "color:#607d8b; margin:12px 0;";
+  loadingNode.innerHTML = `<i>Tabela është gati. Po plotësohen simbolet vizuale me OpenAI... 0 / ${allVisualWords.length}</i>`;
+  target.appendChild(loadingNode);
 
-      const titull = document.createElement("h4");
-      titull.textContent = kategori.emri_kategorise || "Kategori";
-      titull.style.margin = "0 0 10px 0";
-      titull.style.color = "#2c3e50";
-      bllok.appendChild(titull);
+  kategoriTePasuruara.forEach((kategori) => {
+    const bllok = document.createElement("div");
+    bllok.style.marginBottom = "18px";
 
-      const grid = document.createElement("div");
-      grid.className = "tabela-grid";
+    const titull = document.createElement("h4");
+    titull.textContent = kategori.emri_kategorise || "Kategori";
+    titull.style.margin = "0 0 10px 0";
+    titull.style.color = "#2c3e50";
+    bllok.appendChild(titull);
 
-      kategori.opsionet.forEach((opsion) => {
-        const butoni = document.createElement("button");
-        butoni.className = `btn-komunikimi${opsion.imageUrl ? " with-symbol" : ""}`;
-        butoni.type = "button";
+    const grid = document.createElement("div");
+    grid.className = "tabela-grid";
 
-        if (opsion.imageUrl) {
-          butoni.innerHTML = `
-            <img class="word-symbol-image" src="${escapeHtml(opsion.imageUrl)}" alt="${escapeHtml(opsion.fjala || "")}">
-            <span>${escapeHtml(opsion.fjala || "")}</span>
-          `;
-        } else {
-          butoni.textContent = `${opsion.simboli || ""} ${opsion.fjala || ""}`.trim();
-        }
+    kategori.opsionet.forEach((opsion) => {
+      opsion.forma_te_fjales = Array.isArray(opsion.forma_te_fjales) ? opsion.forma_te_fjales : [];
+      const cardWrap = document.createElement("div");
+      cardWrap.style.display = "flex";
+      cardWrap.style.flexDirection = "column";
+      cardWrap.style.gap = "6px";
 
-        butoni.addEventListener("click", () => {
-          const fjala = String(opsion.fjala || "").trim();
-          if (!fjala) return;
-          currentWords.push(fjala);
-          refreshSentence();
-          lexoMeZe(fjala).catch((error) => console.error("Word audio failed", error));
+      const butoni = document.createElement("button");
+      butoni.className = "btn-komunikimi with-symbol";
+      butoni.type = "button";
+
+      const image = document.createElement("img");
+      image.className = "word-symbol-image";
+      image.src = opsion.imageUrl;
+      image.alt = String(opsion.fjala || "");
+      opsion.imageNode = image;
+
+      const label = document.createElement("span");
+      label.textContent = String(opsion.fjala || "");
+
+      butoni.appendChild(image);
+      butoni.appendChild(label);
+
+      butoni.addEventListener("click", () => addWordToSentence(opsion.fjala));
+      cardWrap.appendChild(butoni);
+
+      if (opsion.forma_te_fjales.length) {
+        const variantWrap = document.createElement("div");
+        variantWrap.className = "word-variants";
+        opsion.forma_te_fjales.forEach((variant) => {
+          const variantButton = document.createElement("button");
+          variantButton.type = "button";
+          variantButton.className = "word-variant-btn";
+          variantButton.textContent = String(variant || "").trim();
+          variantButton.addEventListener("click", () => addWordToSentence(variant));
+          variantWrap.appendChild(variantButton);
         });
-        grid.appendChild(butoni);
-      });
-
-      bllok.appendChild(grid);
-      target.appendChild(bllok);
+        cardWrap.appendChild(variantWrap);
+      }
+      grid.appendChild(cardWrap);
     });
+
+    bllok.appendChild(grid);
+    target.appendChild(bllok);
+  });
+  addSaveAsPdfButton(target, "Ruaj tabelën si PDF");
+
+  let completedSymbols = 0;
+  let boardImageFailures = 0;
+  const symbolTasks = allVisualWords.map(({ opsion, promptHint }) => async () => {
+    try {
+      const imageUrl = await generateBoardSymbolImage(opsion.fjala, promptHint);
+      if (generationId !== activeGenerationId) return;
+      opsion.imageUrl = imageUrl;
+      if (opsion.imageNode) opsion.imageNode.src = imageUrl;
+    } catch (error) {
+      boardImageFailures += 1;
+      if (generationId !== activeGenerationId) return;
+      opsion.imageUrl = createAacFallbackImage(opsion.fjala);
+      if (opsion.imageNode) opsion.imageNode.src = opsion.imageUrl;
+    } finally {
+      completedSymbols += 1;
+      if (generationId !== activeGenerationId) return;
+      const activeLoadingNode = document.getElementById("boardLoading");
+      if (activeLoadingNode) {
+        activeLoadingNode.innerHTML = `<i>Tabela është gati. Po plotësohen simbolet vizuale me OpenAI... ${completedSymbols} / ${allVisualWords.length}</i>`;
+      }
+    }
+  });
+
+  await runWithConcurrency(symbolTasks, 2);
+  if (generationId !== activeGenerationId) return;
+  if (boardImageFailures) showModuleWarning(`${boardImageFailures} simbole nuk u gjeneruan online; u përdorën simbole rezervë.`);
+  const finalLoadingNode = document.getElementById("boardLoading");
+  if (finalLoadingNode) {
+    finalLoadingNode.innerHTML = allVisualWords.length
+      ? "<i>Tabela është gati për përdorim. Simbolet vizuale u përditësuan.</i>"
+      : "<i>Tabela është gati për përdorim.</i>";
+    setTimeout(() => finalLoadingNode.remove(), 2500);
   }
 }
 
-async function renderSocialStory(paketa, target, generationId) {
+async function renderSocialStory(paketa, target, generationId, useOfflineImages = false) {
   const libri = paketa.social_story_libri;
   const faqet = Array.isArray(libri?.faqet) ? libri.faqet : [];
   if (!libri || !faqet.length) {
@@ -1701,8 +3959,23 @@ async function renderSocialStory(paketa, target, generationId) {
   const tema = document.getElementById("tema")?.value.trim() || "";
   const childVisualProfile = await analyzeChildPhoto(protagonistName, childDescription);
   if (generationId !== activeGenerationId) return;
+  const storyFaceReference = activePhotoDataUrl && childVisualProfile?.face_box_normalized
+    ? await createTightFaceCropDataUrl(activePhotoDataUrl, childVisualProfile.face_box_normalized).catch(() => "")
+    : "";
+  if (generationId !== activeGenerationId) return;
   const scenePlans = buildStoryScenePlan(faqet, tema);
   let faqetMeImazhe = [];
+  let masterCharacterReference = "";
+  let masterCharacterReferencePromise = Promise.resolve("");
+  let anchorStatusMessage = "";
+  let completedPages = 0;
+
+  function renderBookLoadingStatus() {
+    pageContentNode.innerHTML = `
+      <i>Po gjenerohen të gjitha faqet e librit me OpenAI... ${completedPages} / ${faqet.length}</i>
+      ${anchorStatusMessage ? `<div style="margin-top:10px;font-size:13px;color:#6b7f8d;">${escapeHtml(anchorStatusMessage)}</div>` : ""}
+    `;
+  }
 
   async function renderBookPage() {
     const faqe = faqetMeImazhe[currentPageIndex];
@@ -1747,27 +4020,97 @@ async function renderSocialStory(paketa, target, generationId) {
     }
   });
 
-  pageContentNode.innerHTML = `<i>Po gjenerohen të gjitha faqet e librit me OpenAI... 0 / ${faqet.length}</i>`;
+  renderBookLoadingStatus();
 
-  faqetMeImazhe = [];
-  for (let i = 0; i < faqet.length; i += 1) {
+  if (!useOfflineImages && activePhotoDataUrl) {
+    const savedAnchor = getSavedCharacterAnchor(protagonistName);
+    if (savedAnchor) {
+      masterCharacterReference = savedAnchor;
+      masterCharacterReferencePromise = Promise.resolve(savedAnchor);
+      anchorStatusMessage = "U përdor personazhi bazë i ruajtur.";
+      renderBookLoadingStatus();
+    } else {
+      let elapsedSeconds = 0;
+      anchorStatusMessage = "Po krijohet personazhi bazë nga fotoja e fëmijës... 0s";
+      renderBookLoadingStatus();
+      const loadingTimer = window.setInterval(() => {
+        elapsedSeconds += 2;
+        if (generationId === activeGenerationId) {
+          anchorStatusMessage = `Po krijohet personazhi bazë nga fotoja e fëmijës... ${elapsedSeconds}s`;
+          renderBookLoadingStatus();
+        }
+      }, 2000);
+      masterCharacterReferencePromise = withTimeout(
+        generateStoryCharacterReference(
+          protagonistName,
+          childDescription,
+          childVisualProfile
+        ).catch(() => ""),
+        45000,
+        "Krijimi i personazhit bazë po zgjat shumë."
+      ).then((value) => {
+        masterCharacterReference = value || "";
+        anchorStatusMessage = masterCharacterReference
+          ? "Personazhi bazë u përgatit."
+          : "Po vazhdojmë me foton e fëmijës.";
+        return masterCharacterReference;
+      }).catch((error) => {
+        console.warn("Story character anchor timed out; continuing without it.", error);
+        masterCharacterReference = "";
+        anchorStatusMessage = "Po vazhdojmë me foton e fëmijës.";
+        showModuleWarning("Krijimi i personazhit bazë po zgjati shumë; faqet po gjenerohen pa e pritur atë hap.");
+        return "";
+      }).finally(() => {
+        window.clearInterval(loadingTimer);
+        if (generationId === activeGenerationId) {
+          renderBookLoadingStatus();
+        }
+      });
+    }
     if (generationId !== activeGenerationId) return;
-    pageContentNode.innerHTML = `<i>Po gjenerohen të gjitha faqet e librit me OpenAI... ${i + 1} / ${faqet.length}</i>`;
-    const faqe = faqet[i];
+  }
+
+  const pageTasks = faqet.map((faqe, i) => async () => {
+    if (generationId !== activeGenerationId) return null;
     const scenePlan = scenePlans[i] || {};
     const previousPageText = i > 0 ? String(faqet[i - 1]?.teksti_faqes || "") : "";
     const nextPageText = i < faqet.length - 1 ? String(faqet[i + 1]?.teksti_faqes || "") : "";
-    const imageUrl = await generateStoryPageImage(
-      faqe.teksti_faqes,
-      protagonistName,
-      childDescription,
-      childVisualProfile,
-      scenePlan,
-      previousPageText,
-      nextPageText
-    );
-    faqetMeImazhe.push({ ...faqe, imageUrl });
-  }
+    try {
+      const anchorForThisPage = useOfflineImages
+        ? ""
+        : (masterCharacterReference || await withTimeout(
+          masterCharacterReferencePromise,
+          i < 3 ? 1200 : 2500,
+          "Personazhi bazë ende nuk është gati."
+        ).catch(() => masterCharacterReference || ""));
+      const imageUrl = useOfflineImages
+        ? createStoryFallbackImage(faqe?.teksti_faqes, protagonistName)
+        : await generateStoryPageImage(
+          faqe.teksti_faqes,
+          protagonistName,
+          childDescription,
+          childVisualProfile,
+          scenePlan,
+          previousPageText,
+          nextPageText,
+          anchorForThisPage,
+          activePhotoDataUrl,
+          storyFaceReference
+        );
+      return { ...faqe, imageUrl };
+    } catch (error) {
+      console.warn("Story page generation used fallback image.", faqe?.numri_faqes, error);
+      return { ...faqe, imageUrl: createStoryFallbackImage(faqe?.teksti_faqes, protagonistName) };
+    } finally {
+      completedPages += 1;
+      if (generationId === activeGenerationId) {
+        renderBookLoadingStatus();
+      }
+    }
+  });
+
+  faqetMeImazhe = (await runWithConcurrency(pageTasks, 3)).filter(Boolean);
+  if (generationId !== activeGenerationId) return;
 
   document.getElementById("printBookPages").innerHTML = faqetMeImazhe.map((faqe) => `
     <section class="print-book-page">
@@ -1795,9 +4138,11 @@ async function gjeneroPaketen() {
   const childDescription = document.getElementById("childDescription")?.value.trim();
   const favoriteCharacter = getFavoriteCharacterName();
   const usingChildPhotoStory = wantsChildPhotoStory();
-  const hasConsent = hasStoryConsent();
   const protagonistName = getStoryProtagonistName(childName);
+  const frozenModuleType = frozenModuleTypes[moduliZgjedhur];
   const materialCacheKey = getMaterialCacheKey(moduliZgjedhur, tema);
+  const knownPackage = (frozenModuleType !== "book" ? getFrozenRoutine(frozenModuleType, tema) : null)
+    || getKnownModulePackage(moduliZgjedhur, tema, protagonistName);
 
   if (!moduliZgjedhur || !tema) {
     alert("Ju lutem zgjidhni modulin dhe vendosni një qëllim.");
@@ -1805,17 +4150,15 @@ async function gjeneroPaketen() {
   }
 
   if (moduliZgjedhur === "Moduli 4: Social Story (Libri Virtual)") {
+    clearVirtualBookCache();
+    generatedMaterialCache.delete(materialCacheKey);
     if (usingChildPhotoStory) {
       if (!childName) {
         alert("Ju lutem shkruani emrin e fëmijës për Social Story.");
         return;
       }
-      if (!hasConsent) {
-        alert("Ju lutem jepni pëlqimin për përdorimin e fotos ose zgjidhni personazhin e preferuar.");
-        return;
-      }
       if (!childPhotoDataUrl) {
-        alert("Ju lutem ngarkoni foton e fëmijës ose zgjidhni personazhin e preferuar.");
+        alert("Ju lutem ngarkoni foton e fëmijës për të krijuar librin e personalizuar.");
         return;
       }
     } else if (!favoriteCharacter) {
@@ -1824,11 +4167,17 @@ async function gjeneroPaketen() {
     }
   }
 
+  const needsBackend = frozenModuleType === "book" ? true : !knownPackage;
+  if (needsBackend && !(await ensureGenerationBackend())) {
+    alert("Backend-i i AtlasPlan nuk është aktiv ose OpenAI nuk është konfiguruar. Nisni backend-in në portën 5001 dhe provoni përsëri.");
+    return;
+  }
+
   resetModules(moduliZgjedhurId);
   const generationId = ++activeGenerationId;
 
   const storyPromptIdentity = usingChildPhotoStory
-    ? `Personazhi kryesor duhet të jetë fëmija me emrin ${childName || "Fëmija"}. Prindi ka dhënë pëlqimin për përdorimin e fotos së fëmijës.`
+    ? `Personazhi kryesor duhet të jetë fëmija me emrin ${childName || "Fëmija"}, bazuar te fotoja e ngarkuar.`
     : `Personazhi kryesor duhet të jetë personazhi i preferuar "${favoriteCharacter || "personazh i dashur për fëmijë"}". Mos përdor foton e fëmijës dhe mos e përshkruaj personazhin si identitet real të fëmijës. Nëse është e mundur, ruaje tonin e butë dhe miqësor për fëmijë.`;
 
   const prompt = `Ti je një ekspert AAC dhe krijon materiale vetëm në gjuhën shqipe.
@@ -1844,11 +4193,12 @@ Moduli i zgjedhur: ${moduliZgjedhur}
 Qëllimi që mësuesi do të mësojë: ${tema}
 
 Nëse moduli është "Moduli 1: Sekuencat me Fjalë":
-- Kthe 7 deri në 9 hapa shumë të vegjël dhe kronologjikë.
+- Kthe saktësisht 7 ose 8 hapa shumë të vegjël dhe kronologjikë.
 - Çdo hap duhet të ketë një simbol të vogël dhe një fjali shumë të shkurtër në shqip.
+- Shkruaj në vetën e parë kur është e natyrshme, p.sh. “Unë shkoj në banjë”.
 - Fjalitë duhet të shpjegojnë hap pas hapi qëllimin e dhënë nga fillimi deri në fund.
 - Çdo fjali duhet të jetë një mikro-hap praktik i aktivitetit, jo koment i përgjithshëm.
-- Shembull për larjen e duarve: "Shkoj në banjë", "Hap rubinetin", "Lag duart", "Vendos sapunin", "Fërkoj duart", "I shpëlaj duart", "Mbyll rubinetin", "Thaj duart".
+- Shembull i saktë për larjen e duarve: “Unë shkoj në banjë”, “Unë hap rubinetin”, “Unë lag duart me ujë”, “Unë marr sapunin”, “Unë fërkoj duart me sapun”, “Unë shpëlaj duart me ujë”, “Unë mbyll rubinetin”, “Unë thaj duart me peshqir”.
 Struktura:
 {
   "moduli_i_zgjedhur": "Moduli 1: Sekuencat me Fjalë",
@@ -1860,12 +4210,12 @@ Struktura:
 }
 
 Nëse moduli është "Moduli 2: Flashcards":
-- Kthe të paktën 8 flashcards kur është e mundur, por kurrë më pak se 7.
-- Çdo kartelë duhet të ketë vetëm një fjalë në shqip te fusha "fjala".
-- Fusha "fjala" nuk duhet të ketë fjali.
+- Kthe saktësisht 7 ose 8 flashcards që lidhen drejtpërdrejt me aktivitetin.
+- Fusha "fjala" mund të jetë një fjalë ose një togfjalësh shumë i shkurtër si “dhëmbët e papastër”; nuk duhet të jetë fjali.
 - Shto edhe një fushë "kuptimi_ne_anglisht" dhe një fushë "pershkrimi_vizual_anglisht".
 - Këto dy fusha duhet të shpjegojnë saktë kuptimin e fjalës në anglisht për të shmangur ngatërrime semantike.
 - Shembull: nëse fjala është "pastë" me kuptimin toothpaste, mos e ngatërro me pasta.
+- Për larjen e dhëmbëve përdor fjalor si “dhëmbët e papastër”, “furça”, “pasta”, “fërkoj”, “banja”, “uji”, “dhëmbët e pastër”.
 - Mos kthe emoji. Ilustrimi do të gjenerohet më pas nga OpenAI në aplikacion.
 Struktura:
 {
@@ -1880,16 +4230,16 @@ Struktura:
 }
 
 Nëse moduli është "Moduli 3: Tabela e Komunikimit":
-- Kthe të paktën 5 kategori.
-- Kategoritë duhet të përfshijnë medoemos: Veprimet, Objektet, Njerëzit ose Përemrat, Ndjenjat ose Përshkrimet, dhe Fjalë Lidhëse.
-- Çdo kategori duhet të ketë të paktën 5 fjalë.
-- Fjalët duhet ta ndihmojnë fëmijën të ndërtojë fjali që shpjegojnë qëllimin.
+- Mendo fillimisht 7-8 fjali logjike për aktivitetin dhe nxirr prej tyre fjalorin e tabelës.
+- Kategoritë duhet të jenë: Veprimet, Objektet, Përemrat, Fjalë Lidhëse/Parafjalë dhe Ndajfoljet.
+- Përemrat duhet të jenë vetëm “unë” dhe “ti”.
+- Jep 8-10 veprime, 7-10 objekte, 6-9 fjalë lidhëse/parafjalë dhe vetëm 3-4 ndajfolje.
+- Mos shto fjalë të përgjithshme, njerëz ose objekte që nuk përdoren në aktivitet.
 - Të gjitha fjalët duhet të jenë në shqip shumë të qartë për t'u lexuar me zë dhe duhet të kenë drejtshkrim korrekt, sidomos shkronjën "ë" kur duhet.
-- Përfshi shumë lidhëza, parafjalë, ndajfolje dhe fjalë lidhëse që ndihmojnë në ndërtimin e fjalive.
-- Te kategoria "Fjalë Lidhëse" kthe të paktën 10 fjalë shumë të përdorshme si: "në", "te", "me", "dhe", "pastaj", "pas", "para", "nga", "për", "sepse".
+- Përdor forma që bashkohen natyrshëm në fjali, p.sh. “furçën”, “pastën”, “rubinetin”, “gojën”, “marr”, “vendos”, “fërkoj”, “shpëlaj”, “në”, “me”, “nga”, “dhe”, “pastaj”, “ngadalë”.
 - Për folje, veprime dhe objekte përdor fjalë shumë konkrete që mund të përfaqësohen lehtë me simbol vizual.
 - Për çdo fjalë që mund të përshkruhet me figurë, shto edhe "kuptimi_ne_anglisht" ose "pershkrimi_vizual_anglisht".
-- Për fjalët funksionale si parafjalë ose lidhëza, këto fusha mund të jenë bosh.
+- Jep përshkrim vizual edhe për përemrat, parafjalët, lidhëzat dhe ndajfoljet, që çdo buton të ketë figurë.
 Struktura:
 {
   "moduli_i_zgjedhur": "Moduli 3: Tabela e Komunikimit",
@@ -1911,12 +4261,13 @@ Struktura:
 }
 
 Nëse moduli është "Moduli 4: Social Story (Libri Virtual)":
-- Krijo një libër digjital me 10 faqe.
+- Krijo një libër digjital me saktësisht 10 faqe.
 - Çdo faqe duhet të ketë vetëm 1 fjali të shkurtër në shqip.
 - ${storyPromptIdentity}
 - Tregimi duhet të përputhet fort me aktivitetin dhe me nevojat e fëmijës.
 - Tregimi duhet të qëndrojë vetëm brenda qëllimit të saktë që është dhënë. Mos e zgjero në një rutinë të përgjithshme ditore.
-- Kur fotoja e fëmijës përdoret me pëlqim, personazhi i ilustruar duhet të jetë sa më i ngjashëm me fytyrën, trupin, qëndrimin dhe pajisjet ndihmëse të fëmijës, për shembull karroca nëse fëmija është në karrocë.
+- Personazhi i ilustruar duhet të jetë sa më i ngjashëm me fytyrën, trupin, qëndrimin dhe pajisjet ndihmëse të fëmijës, për shembull karroca nëse fëmija është në karrocë.
+- Fotoja është burimi kryesor i identitetit: ruaj fytyrën, ngjyrën dhe modelin e flokëve, tonin e lëkurës, veshjen, përmasat e trupit, qëndrimin dhe çdo pajisje lëvizjeje në të gjitha faqet.
 - Shkruaj fjalitë në mënyrë të thjeshtë, pozitive dhe pedagogjike.
 - Faqet duhet të ecin në rend shumë logjik nga fillimi deri te rezultati final.
 - Çdo faqe duhet të lidhet qartë me faqen para saj dhe faqen pas saj.
@@ -1942,47 +4293,62 @@ Struktura:
 }`;
 
   try {
-    const baseMessages = [
-      {
-        role: "system",
-        content: "Ti kthen vetëm JSON të vlefshëm dhe ndjek saktësisht strukturën e kërkuar."
-      },
-      {
-        role: "user",
-        content: prompt
-      }
-    ];
+    if (moduliZgjedhur === "Moduli 4: Social Story (Libri Virtual)") {
+      setGenerationStatus(moduliC, "Po krijohet struktura e librit virtual... 0 / 10");
+    }
 
-    let paketa = moduliZgjedhur === "Moduli 3: Tabela e Komunikimit"
-      ? await generateTargetedAACBoard(tema)
-      : await kerkoNgaOpenAI(baseMessages);
+    let paketa;
+    if (knownPackage) {
+      paketa = JSON.parse(JSON.stringify(knownPackage));
+    } else if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") {
+      setGenerationStatus(moduliD, "Po gjenerohet tabela AAC me OpenAI... Ju lutem prisni pak.");
+      try {
+        paketa = await generateTargetedAACBoard(tema);
+      } catch (aacBoardError) {
+        console.warn("Targeted AAC board generation failed, retrying with frozen module generator.", aacBoardError);
+        setGenerationStatus(moduliD, "Po riprovohet gjenerimi i tabelës AAC me OpenAI...");
+        paketa = await generateFrozenModuleContent(frozenModuleType, tema, protagonistName, childDescription);
+      }
+    } else {
+      paketa = await generateFrozenModuleContent(frozenModuleType, tema, protagonistName, childDescription);
+    }
     if (generationId !== activeGenerationId) return;
+    if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") {
+      paketa = normalizeCommunicationPackage(paketa, tema);
+    }
     let gabim = validateModuleContent(paketa, moduliZgjedhur);
 
-    if (gabim) {
+    if (gabim && !knownPackage && frozenModuleType !== "book") {
+      if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") {
+        setGenerationStatus(moduliD, "Po rregullohet struktura e tabelës AAC... Ju lutem prisni pak.");
+      }
       paketa = moduliZgjedhur === "Moduli 3: Tabela e Komunikimit"
         ? await generateTargetedAACBoard(tema)
-        : await kerkoNgaOpenAI([
-        ...baseMessages,
-        {
-          role: "user",
-          content: `Përgjigjja e mëparshme nuk ishte e plotë. ${gabim} Kthe vetëm JSON të plotë dhe të saktë.`
-        }
-      ]);
+        : await generateFrozenModuleContent(frozenModuleType, tema, protagonistName, childDescription);
       if (generationId !== activeGenerationId) return;
+      if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") {
+        paketa = normalizeCommunicationPackage(paketa, tema);
+      }
+      gabim = validateModuleContent(paketa, moduliZgjedhur);
+    }
+
+    if (gabim && moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") {
+      paketa = normalizeCommunicationPackage(buildKnownCommunicationBoard(tema) || buildGenericCommunicationBoard(tema), tema);
       gabim = validateModuleContent(paketa, moduliZgjedhur);
     }
 
     if (gabim) throw new Error(gabim);
 
     if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") {
-      paketa = enrichCommunicationBoard(paketa);
+      paketa = normalizeCommunicationPackage(paketa, tema);
     }
 
     if (moduliZgjedhur === "Moduli 4: Social Story (Libri Virtual)") {
-      paketa = await refineSocialStorySequence(paketa, tema, protagonistName);
       paketa = enforceKnownStorySequence(paketa, tema, protagonistName);
+      setGenerationStatus(moduliC, "Po përgatiten faqet e librit... 0 / 10");
     }
+
+    saveFrozenRoutine(frozenModuleType, tema, paketa);
 
     generatedMaterialCache.set(materialCacheKey, JSON.parse(JSON.stringify(paketa)));
 
@@ -1998,21 +4364,23 @@ Struktura:
   } catch (error) {
     if (generationId !== activeGenerationId) return;
     console.error("Online material generation failed after retries.", error);
-    const cachedPackage = generatedMaterialCache.get(materialCacheKey);
-    if (cachedPackage) {
-      if (moduliZgjedhur === "Moduli 1: Sekuencat me Fjalë") renderSekuencat(cachedPackage, moduliA);
-      else if (moduliZgjedhur === "Moduli 2: Flashcards") await renderFlashcards(cachedPackage, moduliB, generationId);
-      else if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") await renderTabelaKomunikimit(cachedPackage, moduliD, generationId);
-      else await renderSocialStory(cachedPackage, moduliC, generationId);
-      return;
-    }
-    const target = document.getElementById(moduliZgjedhurId);
-    if (target) target.innerHTML = `
-      <div style="color:#30516b; text-align:center; padding:20px;">
-        <strong>Gjenerimi u ndërpre për momentin.</strong>
-        <p>Lidhja do të provohet përsëri pa ndryshuar mënyrën e krijimit të materialit.</p>
-        <button class="btn-gjenero" type="button" onclick="gjeneroPaketen()">Provo përsëri</button>
-      </div>`;
+    const fallbackPackage = moduliZgjedhur === "Moduli 3: Tabela e Komunikimit"
+      ? normalizeCommunicationPackage(
+        generatedMaterialCache.get(materialCacheKey)
+          || knownPackage
+          || buildKnownCommunicationBoard(tema)
+          || buildGenericCommunicationBoard(tema)
+          || window.AtlasReliability.cloneFallbackModule(moduliZgjedhur),
+        tema
+      )
+      : generatedMaterialCache.get(materialCacheKey)
+        || knownPackage
+        || window.AtlasReliability.cloneFallbackModule(moduliZgjedhur);
+    showModuleWarning("Shërbimi AI nuk u përgjigj. Po shfaqet materiali rezervë dhe mund të vazhdoni punën.");
+    if (moduliZgjedhur === "Moduli 1: Sekuencat me Fjalë") renderSekuencat(fallbackPackage, moduliA);
+    else if (moduliZgjedhur === "Moduli 2: Flashcards") await renderFlashcards(fallbackPackage, moduliB, generationId, true);
+    else if (moduliZgjedhur === "Moduli 3: Tabela e Komunikimit") await renderTabelaKomunikimit(fallbackPackage, moduliD, generationId, true);
+    else await renderSocialStory(fallbackPackage, moduliC, generationId, true);
   }
 }
 

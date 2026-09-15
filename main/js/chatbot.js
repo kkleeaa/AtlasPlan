@@ -33,12 +33,12 @@ export async function streamTeacherCoach(message, sessionId, onChunk, messages =
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 50000);
   try {
-    const response = await fetch("http://localhost:5001/api/chat", {
+    const response = await window.AtlasReliability.fetchWithRetry("http://localhost:5001/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, sessionId, messages, context }),
       signal: controller.signal
-    });
+    }, { attempts: 3, timeoutMs: 10000 });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       throw new Error(data.error || `Kërkesa dështoi (${response.status}).`);

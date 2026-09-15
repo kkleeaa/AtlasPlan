@@ -1,6 +1,15 @@
+function createLocalId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `atlas-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function asArray(value, fallback = []) {
+  return Array.isArray(value) ? value.filter((item) => item !== null && item !== undefined) : [...fallback];
+}
+
 export class Student {
   constructor(data) {
-    this.id = data.id || crypto.randomUUID();
+    this.id = data.id || createLocalId();
     this.name = data.name || data.studentName || data.nickname || data.pseudonym || "Nxënës i ri";
     this.nickname = data.nickname || this.name;
     this.initials = data.initials || "N.X.";
@@ -8,23 +17,24 @@ export class Student {
     this.animal = data.animal || "bear";
     this.evaluationType = ["STANDARD", "SPECIAL_ACTIVITIES"].includes(data.evaluationType) ? data.evaluationType : "STANDARD";
     this.teacherId = data.teacherId || "";
+    this.parentId = data.parentId || "";
     this.learningStyle = data.learningStyle || data.communicationAbilities || data.communication || "Përfiton nga udhëzimet e qarta dhe rutinat e parashikueshme.";
     this.age = data.age || "Nuk është specifikuar";
     this.diagnosis = data.diagnosis || "Profili duhet rishikuar";
     this.communication = data.communicationAbilities || data.communication || "Profili i komunikimit është në pritje";
-    this.fineMotorGoals = data.fineMotorGoals || [];
-    this.grossMotorGoals = data.grossMotorGoals || [];
-    this.speechGoals = data.speechGoals || [];
-    this.sensoryNeeds = data.sensoryNeeds || [];
-    this.behaviorTriggers = data.behaviorTriggers || [];
-    this.allergies = data.allergies || ["Nuk janë shënuar alergji"];
-    this.reinforcers = data.preferredReinforcers || data.reinforcers || [];
-    this.immediateObjectives = data.immediateObjectives || [];
-    this.longTermObjectives = data.longTermObjectives || [];
-    this.strengths = data.strengths || ["Përgjigjet ndaj rutinave të strukturuara", "Përfiton nga mbështetjet vizuale"];
-    this.challenges = data.challenges || ["Ka nevojë për mbështetje të të rriturve gjatë kalimeve"];
-    this.notes = data.notes || [];
-    this.completedGoals = data.completedGoals || ["Përgjigjet ndaj gjuhës së pari/pastaj me një kujtesë"];
+    this.fineMotorGoals = asArray(data.fineMotorGoals);
+    this.grossMotorGoals = asArray(data.grossMotorGoals);
+    this.speechGoals = asArray(data.speechGoals);
+    this.sensoryNeeds = asArray(data.sensoryNeeds);
+    this.behaviorTriggers = asArray(data.behaviorTriggers);
+    this.allergies = asArray(data.allergies, ["Nuk janë shënuar alergji"]);
+    this.reinforcers = asArray(data.preferredReinforcers || data.reinforcers);
+    this.immediateObjectives = asArray(data.immediateObjectives);
+    this.longTermObjectives = asArray(data.longTermObjectives);
+    this.strengths = asArray(data.strengths, ["Përgjigjet ndaj rutinave të strukturuara", "Përfiton nga mbështetjet vizuale"]);
+    this.challenges = asArray(data.challenges, ["Ka nevojë për mbështetje të të rriturve gjatë kalimeve"]);
+    this.notes = asArray(data.notes);
+    this.completedGoals = asArray(data.completedGoals, ["Përgjigjet ndaj gjuhës së pari/pastaj me një kujtesë"]);
     this.photoColor = data.photoColor || pickProfileColor(data.studentName || data.name || "Nxënës");
     this.createdAt = data.createdAt || new Date().toISOString();
   }

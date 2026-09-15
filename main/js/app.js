@@ -1,5 +1,5 @@
 import { renderDashboard } from "./dashboard.js?v=7";
-import { parseIEP, normalizeParsedStudent, sanitizePlanText, Student, placeholderEncryptedStorage } from "./parser.js";
+import { parseIEP, normalizeParsedStudent, sanitizePlanText, Student, placeholderEncryptedStorage } from "./parser.js?v=3";
 import { educationalTools, recommendTools } from "./toolMatcher.js";
 import { generateAAC, materialToMarkdown } from "./aacGenerator.js";
 import { teacherCoach, streamTeacherCoach, renderMarkdown } from "./chatbot.js?v=gemini4";
@@ -7,6 +7,90 @@ import { createProgressEntry, summarizeProgress, generateParentReport } from "./
 import "./vendor/jspdf.umd.min.js";
 
 document.documentElement.dataset.pdfExporter = typeof window.jspdf?.jsPDF === "function" ? "ready" : "missing";
+
+async function atlasFetch(url, options = {}) {
+  if (window.AtlasReliability?.fetchWithRetry) {
+    return window.AtlasReliability.fetchWithRetry(url, options, { attempts: 3, timeoutMs: 10000 });
+  }
+  return fetch(url, options);
+}
+
+function setBooleanAttribute(node, attributeName, enabled) {
+  if (!node) return;
+  if (enabled) node.setAttribute(attributeName, "");
+  else node.removeAttribute(attributeName);
+}
+
+function focusElementSafely(node) {
+  if (!node || typeof node.focus !== "function") return;
+  try {
+    node.focus({ preventScroll: true });
+  } catch {
+    node.focus();
+  }
+}
+
+function createLocalId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `atlas-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function safeLocalJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch (error) {
+    console.warn(`Të dhënat lokale “${key}” nuk mund të lexoheshin; po përdoret vlera rezervë.`, error);
+    return fallback;
+  }
+}
+
+function safeLocalSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn(`Të dhënat lokale “${key}” nuk mund të ruheshin.`, error);
+    return false;
+  }
+}
+
+let persistentStateCache = null;
+
+async function loadPersistentState() {
+  if (persistentStateCache) return persistentStateCache;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 1500);
+  try {
+    const response = await fetch("http://localhost:5001/api/app-state", { signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    persistentStateCache = payload?.state && typeof payload.state === "object" ? payload.state : {};
+  } catch (error) {
+    console.warn("Ruajtja në server nuk është e disponueshme; po përdoret kopja lokale.", error);
+    persistentStateCache = {};
+  } finally {
+    window.clearTimeout(timeout);
+  }
+  return persistentStateCache;
+}
+
+async function persistServerState(patch) {
+  persistentStateCache = { ...(persistentStateCache || {}), ...patch };
+  try {
+    const response = await atlasFetch("http://localhost:5001/api/app-state", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({ state: patch })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  } catch (error) {
+    console.warn("Ndryshimi u ruajt lokalisht, por sinkronizimi me serverin dështoi.", error);
+  }
+}
+
+const storedTeachingMaterials = safeLocalJson("atlas-teaching-materials", []);
 
 const teacherRoutes = [
   ["dashboard", "PN", "Paneli"],
@@ -53,23 +137,39 @@ const state = {
   scheduleByStudent: {},
   calendarYear: new Date().getFullYear(),
   calendarEvents: [],
-  teachingMaterials: JSON.parse(localStorage.getItem("atlas-teaching-materials") || "[]"),
+  teachingMaterials: Array.isArray(storedTeachingMaterials) ? storedTeachingMaterials : [],
   uploadedPlanText: "",
   uploadedPlanFileName: "",
   pendingPlanAnalysis: null,
   theme: "light"
 };
 
-const roleData = JSON.parse(localStorage.getItem("atlas-role-data") || "null") || {
+const defaultRoleData = {
   teachers: [{ id: "teacher-demo", name: "Mësuesja Demo", email: "mesues@atlas.al", password: "Atlas123" }],
   parents: [{ id: "parent-demo", name: "Prindi Demo", email: "prind@atlas.al", password: "Atlas123" }],
   admins: [{ id: "admin-demo", name: "Administratori", email: "admin@atlas.al", password: "Atlas123" }]
 };
+function loadRoleData() {
+  let saved = {};
+  try {
+    const parsed = safeLocalJson("atlas-role-data", {});
+    if (parsed && typeof parsed === "object") saved = parsed;
+  } catch (error) {
+    console.warn("Të dhënat lokale të roleve ishin të dëmtuara; po përdoren llogaritë rezervë.", error);
+  }
+  return Object.fromEntries(Object.entries(defaultRoleData).map(([key, demoAccountsForRole]) => {
+    const existing = Array.isArray(saved[key]) ? saved[key] : [];
+    const demoIds = new Set(demoAccountsForRole.map((account) => account.id));
+    return [key, [...demoAccountsForRole, ...existing.filter((account) => account && !demoIds.has(account.id))]];
+  }));
+}
+const roleData = loadRoleData();
 let activeRole = null;
 let activeUser = null;
 let appInitialized = false;
-const atlasChatSessionId = localStorage.getItem("atlas-chat-session") || crypto.randomUUID();
-localStorage.setItem("atlas-chat-session", atlasChatSessionId);
+let loginInProgress = false;
+const atlasChatSessionId = localStorage.getItem("atlas-chat-session") || createLocalId();
+safeLocalSet("atlas-chat-session", atlasChatSessionId);
 
 const scheduleDays = ["E hënë", "E martë", "E mërkurë", "E enjte", "E premte", "E shtunë", "E diel"];
 
@@ -109,15 +209,13 @@ const roleLoginForm = document.getElementById("roleLoginForm");
 const loginError = document.getElementById("loginError");
 const demoAccounts = { admin: ["admin@atlas.al", "Atlas123"], teacher: ["mesues@atlas.al", "Atlas123"], parent: ["prind@atlas.al", "Atlas123"] };
 
-document.querySelectorAll("[data-login-role]").forEach((button) => button.addEventListener("click", () => showRoleLogin(button.dataset.loginRole)));
-document.getElementById("backToRoles").addEventListener("click", showRoleChoices);
-document.getElementById("demoLogin").addEventListener("click", () => {
-  const role = document.getElementById("selectedRole").value;
-  [roleLoginForm.elements.email.value, roleLoginForm.elements.password.value] = demoAccounts[role];
-  roleLoginForm.requestSubmit();
-});
 document.getElementById("logoutButton").addEventListener("click", logout);
-roleLoginForm.addEventListener("submit", handleRoleLogin);
+window.addEventListener("atlas-login", handleRoleLogin);
+if (window.AtlasPendingLogin) {
+  const pendingLogin = window.AtlasPendingLogin;
+  window.AtlasPendingLogin = null;
+  queueMicrotask(() => handleRoleLogin({ detail: pendingLogin }));
+}
 
 function showRoleLogin(role) {
   document.getElementById("selectedRole").value = role;
@@ -125,7 +223,7 @@ function showRoleLogin(role) {
   roleWelcome.classList.add("hidden");
   roleLoginForm.classList.remove("hidden");
   loginError.classList.add("hidden");
-  roleLoginForm.elements.email.focus();
+  focusElementSafely(roleLoginForm.elements.email);
 }
 
 function showRoleChoices() {
@@ -134,67 +232,132 @@ function showRoleChoices() {
   roleWelcome.classList.remove("hidden");
 }
 
+function getDefaultRouteForRole(role, hasVisibleStudents) {
+  if (role === "admin") return "admin";
+  if (role === "parent") return hasVisibleStudents ? "progress" : "boards";
+  return hasVisibleStudents ? "dashboard" : "students";
+}
+
 async function handleRoleLogin(event) {
-  event.preventDefault();
-  const formData = new FormData(roleLoginForm);
-  const role = String(formData.get("role"));
-  const user = roleData[`${role}s`].find((item) => item.email.toLowerCase() === String(formData.get("email")).toLowerCase() && item.password === formData.get("password"));
-  if (!user) { loginError.classList.remove("hidden"); return; }
+  if (loginInProgress) return;
+  loginInProgress = true;
+  try {
+  window.AtlasPendingLogin = null;
+  const formData = event.detail || Object.fromEntries(new FormData(roleLoginForm).entries());
+  const role = String(formData.role || "");
+  const findUser = () => (Array.isArray(roleData[`${role}s`]) ? roleData[`${role}s`] : [])
+    .find((item) => formData.userId
+      ? item.id === String(formData.userId)
+      : item.email.toLowerCase() === String(formData.email || "").toLowerCase() && item.password === formData.password);
+  let user = findUser();
+  if (!user) {
+    const persistent = await loadPersistentState();
+    if (persistent.roleData && typeof persistent.roleData === "object") {
+      Object.keys(defaultRoleData).forEach((key) => {
+        if (Array.isArray(persistent.roleData[key])) roleData[key] = persistent.roleData[key];
+      });
+    }
+    user = findUser();
+  }
+  if (!user) {
+    loginError.textContent = "Email-i ose fjalëkalimi nuk është i saktë për këtë rol.";
+    loginError.classList.remove("hidden");
+    return;
+  }
   activeRole = role;
   activeUser = user;
+  safeLocalSet("atlas-active-session", JSON.stringify({ role, userId: user.id }));
   routes = role === "teacher" ? teacherRoutes : role === "parent" ? parentRoutes : adminRoutes;
   roleGate.classList.add("hidden");
   document.querySelector(".app-shell").removeAttribute("inert");
-  document.querySelector(".atlas-guide-widget").toggleAttribute("inert", role !== "teacher");
-  document.querySelector(".atlas-guide-widget").classList.toggle("hidden", role !== "teacher");
+  setBooleanAttribute(document.querySelector(".atlas-guide-widget"), "inert", role !== "teacher");
+  document.querySelector(".atlas-guide-widget")?.classList.toggle("hidden", role !== "teacher");
   document.getElementById("roleLabel").textContent = `${{ admin: "Administrator", teacher: "Mësues", parent: "Prind" }[role]} · ${user.name}`;
-  if (!appInitialized) await init();
-  else {
-    const firstVisibleStudent = visibleStudents()[0] || null;
-    if (firstVisibleStudent) activateStudent(firstVisibleStudent);
-    else state.currentStudent = null;
-    renderNavigation();
-    await loadCalendarEvents();
-    navigate(firstVisibleStudent || role === "admin" ? routes[0][0] : "students");
+  try {
+    if (!appInitialized) await init();
+    else {
+      const firstVisibleStudent = visibleStudents()[0] || null;
+      if (firstVisibleStudent) activateStudent(firstVisibleStudent);
+      else state.currentStudent = null;
+      renderNavigation();
+      navigate(getDefaultRouteForRole(role, Boolean(firstVisibleStudent)));
+      void loadCalendarEvents();
+    }
+  } catch (error) {
+    console.error("AtlasPlan initialization failed.", error);
+    try {
+      if (!state.students.length) state.students = createStudentProfiles(await loadSampleStudent());
+      state.currentStudent = visibleStudents()[0] || state.students[0] || null;
+      if (state.currentStudent) {
+        state.progressByStudent[state.currentStudent.id] ||= [];
+        state.progressEntries = state.progressByStudent[state.currentStudent.id];
+      }
+      appInitialized = true;
+      renderNavigation();
+      navigate(getDefaultRouteForRole(activeRole, Boolean(state.currentStudent)));
+      toast("Aplikacioni u hap në mënyrën rezervë; disa të dhëna do të sinkronizohen më vonë.");
+    } catch (recoveryError) {
+      console.error("AtlasPlan recovery failed.", recoveryError);
+      roleGate.classList.remove("hidden");
+      document.querySelector(".app-shell").setAttribute("inert", "");
+      loginError.textContent = `Aplikacioni nuk mundi të hapej. ${recoveryError?.message || error?.message || "Rifreskoni faqen."}`;
+      loginError.classList.remove("hidden");
+    }
+  }
+  } finally {
+    loginInProgress = false;
   }
 }
 
 function logout() {
+  localStorage.removeItem("atlas-active-session");
   activeRole = null;
   activeUser = null;
   syncAtlasWidgetVisibility();
   document.querySelector(".app-shell").setAttribute("inert", "");
   roleGate.classList.remove("hidden");
-  showRoleChoices();
+  window.AtlasAuth?.showRoles();
 }
 
 async function init() {
   const sample = await loadSampleStudent();
-  const savedStudents = JSON.parse(localStorage.getItem("atlas-students") || "null");
-  state.students = Array.isArray(savedStudents) && savedStudents.length
-    ? savedStudents.map((student) => new Student(migrateStudentName(student)))
+  const persistent = await loadPersistentState();
+  const savedStudents = Array.isArray(persistent.students) ? persistent.students : safeLocalJson("atlas-students", null);
+  const validSavedStudents = Array.isArray(savedStudents)
+    ? savedStudents.filter((student) => student && typeof student === "object" && !Array.isArray(student))
+    : [];
+  state.students = validSavedStudents.length
+    ? validSavedStudents.map((student) => new Student(migrateStudentName(student)))
     : createStudentProfiles(sample);
   state.students.forEach((student, index) => {
     student.teacherId ||= "teacher-demo";
     student.parentId ||= index === 0 ? "parent-demo" : "";
   });
-  saveStudents();
-  await Promise.all(state.students.map((student) => syncStudentBirthdayEvent(student)));
+  safeLocalSet("atlas-students", JSON.stringify(state.students));
   state.currentStudent = state.students[0];
-  const savedSchedules = JSON.parse(localStorage.getItem("atlas-schedules") || "null");
-  state.scheduleByStudent = savedSchedules && typeof savedSchedules === "object" ? savedSchedules : {};
+  const savedSchedules = persistent.scheduleByStudent || safeLocalJson("atlas-schedules", null);
+  state.scheduleByStudent = savedSchedules && typeof savedSchedules === "object" && !Array.isArray(savedSchedules) ? savedSchedules : {};
   state.students.forEach((student) => getStudentSchedule(student.id));
-  persistSchedules();
+  safeLocalSet("atlas-schedules", JSON.stringify(state.scheduleByStudent));
   seedProgress();
-  const savedProgress = JSON.parse(localStorage.getItem("atlas-progress") || "null");
-  state.progressByStudent = savedProgress && typeof savedProgress === "object"
+  const savedProgress = persistent.progressByStudent || safeLocalJson("atlas-progress", null);
+  state.progressByStudent = savedProgress && typeof savedProgress === "object" && !Array.isArray(savedProgress)
     ? savedProgress
     : Object.fromEntries(state.students.map((student, index) => [student.id, index === 0 ? state.progressEntries : []]));
   state.students.forEach((student) => { state.progressByStudent[student.id] ||= []; });
   state.progressEntries = state.progressByStudent[state.currentStudent.id];
   persistProgress();
-  state.reportsByStudent = readStoredObject("atlas-parent-reports");
+  const savedReports = persistent.reportsByStudent || safeLocalJson("atlas-reports", readStoredObject("atlas-parent-reports"));
+  state.reportsByStudent = savedReports && typeof savedReports === "object" && !Array.isArray(savedReports)
+    ? savedReports
+    : Object.fromEntries(state.students.map((student) => [student.id, []]));
   state.planAnalysesByStudent = readStoredObject("atlas-plan-analyses");
+  const storedTeachingMaterials = safeLocalJson("atlas-teaching-materials", state.teachingMaterials);
+  state.teachingMaterials = Array.isArray(persistent.teachingMaterials)
+    ? persistent.teachingMaterials
+    : Array.isArray(storedTeachingMaterials)
+      ? storedTeachingMaterials
+      : state.teachingMaterials;
   refreshDerivedState();
   state.activity = [
     { title: "Profili shembull u ngarkua", detail: `Plani mbështetës për ${state.currentStudent.name} është gati.` },
@@ -207,16 +370,16 @@ async function init() {
       time: new Date()
     }
   ];
-  await loadCalendarEvents();
   bindGlobalEvents();
   appInitialized = true;
   renderNavigation();
-  navigate(routes[0][0]);
+  navigate(getDefaultRouteForRole(activeRole, Boolean(visibleStudents()[0])));
+  void loadCalendarEvents();
 }
 
 async function loadSampleStudent() {
   try {
-    const response = await fetch("data/sampleIEP.json");
+    const response = await atlasFetch("data/sampleIEP.json");
     if (!response.ok) throw new Error("Sample unavailable");
     return await response.json();
   } catch {
@@ -403,6 +566,7 @@ function handleClick(event) {
       if (student.parentId === actionButton.dataset.accountId) student.parentId = "";
     });
     saveRoleData();
+    saveStudents();
     navigate("admin");
     toast("Llogaria u fshi.");
     return;
@@ -410,7 +574,14 @@ function handleClick(event) {
   if (action === "delete-child") {
     if (activeRole !== "admin") return toast("Vetëm administratori mund të fshijë profile.");
     state.students = state.students.filter((student) => student.id !== studentId);
+    delete state.progressByStudent[studentId];
+    delete state.reportsByStudent[studentId];
+    delete state.scheduleByStudent[studentId];
     saveStudents();
+    persistProgress();
+    persistSchedules();
+    safeLocalSet("atlas-reports", JSON.stringify(state.reportsByStudent));
+    void persistServerState({ reportsByStudent: state.reportsByStudent });
     navigate("admin");
     toast("Profili i fëmijës u fshi.");
     return;
@@ -622,7 +793,8 @@ function migrateStudentName(student) {
 }
 
 function saveStudents() {
-  localStorage.setItem("atlas-students", JSON.stringify(state.students));
+  safeLocalSet("atlas-students", JSON.stringify(state.students));
+  void persistServerState({ students: state.students });
 }
 
 window.addEventListener("storage", (event) => {
@@ -737,7 +909,7 @@ function navigate(route, options = {}) {
   root.classList.remove("fade-in");
   requestAnimationFrame(() => root.classList.add("fade-in"));
   attachRouteBehaviors(route);
-  document.getElementById("mainContent").focus({ preventScroll: true });
+  focusElementSafely(document.getElementById("mainContent"));
 }
 
 function renderRoute(route) {
@@ -770,7 +942,7 @@ function syncAtlasWidgetVisibility() {
   const chatOpen = activeRole === "teacher" && state.route === "coach";
   widget.classList.toggle("hidden", activeRole !== "teacher");
   widget.classList.toggle("is-chat-open", chatOpen);
-  widget.toggleAttribute("inert", activeRole !== "teacher" || chatOpen);
+  setBooleanAttribute(widget, "inert", activeRole !== "teacher" || chatOpen);
   widget.setAttribute("aria-hidden", String(activeRole !== "teacher" || chatOpen));
 }
 
@@ -779,7 +951,8 @@ function evaluationLabel(type) {
 }
 
 function saveRoleData() {
-  localStorage.setItem("atlas-role-data", JSON.stringify(roleData));
+  safeLocalSet("atlas-role-data", JSON.stringify(roleData));
+  void persistServerState({ roleData });
 }
 
 function renderAdmin() {
@@ -838,18 +1011,17 @@ async function attachCommunicationModuleApi() {
     if (frameDocument.body) contentObserver.observe(frameDocument.body);
   }, { once: true });
 
-  try {
-    const response = await fetch(frame.dataset.moduleSrc, { cache: "no-store" });
-    if (!response.ok) throw new Error("Communication module unavailable");
-
-    frame.srcdoc = await response.text();
-  } catch (error) {
-    console.error(error);
+  const moduleSrc = String(frame.dataset.moduleSrc || "").trim();
+  if (!moduleSrc) {
     frame.replaceWith(Object.assign(document.createElement("p"), {
       className: "glass-card",
       textContent: "Tabela e komunikimit nuk mund të ngarkohet. Rifreskoni faqen dhe provoni përsëri."
     }));
+    return;
   }
+
+  const cacheBust = moduleSrc.includes("?") ? "&" : "?";
+  frame.src = `${moduleSrc}${cacheBust}ts=${Date.now()}`;
 }
 
 function renderStudents() {
@@ -1266,14 +1438,16 @@ async function addTeachingMaterial(form, formData) {
   const url = String(formData.get("url") || "").trim();
   if (!file && !url) return toast("Shtoni një skedar ose një lidhje.");
   const source = file ? URL.createObjectURL(file) : url;
-  state.teachingMaterials.unshift({ id: crypto.randomUUID(), title: String(formData.get("title")).trim(), type: String(formData.get("type")), category: String(formData.get("category")).trim(), lesson: String(formData.get("lesson")).trim(), studentId: String(formData.get("studentId") || ""), source, fileName: file?.name || "", temporary: Boolean(file) });
+  state.teachingMaterials.unshift({ id: createLocalId(), title: String(formData.get("title")).trim(), type: String(formData.get("type")), category: String(formData.get("category")).trim(), lesson: String(formData.get("lesson")).trim(), studentId: String(formData.get("studentId") || ""), source, fileName: file?.name || "", temporary: Boolean(file) });
   persistTeachingMaterials();
   navigate("tools");
   toast(file ? "Materiali u shtua për këtë sesion." : "Materiali u ruajt në bibliotekë.");
 }
 
 function persistTeachingMaterials() {
-  localStorage.setItem("atlas-teaching-materials", JSON.stringify(state.teachingMaterials.filter((item) => !item.temporary)));
+  const permanentMaterials = state.teachingMaterials.filter((item) => !item.temporary);
+  safeLocalSet("atlas-teaching-materials", JSON.stringify(permanentMaterials));
+  void persistServerState({ teachingMaterials: permanentMaterials });
 }
 
 function removeTeachingMaterial(materialId) {
@@ -1344,7 +1518,7 @@ function renderCommunicationBoards() {
       <iframe
         class="communication-module-frame"
         title="Gjenero materiale"
-        data-module-src="components/tabela-komunikimi/module/final.html"
+        data-module-src="components/tabela-komunikimi/module/final.html?v=20260914-bookfreeze-restore12"
       ></iframe>
     </section>
   `;
@@ -1514,11 +1688,11 @@ async function loadCalendarEvents() {
     return;
   }
   try {
-    const response = await fetch(`http://localhost:5001/api/calendar-events?teacherId=${encodeURIComponent(teacherId)}`);
+    const response = await atlasFetch(`http://localhost:5001/api/calendar-events?teacherId=${encodeURIComponent(teacherId)}`);
     if (!response.ok) throw new Error("Calendar unavailable");
     state.calendarEvents = filterCalendarEventsForRole((await response.json()).events || []);
   } catch {
-    state.calendarEvents = filterCalendarEventsForRole(JSON.parse(localStorage.getItem(`atlas-calendar-${teacherId}`) || "[]"));
+    state.calendarEvents = filterCalendarEventsForRole(safeLocalJson(`atlas-calendar-${teacherId}`, []));
   }
 }
 
@@ -1538,7 +1712,7 @@ function calendarEventDateForYear(event, year) {
 
 async function syncStudentBirthdayEvent(student) {
   try {
-    await fetch("http://localhost:5001/api/calendar-events/sync-birthday", {
+    await atlasFetch("http://localhost:5001/api/calendar-events/sync-birthday", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ studentId: student.id, teacherId: student.teacherId, studentName: student.name, birthday: student.birthday })
@@ -1553,13 +1727,13 @@ async function saveCalendarEvent(formData) {
   const event = Object.fromEntries(formData.entries());
   event.teacherId = activeUser.id;
   try {
-    const response = await fetch("http://localhost:5001/api/calendar-events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(event) });
+    const response = await atlasFetch("http://localhost:5001/api/calendar-events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(event) });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "Ngjarja nuk u ruajt.");
     const index = state.calendarEvents.findIndex((item) => item.id === payload.event.id);
     if (index >= 0) state.calendarEvents[index] = payload.event;
     else state.calendarEvents.push(payload.event);
-    localStorage.setItem(`atlas-calendar-${activeUser.id}`, JSON.stringify(state.calendarEvents));
+    safeLocalSet(`atlas-calendar-${activeUser.id}`, JSON.stringify(state.calendarEvents));
     closeModal();
     navigate("schedules");
     toast("Ngjarja u ruajt në kalendar.");
@@ -1571,10 +1745,10 @@ async function saveCalendarEvent(formData) {
 async function deleteCalendarEvent(eventId) {
   if (activeRole !== "teacher" || !activeUser?.id) return;
   try {
-    const response = await fetch(`http://localhost:5001/api/calendar-events/${encodeURIComponent(eventId)}?teacherId=${encodeURIComponent(activeUser.id)}`, { method: "DELETE" });
+    const response = await atlasFetch(`http://localhost:5001/api/calendar-events/${encodeURIComponent(eventId)}?teacherId=${encodeURIComponent(activeUser.id)}`, { method: "DELETE" });
     if (!response.ok) throw new Error("Ngjarja nuk u fshi.");
     state.calendarEvents = state.calendarEvents.filter((event) => event.id !== eventId);
-    localStorage.setItem(`atlas-calendar-${activeUser.id}`, JSON.stringify(state.calendarEvents));
+    safeLocalSet(`atlas-calendar-${activeUser.id}`, JSON.stringify(state.calendarEvents));
     closeModal();
     navigate("schedules");
     toast("Ngjarja u fshi.");
@@ -1627,7 +1801,8 @@ function getStudentSchedule(studentId) {
 }
 
 function persistSchedules() {
-  localStorage.setItem("atlas-schedules", JSON.stringify(state.scheduleByStudent));
+  safeLocalSet("atlas-schedules", JSON.stringify(state.scheduleByStudent));
+  void persistServerState({ scheduleByStudent: state.scheduleByStudent });
 }
 
 function selectScheduleStudent(studentId) {
@@ -1964,7 +2139,7 @@ async function readPlanFile(file) {
     for (let offset = 0; offset < bytes.length; offset += 0x8000) {
       binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
     }
-    const response = await fetch("http://localhost:5001/api/extract-plan-text", {
+    const response = await atlasFetch("http://localhost:5001/api/extract-plan-text", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fileName: file.name, data: btoa(binary) })
@@ -1999,7 +2174,7 @@ async function generatePlan() {
   let summary = buildPlanSummary(locallyParsed);
   let analysisSource = "lokal";
   try {
-    const response = await fetch("http://localhost:5001/api/generate-plan", {
+    const response = await atlasFetch("http://localhost:5001/api/generate-plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2014,11 +2189,18 @@ async function generatePlan() {
     if (!response.ok) throw new Error(`Kërkesa dështoi me statusin ${response.status}`);
 
     const data = await response.json();
-    const candidate = typeof data.plan === "string" ? JSON.parse(data.plan) : data.plan;
+    const candidate = (data.data && typeof data.data === "object")
+      ? data.data
+      : typeof data.plan === "string"
+        ? JSON.parse(data.plan)
+        : data.plan;
     summary = normalizePlanSummary(candidate, summary);
     analysisSource = "AI";
   } catch (error) {
     console.warn("Analiza AI nuk ishte e disponueshme; u përdor analizuesi lokal.", error);
+    if (window.AtlasFallbackData?.planSummary) {
+      summary = normalizePlanSummary(window.AtlasFallbackData.planSummary, summary);
+    }
   }
 
   state.pendingPlanAnalysis = {
@@ -2212,6 +2394,14 @@ function addProgressEntry(formData) {
 }
 
 function renderParentReport() {
+  const student = state.currentStudent;
+  if (student) {
+    const snapshot = { ...generateParentReport(student, state.progressEntries), generatedAt: new Date().toISOString() };
+    state.reportsByStudent[student.id] ||= [];
+    state.reportsByStudent[student.id].push(snapshot);
+    safeLocalSet("atlas-reports", JSON.stringify(state.reportsByStudent));
+    void persistServerState({ reportsByStudent: state.reportsByStudent });
+  }
   toast("Raporti për prindër u rifreskua nga të dhënat aktuale të progresit.");
   navigate("reports");
 }
@@ -2242,7 +2432,8 @@ async function sendCoachMessage(message) {
 }
 
 function persistProgress() {
-  localStorage.setItem("atlas-progress", JSON.stringify(state.progressByStudent));
+  safeLocalSet("atlas-progress", JSON.stringify(state.progressByStudent));
+  void persistServerState({ progressByStudent: state.progressByStudent });
 }
 
 function renderMessage(message) {
