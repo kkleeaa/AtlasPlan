@@ -497,7 +497,7 @@
             <option value="Moduli 3: Tabela e Komunikimit">Moduli 3: Tabela e Komunikimit</option>
             <option value="Moduli 4: Social Story (Libri Virtual)">Moduli 4: Social Story (Libri Virtual)</option>
         </select>
-        <input type="text" id="tema" placeholder="Shkruaj qëllimin që mësuesi do që fëmija ta kuptojë...">
+        <input type="text" id="tema" name="atlas-goal-input-v2" autocomplete="off" spellcheck="false" placeholder="Shkruaj qëllimin që mësuesi do që fëmija ta kuptojë...">
         <button class="btn-gjenero" onclick="gjeneroPaketen()">Gjenero Materialin</button>
     </div>
     <div id="storySetup" class="story-setup">
@@ -508,7 +508,7 @@
             <div class="story-setup-grid">
                 <div>
                     <label for="childName">Emri i fëmijës</label>
-                    <input type="text" id="childName" placeholder="P.sh. Ardi">
+                    <input type="text" id="childName" name="atlas-child-name-v2" autocomplete="new-password" spellcheck="false" placeholder="P.sh. Ardi">
                 </div>
                 <div>
                     <label for="childPhoto">Foto e fëmijës</label>
@@ -516,7 +516,7 @@
                 </div>
                 <div style="grid-column: 1 / -1;">
                     <label for="childDescription">Përshkrimi i fëmijës</label>
-                    <textarea id="childDescription" placeholder="P.sh. Vajzë me flokë të zinj, sy të mëdhenj, bluzë rozë. Kjo përdoret vetëm për ilustrimet e tregimit."></textarea>
+                    <textarea id="childDescription" name="atlas-child-description-v2" autocomplete="off" spellcheck="false" placeholder="P.sh. Vajzë me flokë të zinj, sy të mëdhenj, bluzë rozë. Kjo përdoret vetëm për ilustrimet e tregimit."></textarea>
                 </div>
             </div>
             <div id="photoPreview" class="photo-preview">
@@ -1225,6 +1225,33 @@ function clearVirtualBookSavedAssets() {
     keysToRemove.forEach((key) => localStorage.removeItem(key));
   } catch (error) {
     console.warn("Nuk u pastrua cache e librit virtual.", error);
+  }
+}
+
+function clearSensitiveGenerationHistory() {
+  clearVirtualBookSavedAssets();
+  try {
+    const keysToRemove = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key && key.startsWith("atlas-frozen-routine-")) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  } catch (error) {
+    console.warn("Nuk u pastrua historia lokale e aktiviteteve.", error);
+  }
+}
+
+function runOneTimePrivacyCleanup() {
+  const cleanupVersion = "atlas-privacy-cleanup-v1";
+  try {
+    if (localStorage.getItem(cleanupVersion) === "done") return;
+    clearSensitiveGenerationHistory();
+    localStorage.setItem(cleanupVersion, "done");
+  } catch (error) {
+    console.warn("Pastrimi një-herësh i privatësisë nuk u ruajt.", error);
   }
 }
 
@@ -4389,6 +4416,7 @@ document.getElementById("moduli")?.addEventListener("change", () => {
   updateStorySetupVisibility();
 });
 updateStorySetupVisibility();
+runOneTimePrivacyCleanup();
 setupChildPhotoUpload();
 setupStoryModeControls();
 updateStoryModeVisibility();
