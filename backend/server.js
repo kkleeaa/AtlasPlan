@@ -165,6 +165,7 @@ function sanitizeTtsText(value) {
 const gemini = process.env.GEMINI_API_KEY
   ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
   : null;
+const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim();
 const openrouter = process.env.OPENROUTER_API_KEY
   ? new OpenAI({
       baseURL: 'https://openrouter.ai/api/v1',
@@ -398,7 +399,8 @@ function atlasInstructionWithContext(context) {
 }
 
 async function handleAtlasChat(req, res) {
-  if (!openrouter && !gemini) return res.status(503).json({ error: 'Shërbimi AI nuk është konfiguruar në server.' });
+  const openaiConfigured = Boolean(process.env.OPENAI_API_KEY);
+  if (!openrouter && !gemini && !openaiConfigured) return res.status(503).json({ error: 'Shërbimi AI nuk është konfiguruar në server.' });
 
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
   const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId.trim() : '';
@@ -448,18 +450,38 @@ async function handleAtlasChat(req, res) {
       }
     }
     if (!stream && gemini) {
-      stream = await gemini.models.generateContentStream({
-          model: 'gemini-2.5-flash',
+      try {
+        stream = await gemini.models.generateContentStream({
+          model: GEMINI_MODEL,
           contents,
           config: { systemInstruction }
         });
-      provider = 'gemini';
+        provider = 'gemini';
+      } catch (geminiError) {
+        console.warn('Atlas Gemini unavailable; trying OpenAI fallback.', {
+          message: geminiError.message,
+          status: geminiError.status,
+          code: geminiError.code
+        });
+      }
+    }
+    if (!stream && openaiConfigured) {
+      stream = await openai.chat.completions.create({
+        model: FROZEN_TEXT_MODEL,
+        messages: [
+          { role: 'system', content: systemInstruction },
+          ...contents.map((item) => ({ role: item.role === 'model' ? 'assistant' : 'user', content: item.parts[0].text }))
+        ],
+        max_tokens: 800,
+        stream: true
+      });
+      provider = 'openai';
     }
     if (!stream) throw new Error('Asnjë ofrues AI nuk ishte i disponueshëm.');
     let responseText = '';
     for await (const chunk of stream) {
       if (finished) break;
-      const text = provider === 'openrouter' ? chunk.choices?.[0]?.delta?.content : chunk.text;
+      const text = provider === 'gemini' ? chunk.text : chunk.choices?.[0]?.delta?.content;
       if (text) {
         responseText += text;
         res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);

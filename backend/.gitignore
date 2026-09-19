@@ -1,5 +1,6 @@
 .env
 .env.local
 node_modules/
+*.log
 data/calendar-events.json
 .DS_Store
