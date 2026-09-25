@@ -145,10 +145,31 @@ const state = {
 };
 
 const defaultRoleData = {
-  teachers: [{ id: "teacher-demo", name: "Mësuesja Demo", email: "mesues@atlas.al", password: "Atlas123" }],
-  parents: [{ id: "parent-demo", name: "Prindi Demo", email: "prind@atlas.al", password: "Atlas123" }],
-  admins: [{ id: "admin-demo", name: "Administratori", email: "admin@atlas.al", password: "Atlas123" }]
+  teachers: [{ id: "teacher-demo", name: "Mësuesja Demo", username: "mesues", email: "mesues@atlas.al", password: "Atlas123" }],
+  parents: [{ id: "parent-demo", name: "Prindi Demo", username: "prind", email: "prind@atlas.al", password: "Atlas123" }],
+  admins: [{ id: "admin-demo", name: "Administratori", username: "admin", email: "admin@atlas.al", password: "Atlas123" }]
 };
+
+function normalizeAccount(account, fallbackRoleKey, fallbackIndex = 0) {
+  if (!account || typeof account !== "object") return null;
+  const defaultAccount = defaultRoleData[fallbackRoleKey]?.[fallbackIndex];
+  const safeName = String(account.name || defaultAccount?.name || "Përdorues").trim();
+  const safeEmail = String(account.email || defaultAccount?.email || "").trim();
+  const derivedUsername = String(
+    account.username
+      || safeEmail.split("@")[0]
+      || defaultAccount?.username
+      || `${fallbackRoleKey.slice(0, -1)}${fallbackIndex + 1}`
+  ).trim().toLowerCase();
+  return {
+    ...account,
+    name: safeName,
+    email: safeEmail,
+    username: derivedUsername,
+    password: String(account.password || defaultAccount?.password || "Atlas123")
+  };
+}
+
 function loadRoleData() {
   let saved = {};
   try {
@@ -160,7 +181,12 @@ function loadRoleData() {
   return Object.fromEntries(Object.entries(defaultRoleData).map(([key, demoAccountsForRole]) => {
     const existing = Array.isArray(saved[key]) ? saved[key] : [];
     const demoIds = new Set(demoAccountsForRole.map((account) => account.id));
-    return [key, [...demoAccountsForRole, ...existing.filter((account) => account && !demoIds.has(account.id))]];
+    const normalizedDefaults = demoAccountsForRole.map((account, index) => normalizeAccount(account, key, index));
+    const normalizedExisting = existing
+      .filter((account) => account && !demoIds.has(account.id))
+      .map((account, index) => normalizeAccount(account, key, index + normalizedDefaults.length))
+      .filter(Boolean);
+    return [key, [...normalizedDefaults, ...normalizedExisting]];
   }));
 }
 const roleData = loadRoleData();
@@ -207,8 +233,6 @@ const roleGate = document.getElementById("roleGate");
 const roleWelcome = document.getElementById("roleWelcome");
 const roleLoginForm = document.getElementById("roleLoginForm");
 const loginError = document.getElementById("loginError");
-const demoAccounts = { admin: ["admin@atlas.al", "Atlas123"], teacher: ["mesues@atlas.al", "Atlas123"], parent: ["prind@atlas.al", "Atlas123"] };
-
 document.getElementById("logoutButton").addEventListener("click", logout);
 window.addEventListener("atlas-login", handleRoleLogin);
 if (window.AtlasPendingLogin) {
@@ -223,7 +247,7 @@ function showRoleLogin(role) {
   roleWelcome.classList.add("hidden");
   roleLoginForm.classList.remove("hidden");
   loginError.classList.add("hidden");
-  focusElementSafely(roleLoginForm.elements.email);
+  focusElementSafely(roleLoginForm.elements.username);
 }
 
 function showRoleChoices() {
@@ -248,19 +272,23 @@ async function handleRoleLogin(event) {
   const findUser = () => (Array.isArray(roleData[`${role}s`]) ? roleData[`${role}s`] : [])
     .find((item) => formData.userId
       ? item.id === String(formData.userId)
-      : item.email.toLowerCase() === String(formData.email || "").toLowerCase() && item.password === formData.password);
+      : String(item.username || "").toLowerCase() === String(formData.username || "").trim().toLowerCase() && item.password === formData.password);
   let user = findUser();
   if (!user) {
     const persistent = await loadPersistentState();
     if (persistent.roleData && typeof persistent.roleData === "object") {
       Object.keys(defaultRoleData).forEach((key) => {
-        if (Array.isArray(persistent.roleData[key])) roleData[key] = persistent.roleData[key];
+        if (Array.isArray(persistent.roleData[key])) {
+          roleData[key] = persistent.roleData[key]
+            .map((account, index) => normalizeAccount(account, key, index))
+            .filter(Boolean);
+        }
       });
     }
     user = findUser();
   }
   if (!user) {
-    loginError.textContent = "Email-i ose fjalëkalimi nuk është i saktë për këtë rol.";
+    loginError.textContent = "Username ose fjalëkalimi nuk është i saktë për këtë rol.";
     loginError.classList.remove("hidden");
     return;
   }
@@ -819,10 +847,22 @@ async function handleSubmit(event) {
   if (event.target.id === "adminAccountForm") {
     const formData = new FormData(event.target);
     const type = String(formData.get("accountType"));
-    roleData[type].push({ id: `${type}-${Date.now()}`, name: String(formData.get("name")), email: String(formData.get("email")), password: String(formData.get("password")) });
+    const username = String(formData.get("username") || "").trim().toLowerCase();
+    const usernameExists = Object.values(roleData)
+      .flat()
+      .some((account) => String(account?.username || "").toLowerCase() === username);
+    if (!username) return toast("Vendosni një username.");
+    if (usernameExists) return toast("Ky username ekziston tashmë. Zgjidhni një tjetër.");
+    roleData[type].push(normalizeAccount({
+      id: `${type}-${Date.now()}`,
+      name: String(formData.get("name")),
+      username,
+      email: String(formData.get("email")),
+      password: String(formData.get("password"))
+    }, type, roleData[type].length));
     saveRoleData();
     navigate("admin");
-    toast("Llogaria u krijua. Kredencialet u dërguan me email (simulim).");
+    toast("Llogaria u krijua me sukses.");
     return;
   }
   if (event.target.matches("[data-admin-link]")) {
@@ -965,12 +1005,12 @@ function renderAdmin() {
     <section class="admin-role-grid">
       <form class="glass-card" id="adminAccountForm"><p class="eyebrow">Llogari e re</p><h2>Krijo llogari</h2>
         ${field("Roli", `<select name="accountType"><option value="teachers">Mësues</option><option value="parents">Prind</option></select>`)}
-        ${field("Emri", `<input name="name" required />`)}${field("Email", `<input name="email" type="email" required />`)}${field("Fjalëkalimi fillestar", `<input name="password" type="password" minlength="6" required />`)}
+        ${field("Emri", `<input name="name" required />`)}${field("Username", `<input name="username" required autocomplete="off" />`)}${field("Email", `<input name="email" type="email" required />`)}${field("Fjalëkalimi fillestar", `<input name="password" type="password" minlength="6" required />`)}
         <button class="primary-button" type="submit">Krijo llogarinë</button>
-        <p class="admin-email-note">Kredencialet i dërgohen përdoruesit me email pas krijimit (simulim).</p>
+        <p class="admin-email-note">Përdoruesi hyn me username dhe fjalëkalimin që caktoni këtu.</p>
       </form>
       <section class="glass-card"><p class="eyebrow">Profile aktive</p><h2>Mësuesit dhe prindërit</h2>
-        ${[...roleData.teachers.map((x) => ({...x,type:"teachers"})), ...roleData.parents.map((x) => ({...x,type:"parents"}))].map((person) => `<div class="admin-person-row"><span><strong>${escapeHtml(person.name)}</strong><small>${escapeHtml(person.email)}</small></span><button class="danger-button" data-action="delete-account" data-account-type="${person.type}" data-account-id="${person.id}">Fshi</button></div>`).join("")}
+        ${[...roleData.teachers.map((x) => ({...x,type:"teachers"})), ...roleData.parents.map((x) => ({...x,type:"parents"}))].map((person) => `<div class="admin-person-row"><span><strong>${escapeHtml(person.name)}</strong><small>${escapeHtml(person.username || "")}</small></span><button class="danger-button" data-action="delete-account" data-account-type="${person.type}" data-account-id="${person.id}">Fshi</button></div>`).join("")}
       </section>
     </section>
     <section class="glass-card"><div class="card-header"><div><p class="eyebrow">Lidhjet</p><h2>Cakto mësuesin dhe prindin për çdo fëmijë</h2></div><button class="primary-button" data-action="open-add-student">+ Shto fëmijë</button></div>

@@ -28,12 +28,11 @@
         <p class="eyebrow">Hyrje e sigurt</p>
         <h1 id="roleLoginTitle">Hyr në AtlasPlan</h1>
         <input id="selectedRole" name="role" type="hidden" />
-        <label class="field"><span>Email</span><input id="loginEmail" name="email" type="email" required autocomplete="email" /></label>
+        <label class="field"><span>Username</span><input id="loginUsername" name="username" type="text" required autocomplete="username" /></label>
         <label class="field"><span>Fjalëkalimi</span><input id="loginPassword" name="password" type="password" required autocomplete="current-password" /></label>
-        <p class="api-key-error hidden" id="loginError" role="alert">Emaili ose fjalëkalimi nuk është i saktë.</p>
+        <p class="api-key-error hidden" id="loginError" role="alert">Username ose fjalëkalimi nuk është i saktë.</p>
         <div class="role-login-actions">
           <button class="primary-button" type="submit">Hyr</button>
-          <button class="secondary-button" id="demoLogin" type="button">Përdor llogarinë Demo</button>
         </div>
       </form>
     </div>
@@ -68,7 +67,6 @@
       const error = document.getElementById("loginError");
       const selectedRole = document.getElementById("selectedRole");
       const titles = { admin: "Admin", teacher: "Mësues", parent: "Prind" };
-      const demos = { admin: ["admin@atlas.al", "Atlas123"], teacher: ["mesues@atlas.al", "Atlas123"], parent: ["prind@atlas.al", "Atlas123"] };
       const showRoles = () => {
         form.reset();
         form.classList.add("hidden");
@@ -83,13 +81,6 @@
         error.classList.add("hidden");
       }));
       document.getElementById("backToRoles").addEventListener("click", showRoles);
-      document.getElementById("demoLogin").addEventListener("click", () => {
-        const account = demos[selectedRole.value];
-        if (!account) return showRoles();
-        form.elements.email.value = account[0];
-        form.elements.password.value = account[1];
-        form.requestSubmit();
-      });
       form.addEventListener("submit", (event) => {
         event.preventDefault();
         window.AtlasPendingLogin = Object.fromEntries(new FormData(form).entries());
@@ -100,6 +91,6 @@
   </script>
   <script src="js/fallbackData.js?v=2"></script>
   <script src="js/reliability.js?v=3"></script>
-  <script type="module" src="js/app.js?v=70"></script>
+  <script type="module" src="js/app.js?v=71"></script>
   </body>
 </html>
