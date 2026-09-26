@@ -145,10 +145,15 @@ const state = {
 };
 
 const defaultRoleData = {
-  teachers: [{ id: "teacher-demo", name: "Mësuesja Demo", username: "mesues", email: "mesues@atlas.al", password: "Atlas123" }],
-  parents: [{ id: "parent-demo", name: "Prindi Demo", username: "prind", email: "prind@atlas.al", password: "Atlas123" }],
-  admins: [{ id: "admin-demo", name: "Administratori", username: "admin", email: "admin@atlas.al", password: "Atlas123" }]
+  teachers: [{ id: "teacher-demo", name: "Mësuesja Demo", username: "mesues", email: "mesues@atlas.al" }],
+  parents: [{ id: "parent-demo", name: "Prindi Demo", username: "prind", email: "prind@atlas.al" }],
+  admins: [{ id: "admin-demo", name: "Administratori", username: "admin", email: "admin@atlas.al" }]
 };
+const legacyRolePasswords = Object.freeze({
+  teachers: "Atlas123",
+  parents: "Atlas123",
+  admins: "Atlas123"
+});
 
 function normalizeAccount(account, fallbackRoleKey, fallbackIndex = 0) {
   if (!account || typeof account !== "object") return null;
@@ -165,31 +170,95 @@ function normalizeAccount(account, fallbackRoleKey, fallbackIndex = 0) {
     ...account,
     name: safeName,
     email: safeEmail,
-    username: derivedUsername,
-    password: String(account.password || defaultAccount?.password || "Atlas123")
+    username: derivedUsername
   };
 }
 
 function loadRoleData() {
-  let saved = {};
-  try {
-    const parsed = safeLocalJson("atlas-role-data", {});
-    if (parsed && typeof parsed === "object") saved = parsed;
-  } catch (error) {
-    console.warn("Të dhënat lokale të roleve ishin të dëmtuara; po përdoren llogaritë rezervë.", error);
-  }
   return Object.fromEntries(Object.entries(defaultRoleData).map(([key, demoAccountsForRole]) => {
-    const existing = Array.isArray(saved[key]) ? saved[key] : [];
-    const demoIds = new Set(demoAccountsForRole.map((account) => account.id));
     const normalizedDefaults = demoAccountsForRole.map((account, index) => normalizeAccount(account, key, index));
-    const normalizedExisting = existing
-      .filter((account) => account && !demoIds.has(account.id))
-      .map((account, index) => normalizeAccount(account, key, index + normalizedDefaults.length))
-      .filter(Boolean);
-    return [key, [...normalizedDefaults, ...normalizedExisting]];
+    return [key, normalizedDefaults];
   }));
 }
 const roleData = loadRoleData();
+try { localStorage.removeItem("atlas-role-data"); } catch { /* Injoro dështimet lokale të pastrimit. */ }
+
+function replaceRoleData(nextRoleData = {}) {
+  Object.keys(defaultRoleData).forEach((key) => {
+    const normalized = (Array.isArray(nextRoleData[key]) ? nextRoleData[key] : defaultRoleData[key])
+      .map((account, index) => normalizeAccount(account, key, index))
+      .filter(Boolean);
+    roleData[key] = normalized;
+  });
+}
+
+async function syncRoleDataFromServer() {
+  const response = await atlasFetch("http://localhost:5001/api/accounts");
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const payload = await response.json();
+  replaceRoleData(payload?.roleData || {});
+  return roleData;
+}
+
+async function loginWithServer(role, username, password) {
+  const response = await atlasFetch("http://localhost:5001/api/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role, username, password })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (response.status === 404) {
+    return loginWithLegacyFallback(role, username, password);
+  }
+  if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
+  replaceRoleData(payload?.roleData || {});
+  return normalizeAccount(payload?.user || {}, `${role}s`, 0);
+}
+
+async function loginWithLegacyFallback(role, username, password) {
+  const bucket = `${role}s`;
+  const persistent = await loadPersistentState();
+  const sourceAccounts = Array.isArray(persistent?.roleData?.[bucket]) && persistent.roleData[bucket].length
+    ? persistent.roleData[bucket]
+    : defaultRoleData[bucket];
+  const normalizedAccounts = sourceAccounts
+    .map((account, index) => ({
+      normalized: normalizeAccount(account, bucket, index),
+      rawPassword: String(account?.password || legacyRolePasswords[bucket] || "")
+    }))
+    .filter((account) => account.normalized);
+  const matched = normalizedAccounts.find((account) =>
+    String(account.normalized.username || "").toLowerCase() === String(username || "").trim().toLowerCase()
+      && account.rawPassword === String(password || "")
+  );
+  if (!matched) {
+    throw new Error("Username ose fjalëkalimi nuk është i saktë për këtë rol.");
+  }
+  replaceRoleData({ [bucket]: normalizedAccounts.map((account) => account.normalized) });
+  return matched.normalized;
+}
+
+async function createAccountOnServer(payload) {
+  const response = await atlasFetch("http://localhost:5001/api/accounts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.status === 404) throw new Error("Backend-i duhet të rifillohet për menaxhimin e llogarive.");
+  if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+  replaceRoleData(data?.roleData || {});
+}
+
+async function deleteAccountOnServer(accountType, accountId) {
+  const response = await atlasFetch(`http://localhost:5001/api/accounts/${encodeURIComponent(accountType)}/${encodeURIComponent(accountId)}`, {
+    method: "DELETE"
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.status === 404) throw new Error("Backend-i duhet të rifillohet për menaxhimin e llogarive.");
+  if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+  replaceRoleData(data?.roleData || {});
+}
 let activeRole = null;
 let activeUser = null;
 let appInitialized = false;
@@ -266,72 +335,57 @@ async function handleRoleLogin(event) {
   if (loginInProgress) return;
   loginInProgress = true;
   try {
-  window.AtlasPendingLogin = null;
-  const formData = event.detail || Object.fromEntries(new FormData(roleLoginForm).entries());
-  const role = String(formData.role || "");
-  const findUser = () => (Array.isArray(roleData[`${role}s`]) ? roleData[`${role}s`] : [])
-    .find((item) => formData.userId
-      ? item.id === String(formData.userId)
-      : String(item.username || "").toLowerCase() === String(formData.username || "").trim().toLowerCase() && item.password === formData.password);
-  let user = findUser();
-  if (!user) {
-    const persistent = await loadPersistentState();
-    if (persistent.roleData && typeof persistent.roleData === "object") {
-      Object.keys(defaultRoleData).forEach((key) => {
-        if (Array.isArray(persistent.roleData[key])) {
-          roleData[key] = persistent.roleData[key]
-            .map((account, index) => normalizeAccount(account, key, index))
-            .filter(Boolean);
-        }
-      });
-    }
-    user = findUser();
-  }
-  if (!user) {
-    loginError.textContent = "Username ose fjalëkalimi nuk është i saktë për këtë rol.";
-    loginError.classList.remove("hidden");
-    return;
-  }
-  activeRole = role;
-  activeUser = user;
-  safeLocalSet("atlas-active-session", JSON.stringify({ role, userId: user.id }));
-  routes = role === "teacher" ? teacherRoutes : role === "parent" ? parentRoutes : adminRoutes;
-  roleGate.classList.add("hidden");
-  document.querySelector(".app-shell").removeAttribute("inert");
-  setBooleanAttribute(document.querySelector(".atlas-guide-widget"), "inert", role !== "teacher");
-  document.querySelector(".atlas-guide-widget")?.classList.toggle("hidden", role !== "teacher");
-  document.getElementById("roleLabel").textContent = `${{ admin: "Administrator", teacher: "Mësues", parent: "Prind" }[role]} · ${user.name}`;
-  try {
-    if (!appInitialized) await init();
-    else {
-      const firstVisibleStudent = visibleStudents()[0] || null;
-      if (firstVisibleStudent) activateStudent(firstVisibleStudent);
-      else state.currentStudent = null;
-      renderNavigation();
-      navigate(getDefaultRouteForRole(role, Boolean(firstVisibleStudent)));
-      void loadCalendarEvents();
-    }
-  } catch (error) {
-    console.error("AtlasPlan initialization failed.", error);
+    window.AtlasPendingLogin = null;
+    const formData = event.detail || Object.fromEntries(new FormData(roleLoginForm).entries());
+    const role = String(formData.role || "");
+    let user;
     try {
-      if (!state.students.length) state.students = createStudentProfiles(await loadSampleStudent());
-      state.currentStudent = visibleStudents()[0] || state.students[0] || null;
-      if (state.currentStudent) {
-        state.progressByStudent[state.currentStudent.id] ||= [];
-        state.progressEntries = state.progressByStudent[state.currentStudent.id];
-      }
-      appInitialized = true;
-      renderNavigation();
-      navigate(getDefaultRouteForRole(activeRole, Boolean(state.currentStudent)));
-      toast("Aplikacioni u hap në mënyrën rezervë; disa të dhëna do të sinkronizohen më vonë.");
-    } catch (recoveryError) {
-      console.error("AtlasPlan recovery failed.", recoveryError);
-      roleGate.classList.remove("hidden");
-      document.querySelector(".app-shell").setAttribute("inert", "");
-      loginError.textContent = `Aplikacioni nuk mundi të hapej. ${recoveryError?.message || error?.message || "Rifreskoni faqen."}`;
+      user = await loginWithServer(role, String(formData.username || ""), String(formData.password || ""));
+    } catch (error) {
+      loginError.textContent = error?.message || "Username ose fjalëkalimi nuk është i saktë për këtë rol.";
       loginError.classList.remove("hidden");
+      return;
     }
-  }
+    activeRole = role;
+    activeUser = user;
+    safeLocalSet("atlas-active-session", JSON.stringify({ role, userId: user.id }));
+    routes = role === "teacher" ? teacherRoutes : role === "parent" ? parentRoutes : adminRoutes;
+    roleGate.classList.add("hidden");
+    document.querySelector(".app-shell").removeAttribute("inert");
+    setBooleanAttribute(document.querySelector(".atlas-guide-widget"), "inert", role !== "teacher");
+    document.querySelector(".atlas-guide-widget")?.classList.toggle("hidden", role !== "teacher");
+    document.getElementById("roleLabel").textContent = `${{ admin: "Administrator", teacher: "Mësues", parent: "Prind" }[role]} · ${user.name}`;
+    try {
+      if (!appInitialized) await init();
+      else {
+        const firstVisibleStudent = visibleStudents()[0] || null;
+        if (firstVisibleStudent) activateStudent(firstVisibleStudent);
+        else state.currentStudent = null;
+        renderNavigation();
+        navigate(getDefaultRouteForRole(role, Boolean(firstVisibleStudent)));
+        void loadCalendarEvents();
+      }
+    } catch (error) {
+      console.error("AtlasPlan initialization failed.", error);
+      try {
+        if (!state.students.length) state.students = createStudentProfiles(await loadSampleStudent());
+        state.currentStudent = visibleStudents()[0] || state.students[0] || null;
+        if (state.currentStudent) {
+          state.progressByStudent[state.currentStudent.id] ||= [];
+          state.progressEntries = state.progressByStudent[state.currentStudent.id];
+        }
+        appInitialized = true;
+        renderNavigation();
+        navigate(getDefaultRouteForRole(activeRole, Boolean(state.currentStudent)));
+        toast("Aplikacioni u hap në mënyrën rezervë; disa të dhëna do të sinkronizohen më vonë.");
+      } catch (recoveryError) {
+        console.error("AtlasPlan recovery failed.", recoveryError);
+        roleGate.classList.remove("hidden");
+        document.querySelector(".app-shell").setAttribute("inert", "");
+        loginError.textContent = `Aplikacioni nuk mundi të hapej. ${recoveryError?.message || error?.message || "Rifreskoni faqen."}`;
+        loginError.classList.remove("hidden");
+      }
+    }
   } finally {
     loginInProgress = false;
   }
@@ -348,6 +402,11 @@ function logout() {
 }
 
 async function init() {
+  try {
+    await syncRoleDataFromServer();
+  } catch (error) {
+    console.warn("Llogaritë nga serveri nuk u ngarkuan; po përdoret lista rezervë.", error);
+  }
   const sample = await loadSampleStudent();
   const persistent = await loadPersistentState();
   const savedStudents = Array.isArray(persistent.students) ? persistent.students : safeLocalJson("atlas-students", null);
@@ -519,6 +578,10 @@ async function refreshParentLiveData() {
 }
 
 function handleClick(event) {
+  void handleClickAsync(event);
+}
+
+async function handleClickAsync(event) {
   const routeButton = event.target.closest("[data-route]");
   if (routeButton) {
     navigate(routeButton.dataset.route);
@@ -588,15 +651,19 @@ function handleClick(event) {
   };
 
   if (action === "delete-account") {
-    roleData[actionButton.dataset.accountType] = roleData[actionButton.dataset.accountType].filter((item) => item.id !== actionButton.dataset.accountId);
-    state.students.forEach((student) => {
-      if (student.teacherId === actionButton.dataset.accountId) student.teacherId = "";
-      if (student.parentId === actionButton.dataset.accountId) student.parentId = "";
-    });
-    saveRoleData();
-    saveStudents();
-    navigate("admin");
-    toast("Llogaria u fshi.");
+    try {
+      await deleteAccountOnServer(actionButton.dataset.accountType, actionButton.dataset.accountId);
+      state.students.forEach((student) => {
+        if (student.teacherId === actionButton.dataset.accountId) student.teacherId = "";
+        if (student.parentId === actionButton.dataset.accountId) student.parentId = "";
+      });
+      saveStudents();
+      navigate("admin");
+      toast("Llogaria u fshi.");
+    } catch (error) {
+      console.error("Account deletion failed.", error);
+      toast(error?.message || "Llogaria nuk mund të fshihej.");
+    }
     return;
   }
   if (action === "delete-child") {
@@ -853,14 +920,19 @@ async function handleSubmit(event) {
       .some((account) => String(account?.username || "").toLowerCase() === username);
     if (!username) return toast("Vendosni një username.");
     if (usernameExists) return toast("Ky username ekziston tashmë. Zgjidhni një tjetër.");
-    roleData[type].push(normalizeAccount({
-      id: `${type}-${Date.now()}`,
-      name: String(formData.get("name")),
-      username,
-      email: String(formData.get("email")),
-      password: String(formData.get("password"))
-    }, type, roleData[type].length));
-    saveRoleData();
+    try {
+      await createAccountOnServer({
+        accountType: type,
+        name: String(formData.get("name")),
+        username,
+        email: String(formData.get("email")),
+        password: String(formData.get("password"))
+      });
+    } catch (error) {
+      console.error("Account creation failed.", error);
+      toast(error?.message || "Llogaria nuk mund të krijohej.");
+      return;
+    }
     navigate("admin");
     toast("Llogaria u krijua me sukses.");
     return;
@@ -991,8 +1063,7 @@ function evaluationLabel(type) {
 }
 
 function saveRoleData() {
-  safeLocalSet("atlas-role-data", JSON.stringify(roleData));
-  void persistServerState({ roleData });
+  replaceRoleData(roleData);
 }
 
 function renderAdmin() {

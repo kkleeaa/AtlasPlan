@@ -1,5 +1,5 @@
-require('dotenv').config();
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env.local'), override: true });
 const express = require('express');
 const cors = require('cors');
 const { OpenAI, toFile } = require('openai');
@@ -196,6 +196,14 @@ app.use(express.json({ limit: '30mb' }));
 
 const CALENDAR_STORE = path.join(__dirname, 'data', 'calendar-events.json');
 const APP_STATE_STORE = path.join(__dirname, 'data', 'app-state.json');
+const ROLE_DATA_RESOURCE_TYPE = 'system_accounts';
+const ROLE_DATA_SEARCH_SLUG = 'system:atlas-role-data-v1';
+const ROLE_TYPE_TO_BUCKET = Object.freeze({ teacher: 'teachers', parent: 'parents', admin: 'admins' });
+const DEFAULT_ROLE_ACCOUNTS = Object.freeze({
+  teachers: [{ id: 'teacher-demo', name: 'Mësuesja Demo', username: 'mesues', email: 'mesues@atlas.al', password: 'Atlas123' }],
+  parents: [{ id: 'parent-demo', name: 'Prindi Demo', username: 'prind', email: 'prind@atlas.al', password: 'Atlas123' }],
+  admins: [{ id: 'admin-demo', name: 'Administratori', username: 'admin', email: 'admin@atlas.al', password: 'Atlas123' }]
+});
 
 function readAppState() {
   try {
@@ -213,6 +221,126 @@ function writeAppState(value) {
   fs.renameSync(temporaryPath, APP_STATE_STORE);
 }
 
+function hashAccountPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const derived = crypto.scryptSync(String(password || ''), salt, 64).toString('hex');
+  return `scrypt:${salt}:${derived}`;
+}
+
+function verifyAccountPassword(password, passwordHash = '') {
+  const [scheme, salt, expectedHash] = String(passwordHash || '').split(':');
+  if (scheme !== 'scrypt' || !salt || !expectedHash) return false;
+  const derived = crypto.scryptSync(String(password || ''), salt, 64).toString('hex');
+  const expectedBuffer = Buffer.from(expectedHash, 'hex');
+  const actualBuffer = Buffer.from(derived, 'hex');
+  return expectedBuffer.length === actualBuffer.length && crypto.timingSafeEqual(expectedBuffer, actualBuffer);
+}
+
+function normalizeStoredAccount(account, fallbackBucket, fallbackIndex = 0) {
+  if (!account || typeof account !== 'object' || Array.isArray(account)) return null;
+  const fallback = DEFAULT_ROLE_ACCOUNTS[fallbackBucket]?.[fallbackIndex] || {};
+  const email = String(account.email || fallback.email || '').trim();
+  const username = String(
+    account.username
+      || email.split('@')[0]
+      || fallback.username
+      || `${fallbackBucket.slice(0, -1)}${fallbackIndex + 1}`
+  ).trim().toLocaleLowerCase('sq-AL');
+  const plainPassword = String(account.password || fallback.password || '').trim();
+  const passwordHash = String(account.password_hash || account.passwordHash || '').trim()
+    || (plainPassword ? hashAccountPassword(plainPassword) : '');
+  return {
+    id: String(account.id || fallback.id || crypto.randomUUID()).trim(),
+    name: String(account.name || fallback.name || 'Përdorues').trim(),
+    username,
+    email,
+    passwordHash,
+    createdAt: String(account.createdAt || account.created_at || new Date().toISOString())
+  };
+}
+
+function buildDefaultRoleDataStore() {
+  return Object.fromEntries(Object.entries(DEFAULT_ROLE_ACCOUNTS).map(([bucket, accounts]) => [
+    bucket,
+    accounts.map((account, index) => normalizeStoredAccount(account, bucket, index)).filter(Boolean)
+  ]));
+}
+
+function normalizeRoleDataStore(input = {}) {
+  return Object.fromEntries(Object.keys(DEFAULT_ROLE_ACCOUNTS).map((bucket) => {
+    const defaults = DEFAULT_ROLE_ACCOUNTS[bucket].map((account, index) => normalizeStoredAccount(account, bucket, index)).filter(Boolean);
+    const defaultIds = new Set(defaults.map((account) => account.id));
+    const extras = (Array.isArray(input[bucket]) ? input[bucket] : [])
+      .filter((account) => account && !defaultIds.has(String(account.id || '')))
+      .map((account, index) => normalizeStoredAccount(account, bucket, index + defaults.length))
+      .filter(Boolean);
+    return [bucket, [...defaults, ...extras]];
+  }));
+}
+
+function toPublicRoleData(roleData = {}) {
+  return Object.fromEntries(Object.keys(DEFAULT_ROLE_ACCOUNTS).map((bucket) => [
+    bucket,
+    (Array.isArray(roleData[bucket]) ? roleData[bucket] : []).map(({ passwordHash, ...account }) => account)
+  ]));
+}
+
+async function readRoleDataFromSupabase() {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('cached_resources')
+      .select('data')
+      .eq('search_slug', ROLE_DATA_SEARCH_SLUG)
+      .maybeSingle();
+    if (error) {
+      console.warn('Supabase account read skipped:', error.message);
+      return null;
+    }
+    return data?.data && typeof data.data === 'object' && !Array.isArray(data.data) ? data.data : null;
+  } catch (error) {
+    console.warn('Supabase account read failed:', error.message);
+    return null;
+  }
+}
+
+async function writeRoleDataToSupabase(roleData) {
+  if (!supabase) return false;
+  try {
+    const payload = normalizeRoleDataStore(roleData);
+    const { error } = await supabase
+      .from('cached_resources')
+      .upsert({
+        resource_type: ROLE_DATA_RESOURCE_TYPE,
+        search_slug: ROLE_DATA_SEARCH_SLUG,
+        title: 'AtlasPlan role accounts',
+        data: payload
+      }, { onConflict: 'search_slug' });
+    if (error) {
+      console.warn('Supabase account write skipped:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn('Supabase account write failed:', error.message);
+    return false;
+  }
+}
+
+async function getRoleDataStore() {
+  const supabaseStore = await readRoleDataFromSupabase();
+  if (supabaseStore) return normalizeRoleDataStore(supabaseStore);
+  const legacyState = readAppState();
+  const seeded = normalizeRoleDataStore(legacyState.roleData || buildDefaultRoleDataStore());
+  await writeRoleDataToSupabase(seeded);
+  return seeded;
+}
+
+async function saveRoleDataStore(roleData) {
+  const normalized = normalizeRoleDataStore(roleData);
+  await writeRoleDataToSupabase(normalized);
+  return normalized;
+}
+
 app.get('/api/app-state', (_req, res) => {
   res.json({ state: readAppState() });
 });
@@ -222,7 +350,7 @@ app.put('/api/app-state', (req, res) => {
   if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
     return res.status(400).json({ error: 'Gjendja e aplikacionit nuk është e vlefshme.' });
   }
-  const allowedKeys = ['students', 'progressByStudent', 'reportsByStudent', 'scheduleByStudent', 'roleData', 'teachingMaterials'];
+  const allowedKeys = ['students', 'progressByStudent', 'reportsByStudent', 'scheduleByStudent', 'teachingMaterials'];
   const previous = readAppState();
   const next = { ...previous };
   allowedKeys.forEach((key) => {
@@ -231,6 +359,67 @@ app.put('/api/app-state', (req, res) => {
   next.updatedAt = new Date().toISOString();
   writeAppState(next);
   res.json({ saved: true, updatedAt: next.updatedAt });
+});
+
+app.get('/api/accounts', async (_req, res) => {
+  const roleData = await getRoleDataStore();
+  res.json({ roleData: toPublicRoleData(roleData) });
+});
+
+app.post('/api/login', async (req, res) => {
+  const role = String(req.body?.role || '').trim().toLocaleLowerCase('sq-AL');
+  const username = String(req.body?.username || '').trim().toLocaleLowerCase('sq-AL');
+  const password = String(req.body?.password || '');
+  const bucket = ROLE_TYPE_TO_BUCKET[role];
+  if (!bucket || !username || !password) {
+    return res.status(400).json({ error: 'Roli, username dhe fjalëkalimi janë të detyrueshme.' });
+  }
+  const roleData = await getRoleDataStore();
+  const user = (roleData[bucket] || []).find((account) => account.username === username);
+  if (!user || !verifyAccountPassword(password, user.passwordHash)) {
+    return res.status(401).json({ error: 'Username ose fjalëkalimi nuk është i saktë.' });
+  }
+  const { passwordHash, ...publicUser } = user;
+  res.json({ user: publicUser, roleData: toPublicRoleData(roleData) });
+});
+
+app.post('/api/accounts', async (req, res) => {
+  const accountType = String(req.body?.accountType || '').trim();
+  const bucket = ['teachers', 'parents', 'admins'].includes(accountType) ? accountType : '';
+  const name = String(req.body?.name || '').trim();
+  const username = String(req.body?.username || '').trim().toLocaleLowerCase('sq-AL');
+  const email = String(req.body?.email || '').trim();
+  const password = String(req.body?.password || '');
+  if (!bucket || !name || !username || !email || password.length < 6) {
+    return res.status(400).json({ error: 'Të gjitha fushat e llogarisë janë të detyrueshme.' });
+  }
+  const roleData = await getRoleDataStore();
+  const usernameExists = Object.values(roleData).flat().some((account) => account.username === username);
+  if (usernameExists) {
+    return res.status(409).json({ error: 'Ky username ekziston tashmë.' });
+  }
+  roleData[bucket].push(normalizeStoredAccount({
+    id: `${bucket}-${Date.now()}`,
+    name,
+    username,
+    email,
+    passwordHash: hashAccountPassword(password),
+    createdAt: new Date().toISOString()
+  }, bucket, roleData[bucket].length));
+  const saved = await saveRoleDataStore(roleData);
+  res.json({ roleData: toPublicRoleData(saved) });
+});
+
+app.delete('/api/accounts/:accountType/:accountId', async (req, res) => {
+  const accountType = String(req.params.accountType || '').trim();
+  const accountId = String(req.params.accountId || '').trim();
+  if (!['teachers', 'parents', 'admins'].includes(accountType) || !accountId) {
+    return res.status(400).json({ error: 'Llogaria nuk është e vlefshme.' });
+  }
+  const roleData = await getRoleDataStore();
+  roleData[accountType] = (roleData[accountType] || []).filter((account) => account.id !== accountId);
+  const saved = await saveRoleDataStore(roleData);
+  res.json({ roleData: toPublicRoleData(saved) });
 });
 
 function readCalendarEvents() {
