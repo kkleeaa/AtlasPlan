@@ -1558,7 +1558,7 @@ function renderCommunicationBoards() {
       <iframe
         class="communication-module-frame"
         title="Gjenero materiale"
-        data-module-src="components/tabela-komunikimi/module/final.html?v=20260916-privacy-cleanup-1"
+        data-module-src="components/tabela-komunikimi/module/final.html?v=20260926-input-privacy-1"
       ></iframe>
     </section>
   `;
