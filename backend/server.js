@@ -196,16 +196,117 @@ app.use(express.json({ limit: '30mb' }));
 
 const CALENDAR_STORE = path.join(__dirname, 'data', 'calendar-events.json');
 const APP_STATE_STORE = path.join(__dirname, 'data', 'app-state.json');
+const APP_STATE_RESOURCE_TYPE = 'system_app_state';
+const APP_STATE_SEARCH_SLUG = 'system:atlas-app-state-v1';
+const CALENDAR_RESOURCE_TYPE = 'system_calendar_events';
+const CALENDAR_SEARCH_SLUG = 'system:atlas-calendar-events-v1';
 const ROLE_DATA_RESOURCE_TYPE = 'system_accounts';
 const ROLE_DATA_SEARCH_SLUG = 'system:atlas-role-data-v1';
 const ROLE_TYPE_TO_BUCKET = Object.freeze({ teacher: 'teachers', parent: 'parents', admin: 'admins' });
+const BUCKET_TO_ROLE_TYPE = Object.freeze({ teachers: 'teacher', parents: 'parent', admins: 'admin' });
 const DEFAULT_ROLE_ACCOUNTS = Object.freeze({
   teachers: [{ id: 'teacher-demo', name: 'Mësuesja Demo', username: 'mesues', email: 'mesues@atlas.al', password: 'Atlas123' }],
   parents: [{ id: 'parent-demo', name: 'Prindi Demo', username: 'prind', email: 'prind@atlas.al', password: 'Atlas123' }],
   admins: [{ id: 'admin-demo', name: 'Administratori', username: 'admin', email: 'admin@atlas.al', password: 'Atlas123' }]
 });
+const DEMO_ACCOUNT_PUBLIC_IDS = Object.freeze({
+  teacher: { mesues: 'teacher-demo' },
+  parent: { prind: 'parent-demo' },
+  admin: { admin: 'admin-demo' }
+});
 
-function readAppState() {
+function stableUuid(scope, value) {
+  const hash = crypto.createHash('sha1').update(`${scope}:${String(value || '').trim() || crypto.randomUUID()}`).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+}
+
+function parseJsonText(value, fallback) {
+  try {
+    return JSON.parse(String(value || ''));
+  } catch {
+    return fallback;
+  }
+}
+
+function birthdayToIso(value) {
+  const match = String(value || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : null;
+}
+
+function isoToBirthday(value) {
+  const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : 'Nuk është shënuar';
+}
+
+function publicAccountIdForRoleUsername(role, username) {
+  const normalizedRole = String(role || '').trim().toLocaleLowerCase('sq-AL');
+  const normalizedUsername = String(username || '').trim().toLocaleLowerCase('sq-AL');
+  return DEMO_ACCOUNT_PUBLIC_IDS[normalizedRole]?.[normalizedUsername] || normalizedUsername;
+}
+
+function roleFromBucket(bucket) {
+  return BUCKET_TO_ROLE_TYPE[String(bucket || '').trim()] || '';
+}
+
+function usernameForPublicAccountId(role, accountId) {
+  const normalizedRole = String(role || '').trim().toLocaleLowerCase('sq-AL');
+  const normalizedAccountId = String(accountId || '').trim().toLocaleLowerCase('sq-AL');
+  const pairs = Object.entries(DEMO_ACCOUNT_PUBLIC_IDS[normalizedRole] || {});
+  const match = pairs.find(([, publicId]) => publicId === normalizedAccountId);
+  return match ? match[0] : normalizedAccountId;
+}
+
+function buildProfileRow(account, fallbackBucket, fallbackIndex = 0) {
+  const normalized = normalizeStoredAccount(account, fallbackBucket, fallbackIndex);
+  if (!normalized) return null;
+  const role = roleFromBucket(fallbackBucket);
+  const publicId = String(normalized.id || '').trim() || publicAccountIdForRoleUsername(role, normalized.username);
+  return {
+    id: stableUuid('profile', publicId),
+    full_name: normalized.name,
+    role,
+    username: normalized.username,
+    password_hash: normalized.passwordHash,
+    email: normalized.email,
+    created_at: normalized.createdAt
+  };
+}
+
+function toPublicAccountFromProfile(profile = {}) {
+  const role = String(profile.role || '').trim().toLocaleLowerCase('sq-AL');
+  const username = String(profile.username || '').trim().toLocaleLowerCase('sq-AL');
+  return {
+    id: publicAccountIdForRoleUsername(role, username),
+    name: String(profile.full_name || profile.name || 'Përdorues').trim(),
+    username,
+    email: String(profile.email || '').trim(),
+    createdAt: String(profile.created_at || new Date().toISOString())
+  };
+}
+
+async function deleteAllRows(tableName) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from(tableName).delete().not('id', 'is', null);
+    if (error) {
+      console.warn(`Delete all from ${tableName} skipped:`, error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn(`Delete all from ${tableName} failed:`, error.message);
+    return false;
+  }
+}
+
+function hasStructuredAppStateData(state = {}) {
+  const arrayKeys = ['students', 'teachingMaterials'];
+  const objectKeys = ['progressByStudent', 'reportsByStudent', 'scheduleByStudent', 'planAnalysesByStudent'];
+  return arrayKeys.some((key) => Array.isArray(state[key]) && state[key].length)
+    || objectKeys.some((key) => state[key] && typeof state[key] === 'object' && Object.keys(state[key]).length);
+}
+
+function readAppStateLocal() {
   try {
     const value = JSON.parse(fs.readFileSync(APP_STATE_STORE, 'utf8'));
     return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -214,11 +315,146 @@ function readAppState() {
   }
 }
 
-function writeAppState(value) {
+function writeAppStateLocal(value) {
   fs.mkdirSync(path.dirname(APP_STATE_STORE), { recursive: true });
   const temporaryPath = `${APP_STATE_STORE}.${process.pid}.tmp`;
   fs.writeFileSync(temporaryPath, JSON.stringify(value, null, 2));
   fs.renameSync(temporaryPath, APP_STATE_STORE);
+}
+
+function readCalendarEventsLocal() {
+  try {
+    const value = JSON.parse(fs.readFileSync(CALENDAR_STORE, 'utf8'));
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCalendarEventsLocal(events) {
+  fs.mkdirSync(path.dirname(CALENDAR_STORE), { recursive: true });
+  fs.writeFileSync(CALENDAR_STORE, JSON.stringify(Array.isArray(events) ? events : [], null, 2));
+}
+
+async function readSystemResource(resourceType, searchSlug) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('cached_resources')
+      .select('data')
+      .eq('search_slug', searchSlug)
+      .maybeSingle();
+    if (error) {
+      console.warn(`Supabase ${resourceType} read skipped:`, error.message);
+      return null;
+    }
+    return data?.data ?? null;
+  } catch (error) {
+    console.warn(`Supabase ${resourceType} read failed:`, error.message);
+    return null;
+  }
+}
+
+async function writeSystemResource(resourceType, searchSlug, title, payload) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('cached_resources')
+      .upsert({
+        resource_type: resourceType,
+        search_slug: searchSlug,
+        title,
+        data: payload
+      }, { onConflict: 'search_slug' });
+    if (error) {
+      console.warn(`Supabase ${resourceType} write skipped:`, error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn(`Supabase ${resourceType} write failed:`, error.message);
+    return false;
+  }
+}
+
+async function readAppState() {
+  const structured = await readAppStateFromStructuredTables();
+  if (hasStructuredAppStateData(structured)) return structured;
+  const remote = await readSystemResource(APP_STATE_RESOURCE_TYPE, APP_STATE_SEARCH_SLUG);
+  if (remote && typeof remote === 'object' && !Array.isArray(remote)) return remote;
+  const local = readAppStateLocal();
+  if (Object.keys(local).length) {
+    await writeSystemResource(APP_STATE_RESOURCE_TYPE, APP_STATE_SEARCH_SLUG, 'AtlasPlan app state', local);
+  }
+  return local;
+}
+
+async function writeAppState(value) {
+  const safeValue = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  writeAppStateLocal(safeValue);
+  await writeAppStateToStructuredTables(safeValue);
+  await writeSystemResource(APP_STATE_RESOURCE_TYPE, APP_STATE_SEARCH_SLUG, 'AtlasPlan app state', safeValue);
+}
+
+async function readCalendarEvents() {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('id, title, description, event_date, teacher_id, child_id, created_at')
+        .order('event_date', { ascending: true });
+      if (!error && Array.isArray(data) && data.length) {
+        return data.map((row) => {
+          const payload = parseJsonText(row.description, {});
+          return {
+            ...payload,
+            id: String(payload.id || row.id || ''),
+            title: String(payload.title || row.title || ''),
+            date: String(payload.date || row.event_date || ''),
+            teacherId: String(payload.teacherId || row.teacher_id || ''),
+            studentId: String(payload.studentId || payload.childId || ''),
+            updatedAt: String(payload.updatedAt || row.created_at || new Date().toISOString())
+          };
+        });
+      }
+      if (error) console.warn('Supabase calendar read skipped:', error.message);
+    } catch (error) {
+      console.warn('Supabase calendar read failed:', error.message);
+    }
+  }
+  const remote = await readSystemResource(CALENDAR_RESOURCE_TYPE, CALENDAR_SEARCH_SLUG);
+  if (Array.isArray(remote)) return remote;
+  const local = readCalendarEventsLocal();
+  if (local.length) {
+    await writeSystemResource(CALENDAR_RESOURCE_TYPE, CALENDAR_SEARCH_SLUG, 'AtlasPlan calendar events', local);
+  }
+  return local;
+}
+
+async function writeCalendarEvents(events) {
+  const safeEvents = Array.isArray(events) ? events : [];
+  writeCalendarEventsLocal(safeEvents);
+  if (supabase) {
+    try {
+      await deleteAllRows('calendar_events');
+      const rows = safeEvents.map((event, index) => ({
+        id: stableUuid('calendar-event', event?.id || `${event?.teacherId || ''}:${event?.date || ''}:${event?.title || index}`),
+        title: String(event?.title || '').slice(0, 200),
+        description: JSON.stringify(event),
+        event_date: String(event?.date || '').slice(0, 10),
+        teacher_id: String(event?.teacherId || ''),
+        child_id: event?.studentId ? stableUuid('child', event.studentId) : null,
+        created_at: String(event?.updatedAt || new Date().toISOString())
+      }));
+      if (rows.length) {
+        const { error } = await supabase.from('calendar_events').upsert(rows, { onConflict: 'id' });
+        if (error) console.warn('Supabase calendar write skipped:', error.message);
+      }
+    } catch (error) {
+      console.warn('Supabase calendar write failed:', error.message);
+    }
+  }
+  await writeSystemResource(CALENDAR_RESOURCE_TYPE, CALENDAR_SEARCH_SLUG, 'AtlasPlan calendar events', safeEvents);
 }
 
 function hashAccountPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -288,15 +524,44 @@ async function readRoleDataFromSupabase() {
   if (!supabase) return null;
   try {
     const { data, error } = await supabase
-      .from('cached_resources')
-      .select('data')
-      .eq('search_slug', ROLE_DATA_SEARCH_SLUG)
-      .maybeSingle();
+      .from('profiles')
+      .select('id, full_name, role, username, email, password_hash, created_at')
+      .order('created_at', { ascending: true });
     if (error) {
       console.warn('Supabase account read skipped:', error.message);
       return null;
     }
-    return data?.data && typeof data.data === 'object' && !Array.isArray(data.data) ? data.data : null;
+    if (!Array.isArray(data)) return null;
+    const validProfiles = data.filter((profile) =>
+      String(profile?.role || '').trim()
+      && String(profile?.username || '').trim()
+      && String(profile?.password_hash || '').trim()
+    );
+    if (!validProfiles.length) {
+      const seedRows = Object.entries(DEFAULT_ROLE_ACCOUNTS)
+        .flatMap(([bucket, accounts]) => accounts.map((account, index) => buildProfileRow(account, bucket, index)))
+        .filter(Boolean);
+      if (seedRows.length) {
+        const { error: seedError } = await supabase.from('profiles').upsert(seedRows, { onConflict: 'username' });
+        if (seedError) {
+          console.warn('Supabase account seed skipped:', seedError.message);
+          return normalizeRoleDataStore(buildDefaultRoleDataStore());
+        }
+      }
+      return normalizeRoleDataStore(buildDefaultRoleDataStore());
+    }
+    return normalizeRoleDataStore(Object.values(ROLE_TYPE_TO_BUCKET).reduce((accumulator, bucket) => {
+      accumulator[bucket] = validProfiles
+        .filter((profile) => ROLE_TYPE_TO_BUCKET[String(profile.role || '').trim().toLocaleLowerCase('sq-AL')] === bucket)
+        .map((profile) => {
+          const publicAccount = toPublicAccountFromProfile(profile);
+          return {
+            ...publicAccount,
+            passwordHash: String(profile.password_hash || '').trim()
+          };
+        });
+      return accumulator;
+    }, {}));
   } catch (error) {
     console.warn('Supabase account read failed:', error.message);
     return null;
@@ -307,17 +572,20 @@ async function writeRoleDataToSupabase(roleData) {
   if (!supabase) return false;
   try {
     const payload = normalizeRoleDataStore(roleData);
-    const { error } = await supabase
-      .from('cached_resources')
-      .upsert({
-        resource_type: ROLE_DATA_RESOURCE_TYPE,
-        search_slug: ROLE_DATA_SEARCH_SLUG,
-        title: 'AtlasPlan role accounts',
-        data: payload
-      }, { onConflict: 'search_slug' });
-    if (error) {
-      console.warn('Supabase account write skipped:', error.message);
+    const rows = Object.entries(payload)
+      .flatMap(([bucket, accounts]) => accounts.map((account, index) => buildProfileRow(account, bucket, index)))
+      .filter(Boolean);
+    const deleted = await deleteAllRows('profiles');
+    if (!deleted && rows.length) {
+      console.warn('Supabase account write skipped: old profiles could not be cleared.');
       return false;
+    }
+    if (rows.length) {
+      const { error } = await supabase.from('profiles').upsert(rows, { onConflict: 'username' });
+      if (error) {
+        console.warn('Supabase account write skipped:', error.message);
+        return false;
+      }
     }
     return true;
   } catch (error) {
@@ -329,7 +597,7 @@ async function writeRoleDataToSupabase(roleData) {
 async function getRoleDataStore() {
   const supabaseStore = await readRoleDataFromSupabase();
   if (supabaseStore) return normalizeRoleDataStore(supabaseStore);
-  const legacyState = readAppState();
+  const legacyState = await readAppState();
   const seeded = normalizeRoleDataStore(legacyState.roleData || buildDefaultRoleDataStore());
   await writeRoleDataToSupabase(seeded);
   return seeded;
@@ -341,23 +609,385 @@ async function saveRoleDataStore(roleData) {
   return normalized;
 }
 
-app.get('/api/app-state', (_req, res) => {
-  res.json({ state: readAppState() });
+async function readProfilesIndex() {
+  if (!supabase) return { byDbId: new Map(), byPublicId: new Map() };
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, role, username')
+      .order('created_at', { ascending: true });
+    if (error || !Array.isArray(data)) return { byDbId: new Map(), byPublicId: new Map() };
+    const byDbId = new Map();
+    const byPublicId = new Map();
+    data.forEach((profile) => {
+      const publicId = publicAccountIdForRoleUsername(profile.role, profile.username);
+      byDbId.set(String(profile.id), publicId);
+      byPublicId.set(publicId, String(profile.id));
+    });
+    return { byDbId, byPublicId };
+  } catch {
+    return { byDbId: new Map(), byPublicId: new Map() };
+  }
+}
+
+async function readChildrenFromSupabase() {
+  if (!supabase) return [];
+  try {
+    const [{ data: childRows, error: childError }, { data: relationshipRows, error: relationshipError }, profilesIndex] = await Promise.all([
+      supabase
+        .from('children')
+        .select('id, name, age, full_name, birth_date, address, contact_number, notes, photo_url, created_by, created_at')
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('child_relationships')
+        .select('child_id, user_id, profile_id, relationship, relationship_type, created_at'),
+      readProfilesIndex()
+    ]);
+    if (childError) {
+      console.warn('Supabase children read skipped:', childError.message);
+      return [];
+    }
+    if (relationshipError) console.warn('Supabase child relationship read skipped:', relationshipError.message);
+    const relationshipsByChildId = new Map();
+    (Array.isArray(relationshipRows) ? relationshipRows : []).forEach((row) => {
+      const key = String(row.child_id || '');
+      if (!key) return;
+      const list = relationshipsByChildId.get(key) || [];
+      list.push(row);
+      relationshipsByChildId.set(key, list);
+    });
+    return (Array.isArray(childRows) ? childRows : []).map((row) => {
+      const payload = parseJsonText(row.notes, {});
+      const relationships = relationshipsByChildId.get(String(row.id)) || [];
+      const teacherRelationship = relationships.find((item) => String(item.relationship_type || item.relationship || '').trim() === 'teacher');
+      const parentRelationship = relationships.find((item) => String(item.relationship_type || item.relationship || '').trim() === 'parent');
+      return {
+        ...payload,
+        id: String(payload.id || row.id || ''),
+        name: String(payload.name || row.full_name || row.name || 'Nxënës i ri'),
+        nickname: String(payload.nickname || payload.name || row.full_name || row.name || 'Nxënës i ri'),
+        age: payload.age ?? row.age ?? 'Nuk është shënuar',
+        birthday: String(payload.birthday || isoToBirthday(row.birth_date)),
+        address: String(payload.address || row.address || 'Nuk është shënuar'),
+        contactNumber: String(payload.contactNumber || row.contact_number || 'Nuk është shënuar'),
+        photoUrl: String(payload.photoUrl || row.photo_url || ''),
+        teacherId: String(
+          payload.teacherId
+            || profilesIndex.byDbId.get(String(teacherRelationship?.profile_id || teacherRelationship?.user_id || ''))
+            || ''
+        ),
+        parentId: String(
+          payload.parentId
+            || profilesIndex.byDbId.get(String(parentRelationship?.profile_id || parentRelationship?.user_id || ''))
+            || ''
+        ),
+        createdAt: String(payload.createdAt || row.created_at || new Date().toISOString())
+      };
+    });
+  } catch (error) {
+    console.warn('Supabase children read failed:', error.message);
+    return [];
+  }
+}
+
+async function writeChildrenToSupabase(students = []) {
+  if (!supabase) return false;
+  try {
+    const profilesIndex = await readProfilesIndex();
+    await deleteAllRows('child_relationships');
+    await deleteAllRows('children');
+    const rows = [];
+    const relationships = [];
+    students.forEach((student, index) => {
+      const externalId = String(student?.id || `student-${index + 1}`);
+      const rowId = stableUuid('child', externalId);
+      rows.push({
+        id: rowId,
+        name: String(student?.name || 'Nxënës i ri').trim(),
+        age: Number.isFinite(Number(student?.age)) ? Number(student.age) : null,
+        full_name: String(student?.name || student?.nickname || 'Nxënës i ri').trim(),
+        birth_date: birthdayToIso(student?.birthday),
+        address: String(student?.address || 'Nuk është shënuar'),
+        contact_number: String(student?.contactNumber || 'Nuk është shënuar'),
+        notes: JSON.stringify({ ...student, id: externalId }),
+        photo_url: String(student?.photoUrl || ''),
+        created_by: String(student?.teacherId || ''),
+        created_at: String(student?.createdAt || new Date().toISOString())
+      });
+      [
+        ['teacher', String(student?.teacherId || '')],
+        ['parent', String(student?.parentId || '')]
+      ].forEach(([relationshipType, publicId]) => {
+        if (!publicId) return;
+        const profileId = profilesIndex.byPublicId.get(publicId) || stableUuid('profile', publicId);
+        relationships.push({
+          id: stableUuid('child-relationship', `${externalId}:${relationshipType}:${publicId}`),
+          child_id: rowId,
+          user_id: profileId,
+          profile_id: profileId,
+          relationship: relationshipType,
+          relationship_type: relationshipType,
+          created_at: new Date().toISOString()
+        });
+      });
+    });
+    if (rows.length) {
+      const { error } = await supabase.from('children').upsert(rows, { onConflict: 'id' });
+      if (error) {
+        console.warn('Supabase children write skipped:', error.message);
+        return false;
+      }
+    }
+    if (relationships.length) {
+      const { error } = await supabase.from('child_relationships').upsert(relationships, { onConflict: 'id' });
+      if (error) console.warn('Supabase child relationship write skipped:', error.message);
+    }
+    return true;
+  } catch (error) {
+    console.warn('Supabase children write failed:', error.message);
+    return false;
+  }
+}
+
+async function readProgressFromSupabase() {
+  if (!supabase) return {};
+  try {
+    const { data, error } = await supabase
+      .from('student_progress')
+      .select('id, child_id, author_id, entry_type, content, created_at')
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.warn('Supabase progress read skipped:', error.message);
+      return {};
+    }
+    return (Array.isArray(data) ? data : []).reduce((accumulator, row) => {
+      const payload = parseJsonText(row.content, {});
+      const childId = String(payload.studentId || payload.childId || row.child_id || '');
+      if (!childId) return accumulator;
+      const entry = {
+        ...payload,
+        id: String(payload.id || row.id || ''),
+        studentId: childId,
+        authorId: String(payload.authorId || row.author_id || ''),
+        entryType: String(payload.entryType || row.entry_type || 'note'),
+        createdAt: String(payload.createdAt || row.created_at || ''),
+        date: String(payload.date || row.created_at || '').slice(0, 10)
+      };
+      accumulator[childId] ||= [];
+      accumulator[childId].push(entry);
+      return accumulator;
+    }, {});
+  } catch (error) {
+    console.warn('Supabase progress read failed:', error.message);
+    return {};
+  }
+}
+
+async function writeProgressToSupabase(progressByStudent = {}) {
+  if (!supabase) return false;
+  try {
+    await deleteAllRows('student_progress');
+    const rows = Object.entries(progressByStudent || {}).flatMap(([childId, entries]) =>
+      (Array.isArray(entries) ? entries : []).map((entry, index) => ({
+        id: stableUuid('student-progress', `${childId}:${entry?.id || index}:${entry?.date || ''}:${entry?.goal || ''}`),
+        child_id: stableUuid('child', childId),
+        author_id: String(entry?.authorId || ''),
+        entry_type: String(entry?.entryType || 'note'),
+        content: JSON.stringify({ ...entry, studentId: childId }),
+        created_at: String(entry?.createdAt || entry?.date || new Date().toISOString())
+      }))
+    );
+    if (!rows.length) return true;
+    const { error } = await supabase.from('student_progress').upsert(rows, { onConflict: 'id' });
+    if (error) {
+      console.warn('Supabase progress write skipped:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn('Supabase progress write failed:', error.message);
+    return false;
+  }
+}
+
+async function readReportsFromSupabase() {
+  if (!supabase) return {};
+  try {
+    const { data, error } = await supabase
+      .from('reports')
+      .select('id, child_id, author_id, title, content, created_at, updated_at')
+      .order('updated_at', { ascending: true });
+    if (error) {
+      console.warn('Supabase reports read skipped:', error.message);
+      return {};
+    }
+    return (Array.isArray(data) ? data : []).reduce((accumulator, row) => {
+      const payload = parseJsonText(row.content, {});
+      const childId = String(payload.childId || payload.studentId || row.child_id || '');
+      if (!childId) return accumulator;
+      accumulator[childId] = payload.value ?? payload;
+      return accumulator;
+    }, {});
+  } catch (error) {
+    console.warn('Supabase reports read failed:', error.message);
+    return {};
+  }
+}
+
+async function writeReportsToSupabase(reportsByStudent = {}) {
+  if (!supabase) return false;
+  try {
+    await deleteAllRows('reports');
+    const rows = Object.entries(reportsByStudent || {}).map(([childId, value]) => ({
+      id: stableUuid('student-report', childId),
+      child_id: stableUuid('child', childId),
+      author_id: String(value?.updatedBy || value?.authorId || ''),
+      title: String(value?.title || 'Raporti për prindin').slice(0, 160),
+      content: JSON.stringify({ childId, value }),
+      created_at: String(value?.generatedAt || value?.updatedAt || new Date().toISOString()),
+      updated_at: String(value?.updatedAt || value?.generatedAt || new Date().toISOString())
+    }));
+    if (!rows.length) return true;
+    const { error } = await supabase.from('reports').upsert(rows, { onConflict: 'id' });
+    if (error) {
+      console.warn('Supabase reports write skipped:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn('Supabase reports write failed:', error.message);
+    return false;
+  }
+}
+
+async function readTeachingMaterialsStateFromSupabase() {
+  if (!supabase) {
+    return { teachingMaterials: [], scheduleByStudent: {}, planAnalysesByStudent: {} };
+  }
+  try {
+    const { data, error } = await supabase
+      .from('teaching_materials')
+      .select('id, child_id, author_id, module_type, title, data, created_at')
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.warn('Supabase teaching materials read skipped:', error.message);
+      return { teachingMaterials: [], scheduleByStudent: {}, planAnalysesByStudent: {} };
+    }
+    const state = { teachingMaterials: [], scheduleByStudent: {}, planAnalysesByStudent: {} };
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const payload = row.data && typeof row.data === 'object' && !Array.isArray(row.data)
+        ? row.data
+        : parseJsonText(row.data, {});
+      if (row.module_type === 'schedule_state') {
+        const childId = String(payload.childId || '');
+        if (childId) state.scheduleByStudent[childId] = payload.schedule || [];
+      } else if (row.module_type === 'plan_analysis') {
+        const childId = String(payload.childId || '');
+        if (childId) state.planAnalysesByStudent[childId] = payload.analysis || payload;
+      }
+    });
+    return state;
+  } catch (error) {
+    console.warn('Supabase teaching materials read failed:', error.message);
+    return { teachingMaterials: [], scheduleByStudent: {}, planAnalysesByStudent: {} };
+  }
+}
+
+async function writeTeachingMaterialsStateToSupabase({ teachingMaterials, scheduleByStudent, planAnalysesByStudent } = {}) {
+  if (!supabase) return false;
+  try {
+    if (scheduleByStudent && typeof scheduleByStudent === 'object' && !Array.isArray(scheduleByStudent)) {
+      await supabase.from('teaching_materials').delete().eq('module_type', 'schedule_state');
+      const scheduleRows = Object.entries(scheduleByStudent).map(([childId, schedule]) => ({
+        id: stableUuid('student-schedule', childId),
+        child_id: stableUuid('child', childId),
+        author_id: '',
+        module_type: 'schedule_state',
+        title: `Orari i ${childId}`,
+        data: { childId, schedule },
+        created_at: new Date().toISOString()
+      }));
+      if (scheduleRows.length) {
+        const { error } = await supabase.from('teaching_materials').upsert(scheduleRows, { onConflict: 'id' });
+        if (error) console.warn('Supabase schedule write skipped:', error.message);
+      }
+    }
+    if (planAnalysesByStudent && typeof planAnalysesByStudent === 'object' && !Array.isArray(planAnalysesByStudent)) {
+      await supabase.from('teaching_materials').delete().eq('module_type', 'plan_analysis');
+      const analysisRows = Object.entries(planAnalysesByStudent).map(([childId, analysis]) => ({
+        id: stableUuid('plan-analysis', childId),
+        child_id: stableUuid('child', childId),
+        author_id: '',
+        module_type: 'plan_analysis',
+        title: String(analysis?.fileName || `Analiza ${childId}`),
+        data: { childId, analysis },
+        created_at: String(analysis?.analyzedAt || new Date().toISOString())
+      }));
+      if (analysisRows.length) {
+        const { error } = await supabase.from('teaching_materials').upsert(analysisRows, { onConflict: 'id' });
+        if (error) console.warn('Supabase plan analysis write skipped:', error.message);
+      }
+    }
+    return true;
+  } catch (error) {
+    console.warn('Supabase teaching materials write failed:', error.message);
+    return false;
+  }
+}
+
+async function readAppStateFromStructuredTables() {
+  const [students, progressByStudent, reportsByStudent, teachingState] = await Promise.all([
+    readChildrenFromSupabase(),
+    readProgressFromSupabase(),
+    readReportsFromSupabase(),
+    readTeachingMaterialsStateFromSupabase()
+  ]);
+  return {
+    students,
+    progressByStudent,
+    reportsByStudent,
+    scheduleByStudent: teachingState.scheduleByStudent,
+    teachingMaterials: teachingState.teachingMaterials,
+    planAnalysesByStudent: teachingState.planAnalysesByStudent
+  };
+}
+
+async function writeAppStateToStructuredTables(incoming = {}) {
+  const tasks = [];
+  if (Object.prototype.hasOwnProperty.call(incoming, 'students')) tasks.push(writeChildrenToSupabase(Array.isArray(incoming.students) ? incoming.students : []));
+  if (Object.prototype.hasOwnProperty.call(incoming, 'progressByStudent')) tasks.push(writeProgressToSupabase(incoming.progressByStudent || {}));
+  if (Object.prototype.hasOwnProperty.call(incoming, 'reportsByStudent')) tasks.push(writeReportsToSupabase(incoming.reportsByStudent || {}));
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, 'teachingMaterials')
+    || Object.prototype.hasOwnProperty.call(incoming, 'scheduleByStudent')
+    || Object.prototype.hasOwnProperty.call(incoming, 'planAnalysesByStudent')
+  ) {
+    tasks.push(writeTeachingMaterialsStateToSupabase({
+      teachingMaterials: Object.prototype.hasOwnProperty.call(incoming, 'teachingMaterials') ? incoming.teachingMaterials : undefined,
+      scheduleByStudent: Object.prototype.hasOwnProperty.call(incoming, 'scheduleByStudent') ? incoming.scheduleByStudent : undefined,
+      planAnalysesByStudent: Object.prototype.hasOwnProperty.call(incoming, 'planAnalysesByStudent') ? incoming.planAnalysesByStudent : undefined
+    }));
+  }
+  await Promise.all(tasks);
+}
+
+app.get('/api/app-state', async (_req, res) => {
+  res.json({ state: await readAppState() });
 });
 
-app.put('/api/app-state', (req, res) => {
+app.put('/api/app-state', async (req, res) => {
   const incoming = req.body?.state;
   if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
     return res.status(400).json({ error: 'Gjendja e aplikacionit nuk është e vlefshme.' });
   }
-  const allowedKeys = ['students', 'progressByStudent', 'reportsByStudent', 'scheduleByStudent', 'teachingMaterials'];
-  const previous = readAppState();
+  const allowedKeys = ['students', 'progressByStudent', 'reportsByStudent', 'scheduleByStudent', 'teachingMaterials', 'planAnalysesByStudent'];
+  const previous = await readAppState();
   const next = { ...previous };
   allowedKeys.forEach((key) => {
     if (Object.prototype.hasOwnProperty.call(incoming, key)) next[key] = incoming[key];
   });
   next.updatedAt = new Date().toISOString();
-  writeAppState(next);
+  await writeAppState(next);
   res.json({ saved: true, updatedAt: next.updatedAt });
 });
 
@@ -386,11 +1016,12 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/accounts', async (req, res) => {
   const accountType = String(req.body?.accountType || '').trim();
   const bucket = ['teachers', 'parents', 'admins'].includes(accountType) ? accountType : '';
+  const role = roleFromBucket(bucket);
   const name = String(req.body?.name || '').trim();
   const username = String(req.body?.username || '').trim().toLocaleLowerCase('sq-AL');
   const email = String(req.body?.email || '').trim();
   const password = String(req.body?.password || '');
-  if (!bucket || !name || !username || !email || password.length < 6) {
+  if (!bucket || !role || !name || !username || !email || password.length < 6) {
     return res.status(400).json({ error: 'Të gjitha fushat e llogarisë janë të detyrueshme.' });
   }
   const roleData = await getRoleDataStore();
@@ -399,7 +1030,7 @@ app.post('/api/accounts', async (req, res) => {
     return res.status(409).json({ error: 'Ky username ekziston tashmë.' });
   }
   roleData[bucket].push(normalizeStoredAccount({
-    id: `${bucket}-${Date.now()}`,
+    id: publicAccountIdForRoleUsername(role, username),
     name,
     username,
     email,
@@ -422,36 +1053,23 @@ app.delete('/api/accounts/:accountType/:accountId', async (req, res) => {
   res.json({ roleData: toPublicRoleData(saved) });
 });
 
-function readCalendarEvents() {
-  try {
-    return JSON.parse(fs.readFileSync(CALENDAR_STORE, 'utf8'));
-  } catch {
-    return [];
-  }
-}
-
-function writeCalendarEvents(events) {
-  fs.mkdirSync(path.dirname(CALENDAR_STORE), { recursive: true });
-  fs.writeFileSync(CALENDAR_STORE, JSON.stringify(events, null, 2));
-}
-
-app.get('/api/calendar-events', (req, res) => {
+app.get('/api/calendar-events', async (req, res) => {
   const teacherId = String(req.query.teacherId || '').trim();
   if (!teacherId) return res.status(400).json({ error: 'Mungon identifikuesi i mësueses.' });
-  const events = readCalendarEvents()
+  const events = (await readCalendarEvents())
     .filter((event) => event.teacherId === teacherId)
     .sort((a, b) => `${a.date} ${a.time || ''}`.localeCompare(`${b.date} ${b.time || ''}`));
   res.json({ events });
 });
 
-app.post('/api/calendar-events', (req, res) => {
+app.post('/api/calendar-events', async (req, res) => {
   const teacherId = String(req.body?.teacherId || '').trim();
   const date = String(req.body?.date || '').trim();
   const title = String(req.body?.title || '').trim();
   if (!teacherId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !title) {
     return res.status(400).json({ error: 'Mësuesja, data dhe titulli janë të detyrueshme.' });
   }
-  const events = readCalendarEvents();
+  const events = await readCalendarEvents();
   const requestedId = String(req.body?.id || '').trim();
   const existingIndex = events.findIndex((event) => event.id === requestedId && event.teacherId === teacherId);
   const calendarEvent = {
@@ -467,21 +1085,21 @@ app.post('/api/calendar-events', (req, res) => {
   };
   if (existingIndex >= 0) events[existingIndex] = calendarEvent;
   else events.push(calendarEvent);
-  writeCalendarEvents(events);
+  await writeCalendarEvents(events);
   res.json({ event: calendarEvent });
 });
 
-app.post('/api/calendar-events/sync-birthday', (req, res) => {
+app.post('/api/calendar-events/sync-birthday', async (req, res) => {
   const studentId = String(req.body?.studentId || '').trim();
   const teacherId = String(req.body?.teacherId || '').trim();
   const studentName = String(req.body?.studentName || '').trim();
   const birthday = String(req.body?.birthday || '').trim();
   if (!studentId) return res.status(400).json({ error: 'Mungon identifikuesi i nxënësit.' });
   const sourceKey = `birthday:${studentId}`;
-  const events = readCalendarEvents().filter((event) => event.sourceKey !== sourceKey);
+  const events = (await readCalendarEvents()).filter((event) => event.sourceKey !== sourceKey);
   const match = birthday.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!teacherId || !studentName || !match) {
-    writeCalendarEvents(events);
+    await writeCalendarEvents(events);
     return res.json({ event: null });
   }
   const [, day, month] = match;
@@ -502,16 +1120,16 @@ app.post('/api/calendar-events/sync-birthday', (req, res) => {
     updatedAt: new Date().toISOString()
   };
   events.push(birthdayEvent);
-  writeCalendarEvents(events);
+  await writeCalendarEvents(events);
   res.json({ event: birthdayEvent });
 });
 
-app.delete('/api/calendar-events/:id', (req, res) => {
+app.delete('/api/calendar-events/:id', async (req, res) => {
   const teacherId = String(req.query.teacherId || '').trim();
-  const events = readCalendarEvents();
+  const events = await readCalendarEvents();
   const nextEvents = events.filter((event) => !(event.id === req.params.id && event.teacherId === teacherId));
   if (nextEvents.length === events.length) return res.status(404).json({ error: 'Ngjarja nuk u gjet.' });
-  writeCalendarEvents(nextEvents);
+  await writeCalendarEvents(nextEvents);
   res.json({ success: true });
 });
 
@@ -1033,7 +1651,13 @@ app.post('/api/generate-module-content', async (req, res) => {
     const resourceType = RESOURCE_TYPE_BY_MODULE[moduleType];
     if (resourceType) {
       const cached = await getCachedResource(resourceType, topic);
-      if (cached) return res.json(cached);
+      if (cached) {
+        try {
+          return res.json(validateFrozenModule(moduleType, cached));
+        } catch (error) {
+          console.warn(`Cached ${resourceType} payload ignored:`, error.message);
+        }
+      }
     }
     const childName = String(req.body?.childName || 'Fëmija').trim().slice(0, 80);
     const childDescription = String(req.body?.childDescription || '').trim().slice(0, 1000);
@@ -1067,7 +1691,14 @@ app.post('/api/generate-aac-board', async (req, res) => {
     const goal = typeof req.body?.goal === 'string' ? req.body.goal.trim() : '';
     if (!goal) return res.status(400).json({ error: 'Qëllimi mësimor është i detyrueshëm.' });
     const cached = await getCachedResource('communication_board', goal);
-    if (cached) return res.json(cached);
+    if (cached) {
+      try {
+        if (!Array.isArray(cached?.tabela_komunikimit?.kategorite)) throw new Error('Tabela AAC nuk përmban kategori të vlefshme.');
+        return res.json(ensureGoalCoreVocabulary(cached, goal));
+      } catch (error) {
+        console.warn('Cached communication_board payload ignored:', error.message);
+      }
+    }
 
     const completion = await openaiAac.chat.completions.create({
       model: FROZEN_TEXT_MODEL,

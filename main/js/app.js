@@ -438,12 +438,15 @@ async function init() {
   state.reportsByStudent = savedReports && typeof savedReports === "object" && !Array.isArray(savedReports)
     ? savedReports
     : Object.fromEntries(state.students.map((student) => [student.id, []]));
-  state.planAnalysesByStudent = readStoredObject("atlas-plan-analyses");
+  state.planAnalysesByStudent = persistent.planAnalysesByStudent && typeof persistent.planAnalysesByStudent === "object" && !Array.isArray(persistent.planAnalysesByStudent)
+    ? persistent.planAnalysesByStudent
+    : readStoredObject("atlas-plan-analyses");
   const storedTeachingMaterials = safeLocalJson("atlas-teaching-materials", state.teachingMaterials);
-  state.teachingMaterials = Array.isArray(persistent.teachingMaterials)
-    ? persistent.teachingMaterials
-    : Array.isArray(storedTeachingMaterials)
-      ? storedTeachingMaterials
+  const serverTeachingMaterials = Array.isArray(persistent.teachingMaterials) ? persistent.teachingMaterials : null;
+  state.teachingMaterials = Array.isArray(storedTeachingMaterials) && storedTeachingMaterials.length
+    ? storedTeachingMaterials
+    : Array.isArray(serverTeachingMaterials)
+      ? serverTeachingMaterials
       : state.teachingMaterials;
   refreshDerivedState();
   state.activity = [
@@ -544,6 +547,7 @@ function persistReports() {
 
 function persistPlanAnalyses() {
   localStorage.setItem("atlas-plan-analyses", JSON.stringify(state.planAnalysesByStudent));
+  void persistServerState({ planAnalysesByStudent: state.planAnalysesByStudent });
 }
 
 function handleLiveDataUpdate(event) {
@@ -1150,6 +1154,8 @@ function renderStudents() {
         <div class="badge-row">
           <span class="badge">Mosha: ${studentAgeLabel(student.age)}</span>
           <span class="badge">Ditëlindja: ${student.birthday}</span>
+          <span class="badge">Adresa: ${escapeHtml(student.address || "Nuk është shënuar")}</span>
+          <span class="badge">Kontakti: ${escapeHtml(student.contactNumber || "Nuk është shënuar")}</span>
           <span class="badge">Objektiva aktuale: ${student.immediateObjectives.length}</span>
           <span class="badge">${evaluationLabel(student.evaluationType)}</span>
         </div>
@@ -1243,6 +1249,8 @@ function openAddStudentModal() {
         ${field("Emri i plotë", `<input name="name" placeholder="P.sh. Arta Krasniqi" maxlength="80" required />`)}
         ${field("Mosha (opsionale)", `<input name="age" type="number" min="3" max="18" />`)}
         ${field("Ditëlindja (opsionale)", `<input name="birthday" type="text" inputmode="numeric" placeholder="dd/mm/yyyy" pattern="(?:0[1-9]|[12][0-9]|3[01])/(?:0[1-9]|1[0-2])/[0-9]{4}" />`)}
+        ${field("Adresa", `<input name="address" maxlength="160" placeholder="P.sh. Rr. Dëshmorët e Kombit, Prishtinë" />`)}
+        ${field("Numri kontaktues", `<input name="contactNumber" inputmode="tel" maxlength="40" placeholder="P.sh. 044 123 456" />`)}
       </div>
       <fieldset class="animal-picker">
         <legend>Zgjidh ikonën e kafshës</legend>
@@ -1291,6 +1299,8 @@ function openEditStudentModal(studentId) {
         ${field("Emri i plotë", `<input name="name" value="${escapeHtml(student.name)}" maxlength="80" required />`)}
         ${field("Mosha (opsionale)", `<input name="age" type="number" min="3" max="18" value="${Number.isFinite(Number(student.age)) ? student.age : ""}" />`)}
         ${field("Ditëlindja (opsionale)", `<input name="birthday" type="text" inputmode="numeric" value="${birthday}" placeholder="dd/mm/yyyy" pattern="(?:0[1-9]|[12][0-9]|3[01])/(?:0[1-9]|1[0-2])/[0-9]{4}" />`)}
+        ${field("Adresa", `<input name="address" value="${escapeHtml(student.address || "")}" maxlength="160" />`)}
+        ${field("Numri kontaktues", `<input name="contactNumber" inputmode="tel" value="${escapeHtml(student.contactNumber || "")}" maxlength="40" />`)}
       </div>
       <fieldset class="animal-picker"><legend>Ikona e kafshës</legend><div class="animal-choice-grid">
         ${animals.map(([value, label]) => `<label class="animal-choice"><input type="radio" name="animal" value="${value}" ${student.animal === value ? "checked" : ""} /><span class="animal-avatar" aria-hidden="true">${animalIcon(value)}</span><span>${label}</span></label>`).join("")}
@@ -1316,6 +1326,8 @@ function updateStudentProfile(formData) {
   student.initials = initials(student.name);
   student.age = Number(formData.get("age")) || "Nuk është shënuar";
   student.birthday = formatBirthday(String(formData.get("birthday") || ""));
+  student.address = String(formData.get("address") || "").trim() || "Nuk është shënuar";
+  student.contactNumber = String(formData.get("contactNumber") || "").trim() || "Nuk është shënuar";
   student.animal = String(formData.get("animal") || student.animal);
   student.evaluationType = String(formData.get("evaluationType") || "STANDARD");
   student.teacherId = String(formData.get("teacherId") || "");
@@ -1346,6 +1358,8 @@ function addStudentProfile(formData) {
     initials: initials(String(formData.get("name") || "Nxënës")),
     age: Number(formData.get("age")) || "Nuk është shënuar",
     birthday: formatBirthday(String(formData.get("birthday") || "")),
+    address: String(formData.get("address") || "").trim() || "Nuk është shënuar",
+    contactNumber: String(formData.get("contactNumber") || "").trim() || "Nuk është shënuar",
     animal: String(formData.get("animal") || "bear"),
     evaluationType: String(formData.get("evaluationType") || "STANDARD"),
     teacherId: String(formData.get("teacherId") || ""),
@@ -1558,7 +1572,6 @@ async function addTeachingMaterial(form, formData) {
 function persistTeachingMaterials() {
   const permanentMaterials = state.teachingMaterials.filter((item) => !item.temporary);
   safeLocalSet("atlas-teaching-materials", JSON.stringify(permanentMaterials));
-  void persistServerState({ teachingMaterials: permanentMaterials });
 }
 
 function removeTeachingMaterial(materialId) {

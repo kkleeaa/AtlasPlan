@@ -14,6 +14,8 @@ export class Student {
     this.nickname = data.nickname || this.name;
     this.initials = data.initials || "N.X.";
     this.birthday = data.birthday || "Nuk është shënuar";
+    this.address = data.address || "Nuk është shënuar";
+    this.contactNumber = data.contactNumber || data.phone || "Nuk është shënuar";
     this.animal = data.animal || "bear";
     this.evaluationType = ["STANDARD", "SPECIAL_ACTIVITIES"].includes(data.evaluationType) ? data.evaluationType : "STANDARD";
     this.teacherId = data.teacherId || "";
