@@ -1,5 +1,7 @@
-export function renderDashboard(state) {
+export function renderDashboard(state, session = {}) {
   const student = state.currentStudent;
+  const teacherName = String(session.activeUser?.name || "Mësuese").trim();
+  const studentCount = Number.isFinite(Number(session.visibleStudentCount)) ? Number(session.visibleStudentCount) : state.students.length;
   return `
     <section class="hero-panel dashboard-welcome fade-in">
       <div class="dashboard-welcome-copy">
@@ -11,11 +13,11 @@ export function renderDashboard(state) {
               <path class="wave-motion" d="M8.7 13.2 5.5 10M11.8 8.6 10.7 4.3M7.2 18.5H2.8" />
             </svg>
           </span>
-          <h2>Mirë se u kthyet, mësuese Carter</h2>
+          <h2>Mirë se u kthyet, ${escapeDashboardText(teacherName)}</h2>
         </div>
         <p>Filloni me hapat e sotëm!</p>
       </div>
-      <div class="dashboard-teacher-avatar" role="img" aria-label="Profili standard i mësueses Carter">
+      <div class="dashboard-teacher-avatar" role="img" aria-label="Profili i mësueses">
         <svg viewBox="0 0 64 64" aria-hidden="true">
           <circle class="teacher-avatar-bg" cx="32" cy="32" r="30" />
           <path class="teacher-hair" d="M18 28c0-11 6.4-18 14.4-18 9.2 0 15.6 7.6 14.2 19.2-3.1-2.1-5.8-5.4-7.1-9.2-4 5.2-10.7 8.2-21.5 8Z" />
@@ -30,7 +32,7 @@ export function renderDashboard(state) {
       </div>
     </section>
     <section class="stats-grid dashboard-summary-grid">
-      ${statCard("Profile aktive", state.students.length, "Nxënës të regjistruar", "profiles")}
+      ${statCard("Profile aktive", studentCount, "Nxënës të regjistruar", "profiles")}
       ${importantDatesCard(state.calendarEvents || [])}
     </section>
     <section class="dashboard-grid">

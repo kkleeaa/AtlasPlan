@@ -55,6 +55,17 @@ function safeLocalSet(key, value) {
   }
 }
 
+function normalizeReportsByStudentMap(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  return Object.fromEntries(Object.entries(input).map(([studentId, value]) => {
+    if (Array.isArray(value)) {
+      const latest = value[value.length - 1];
+      return [studentId, latest && typeof latest === "object" && !Array.isArray(latest) ? latest : {}];
+    }
+    return [studentId, value && typeof value === "object" && !Array.isArray(value) ? value : {}];
+  }));
+}
+
 let persistentStateCache = null;
 
 async function loadPersistentState() {
@@ -152,7 +163,7 @@ const defaultRoleData = {
 const legacyRolePasswords = Object.freeze({
   teachers: "Atlas123",
   parents: "Atlas123",
-  admins: "Atlas123"
+  admins: "QendraPerparimi123!"
 });
 
 function normalizeAccount(account, fallbackRoleKey, fallbackIndex = 0) {
@@ -287,6 +298,45 @@ function createInitialSchedule() {
   })));
 }
 
+function buildContextualActivityFeed() {
+  const students = visibleStudents();
+  const current = students.find((student) => student.id === state.currentStudent?.id) || students[0] || null;
+  if (!current) {
+    return [
+      { title: "Nuk ka profile të caktuara", detail: "Administratori duhet të lidhë të paktën një fëmijë me këtë llogari." },
+      { title: "Gati për fillim", detail: "Sapo të caktohet një profil, këtu do të shfaqen përditësimet reale të punës." }
+    ];
+  }
+  const progressCount = Array.isArray(state.progressByStudent?.[current.id]) ? state.progressByStudent[current.id].length : 0;
+  const reportValue = state.reportsByStudent?.[current.id];
+  const hasReport = Array.isArray(reportValue) ? reportValue.length > 0 : Boolean(reportValue && Object.keys(reportValue).length);
+  return [
+    { title: "Profili aktiv u ngarkua", detail: `Po punoni me profilin e ${current.name}.` },
+    progressCount
+      ? { title: "Ndjekja e progresit është aktive", detail: `Janë regjistruar ${progressCount} vëzhgime për ${current.name}.` }
+      : { title: "Ndjekja e progresit është gati", detail: `Ende nuk ka vëzhgime të regjistruara për ${current.name}.` },
+    hasReport
+      ? { title: "Raporti i prindit është ruajtur", detail: `Ekziston të paktën një raport i lidhur me ${current.name}.` }
+      : { title: "Raporti i prindit nuk është krijuar ende", detail: `Kur të ruani raportin e parë për ${current.name}, ai do të shfaqet këtu.` }
+  ];
+}
+
+function syncContextualActivityFeed(force = false) {
+  const genericTitles = new Set([
+    "Profili shembull u ngarkua",
+    "Ndjekja e progresit është aktive",
+    "Profili aktiv u ngarkua",
+    "Ndjekja e progresit është gati",
+    "Raporti i prindit është ruajtur",
+    "Raporti i prindit nuk është krijuar ende",
+    "Nuk ka profile të caktuara",
+    "Gati për fillim"
+  ]);
+  if (force || !Array.isArray(state.activity) || !state.activity.length || state.activity.every((item) => genericTitles.has(String(item?.title || "")))) {
+    state.activity = buildContextualActivityFeed();
+  }
+}
+
 const root = document.getElementById("viewRoot");
 const navList = document.getElementById("navList");
 const pageTitle = document.getElementById("pageTitle");
@@ -361,6 +411,7 @@ async function handleRoleLogin(event) {
         const firstVisibleStudent = visibleStudents()[0] || null;
         if (firstVisibleStudent) activateStudent(firstVisibleStudent);
         else state.currentStudent = null;
+        syncContextualActivityFeed(true);
         renderNavigation();
         navigate(getDefaultRouteForRole(role, Boolean(firstVisibleStudent)));
         void loadCalendarEvents();
@@ -421,7 +472,7 @@ async function init() {
     student.parentId ||= index === 0 ? "parent-demo" : "";
   });
   safeLocalSet("atlas-students", JSON.stringify(state.students));
-  state.currentStudent = state.students[0];
+  state.currentStudent = visibleStudents()[0] || state.students[0] || null;
   const savedSchedules = persistent.scheduleByStudent || safeLocalJson("atlas-schedules", null);
   state.scheduleByStudent = savedSchedules && typeof savedSchedules === "object" && !Array.isArray(savedSchedules) ? savedSchedules : {};
   state.students.forEach((student) => getStudentSchedule(student.id));
@@ -436,8 +487,8 @@ async function init() {
   persistProgress();
   const savedReports = persistent.reportsByStudent || safeLocalJson("atlas-reports", readStoredObject("atlas-parent-reports"));
   state.reportsByStudent = savedReports && typeof savedReports === "object" && !Array.isArray(savedReports)
-    ? savedReports
-    : Object.fromEntries(state.students.map((student) => [student.id, []]));
+    ? normalizeReportsByStudentMap(savedReports)
+    : Object.fromEntries(state.students.map((student) => [student.id, {}]));
   state.planAnalysesByStudent = persistent.planAnalysesByStudent && typeof persistent.planAnalysesByStudent === "object" && !Array.isArray(persistent.planAnalysesByStudent)
     ? persistent.planAnalysesByStudent
     : readStoredObject("atlas-plan-analyses");
@@ -449,10 +500,7 @@ async function init() {
       ? serverTeachingMaterials
       : state.teachingMaterials;
   refreshDerivedState();
-  state.activity = [
-    { title: "Profili shembull u ngarkua", detail: `Plani mbështetës për ${state.currentStudent.name} është gati.` },
-    { title: "Ndjekja e progresit është aktive", detail: "Janë gati tri vëzhgime shembull." }
-  ];
+  syncContextualActivityFeed(true);
   state.chatMessages = [
     {
       role: "ai",
@@ -543,6 +591,7 @@ function readStoredObject(key) {
 
 function persistReports() {
   localStorage.setItem("atlas-parent-reports", JSON.stringify(state.reportsByStudent));
+  void persistServerState({ reportsByStudent: state.reportsByStudent });
 }
 
 function persistPlanAnalyses() {
@@ -716,6 +765,7 @@ function activateStudent(student) {
   state.currentStudent = student;
   state.progressEntries = getStudentProgress(student.id);
   refreshDerivedState();
+  syncContextualActivityFeed();
 }
 
 function openReportPreview(studentId) {
@@ -959,6 +1009,11 @@ async function handleSubmit(event) {
   if (event.target.id === "calendarEventForm") {
     await saveCalendarEvent(new FormData(event.target));
   }
+  if (event.target.id === "scheduleGoalAddForm") {
+    event.preventDefault();
+    addScheduleGoal(new FormData(event.target), event.target);
+    return;
+  }
   if (event.target.id === "addStudentForm") {
     if (activeRole !== "admin") return toast("Vetëm administratori mund të shtojë fëmijë.");
     addStudentProfile(new FormData(event.target));
@@ -1030,9 +1085,14 @@ function navigate(route, options = {}) {
 
 function renderRoute(route) {
   refreshDerivedState();
+  const dashboardSession = {
+    activeRole,
+    activeUser,
+    visibleStudentCount: visibleStudents().length
+  };
   const renderers = {
     admin: renderAdmin,
-    dashboard: () => renderDashboard(state),
+    dashboard: () => renderDashboard(state, dashboardSession),
     students: renderStudents,
     upload: renderUpload,
     tools: renderTools,
@@ -1043,7 +1103,7 @@ function renderRoute(route) {
     coach: renderCoach,
     settings: renderSettings
   };
-  return renderers[route]?.() || renderDashboard(state);
+  return renderers[route]?.() || renderDashboard(state, dashboardSession);
 }
 
 function visibleStudents() {
@@ -1085,7 +1145,7 @@ function renderAdmin() {
         <p class="admin-email-note">Përdoruesi hyn me username dhe fjalëkalimin që caktoni këtu.</p>
       </form>
       <section class="glass-card"><p class="eyebrow">Profile aktive</p><h2>Mësuesit dhe prindërit</h2>
-        ${[...roleData.teachers.map((x) => ({...x,type:"teachers"})), ...roleData.parents.map((x) => ({...x,type:"parents"}))].map((person) => `<div class="admin-person-row"><span><strong>${escapeHtml(person.name)}</strong><small>${escapeHtml(person.username || "")}</small></span><button class="danger-button" data-action="delete-account" data-account-type="${person.type}" data-account-id="${person.id}">Fshi</button></div>`).join("")}
+        ${[...roleData.teachers.map((x) => ({...x,type:"teachers",roleLabel:"Mësues"})), ...roleData.parents.map((x) => ({...x,type:"parents",roleLabel:"Prind"}))].map((person) => `<div class="admin-person-row"><span><strong>${escapeHtml(person.name)}</strong><small>${escapeHtml(person.roleLabel)} · ${escapeHtml(person.username || "")}</small></span><button class="danger-button" data-action="delete-account" data-account-type="${person.type}" data-account-id="${person.id}">Fshi</button></div>`).join("")}
       </section>
     </section>
     <section class="glass-card"><div class="card-header"><div><p class="eyebrow">Lidhjet</p><h2>Cakto mësuesin dhe prindin për çdo fëmijë</h2></div><button class="primary-button" data-action="open-add-student">+ Shto fëmijë</button></div>
@@ -1165,7 +1225,7 @@ function renderStudents() {
       ${activeRole === "teacher" ? renderEditableStudentFields(student) : `
         ${profileCard("Pikat e forta", student.strengths)}
         ${profileCard("Sfidat", student.challenges)}
-        ${profileCard("Përforcuesit e preferuar", student.reinforcers)}
+        ${profileCard("Aktivitetet që e motivojnë më shumë", student.reinforcers)}
         ${profileCard("Alergjitë", student.allergies)}
         ${profileCard("Metodat e komunikimit", [student.communication, ...student.speechGoals])}
       `}
@@ -1181,15 +1241,6 @@ function renderStudents() {
             <div><strong>${index < student.immediateObjectives.length ? "I menjëhershëm" : index < student.immediateObjectives.length + student.longTermObjectives.length ? "Afatgjatë" : "I përfunduar"}</strong><p>${goal}</p></div>
           </div>
         `).join("")}
-      </div>
-    </section>
-    <section class="glass-card">
-      <div class="card-header">
-        <h3>Mjete të rekomanduara</h3>
-        <button class="text-button" data-route="tools">Hap Bibliotekën e Materialeve</button>
-      </div>
-      <div class="recommendation-row">
-        ${state.recommendations.slice(0, 3).map((tool) => `<button class="mini-tool" data-tool-id="${tool.id}" data-action="tool-details"><span>${tool.image}</span><strong>${tool.title}</strong><small>${tool.notes}</small></button>`).join("")}
       </div>
     </section>
   `;
@@ -1380,7 +1431,7 @@ function addStudentProfile(formData) {
   syncStudentBirthdayEvent(student);
   state.scheduleByStudent[student.id] = createInitialSchedule();
   state.progressByStudent[student.id] = [];
-  state.reportsByStudent[student.id] = [];
+  state.reportsByStudent[student.id] = {};
   activateStudent(student);
   state.studentProfileOpen = false;
   state.activity.unshift({ title: "U shtua profil i ri", detail: `Profili i ${student.name} u krijua.` });
@@ -1426,12 +1477,19 @@ function profileCard(title, items) {
 
 function renderEditableStudentFields(student) {
   const rows = (items) => escapeHtml((items || []).join("\n"));
+  const birthday = /^\d{2}\/\d{2}\/\d{4}$/.test(student.birthday) ? student.birthday : "";
   return `
     <form id="studentProfileForm" class="student-profile-edit-form">
-      <p class="profile-edit-note">Ndryshimet ruhen në profil sapo të shtypni “Ruaj ndryshimet”. Shkruani një element për çdo rresht.</p>
+      <p class="profile-edit-note">Mësuesi mund të përditësojë të dhënat e profilit, por nuk mund të krijojë profile të reja. Shkruani një element për çdo rresht aty ku duhet.</p>
+      ${field("Emri i plotë", `<input name="name" maxlength="80" value="${escapeHtml(student.name)}" required />`)}
+      ${field("Mosha", `<input name="age" type="number" min="3" max="18" value="${Number.isFinite(Number(student.age)) ? student.age : ""}" />`)}
+      ${field("Ditëlindja", `<input name="birthday" type="text" inputmode="numeric" value="${birthday}" placeholder="dd/mm/yyyy" pattern="(?:0[1-9]|[12][0-9]|3[01])/(?:0[1-9]|1[0-2])/[0-9]{4}" />`)}
+      ${field("Adresa", `<input name="address" maxlength="160" value="${escapeHtml(student.address || "")}" />`)}
+      ${field("Numri kontaktues", `<input name="contactNumber" inputmode="tel" maxlength="40" value="${escapeHtml(student.contactNumber || "")}" />`)}
+      ${field("Objektivat aktuale", `<textarea name="objectives" rows="4">${rows(student.immediateObjectives)}</textarea>`)}
       ${field("Pikat e forta", `<textarea name="strengths" rows="4" required>${rows(student.strengths)}</textarea>`)}
       ${field("Sfidat", `<textarea name="challenges" rows="4" required>${rows(student.challenges)}</textarea>`)}
-      ${field("Përforcuesit e preferuar", `<textarea name="reinforcers" rows="4" required>${rows(student.reinforcers)}</textarea>`)}
+      ${field("Aktivitetet që e motivojnë më shumë", `<textarea name="reinforcers" rows="4" required>${rows(student.reinforcers)}</textarea>`)}
       ${field("Alergjitë", `<textarea name="allergies" rows="4" required>${rows(student.allergies)}</textarea>`)}
       ${field("Metodat e komunikimit", `<textarea name="communicationMethods" rows="4" required>${rows([student.communication, ...student.speechGoals])}</textarea>`)}
       <button class="primary-button" type="submit">Ruaj ndryshimet</button>
@@ -1450,13 +1508,23 @@ function saveStudentProfile(formData) {
   }
   const student = state.currentStudent;
   const communicationMethods = linesFrom(formData, "communicationMethods");
+  student.name = String(formData.get("name") || student.name).trim() || student.name;
+  student.nickname = student.name;
+  student.initials = initials(student.name);
+  student.age = Number(formData.get("age")) || "Nuk është shënuar";
+  student.birthday = formatBirthday(String(formData.get("birthday") || ""));
+  student.address = String(formData.get("address") || "").trim() || "Nuk është shënuar";
+  student.contactNumber = String(formData.get("contactNumber") || "").trim() || "Nuk është shënuar";
+  student.immediateObjectives = linesFrom(formData, "objectives");
   student.strengths = linesFrom(formData, "strengths");
   student.challenges = linesFrom(formData, "challenges");
   student.reinforcers = linesFrom(formData, "reinforcers");
   student.allergies = linesFrom(formData, "allergies");
+  if (!student.allergies.length) student.allergies = ["Nuk janë shënuar alergji"];
   student.communication = communicationMethods[0] || "Nuk është specifikuar";
   student.speechGoals = communicationMethods.slice(1);
   saveStudents();
+  syncStudentBirthdayEvent(student);
   refreshDerivedState();
   navigate("students", { keepStudentProfile: true });
   toast("Profili i nxënësit u ruajt.");
@@ -1706,6 +1774,10 @@ function renderSchedule() {
           <h3>Objektivat për t'u lidhur</h3>
           <p>Zvarriteni një objektiv te ora e dëshiruar.</p>
         </div>
+        <form class="schedule-goal-add-form" id="scheduleGoalAddForm">
+          <input name="goal" maxlength="160" placeholder="Shkruaj një objektiv" aria-label="Objektiv i ri për orarin" />
+          <button class="secondary-button" type="submit">Shto objektiv</button>
+        </form>
         <div class="schedule-goal-chips">
           ${goals.map((goal, index) => `<button class="schedule-goal-chip" type="button" draggable="true" data-schedule-goal="${escapeHtml(goal)}"><span aria-hidden="true">★</span>${escapeHtml(goal)}</button>`).join("")}
         </div>
@@ -1972,7 +2044,6 @@ function openScheduleSlotEditor(slotId) {
   if (activeRole !== "teacher") return;
   const slot = findScheduleSlot(slotId);
   if (!slot) return;
-  const goals = state.currentStudent.immediateObjectives;
   openModal("Ndryshim i shpejtë", "Ndrysho orën", `
     <form id="scheduleSlotForm" class="schedule-slot-form">
       <input type="hidden" name="slotId" value="${slot.id}" />
@@ -1981,7 +2052,7 @@ function openScheduleSlotEditor(slotId) {
         ${field("Përfundimi", `<input type="time" name="end" value="${slot.end}" required />`)}
       </div>
       ${field("Lënda ose aktiviteti", `<input name="activity" value="${escapeHtml(slot.activity)}" required />`)}
-      ${field("Objektivi", `<select name="goal"><option value="">Pa objektiv të lidhur</option>${goals.map((goal) => `<option value="${escapeHtml(goal)}" ${goal === slot.goal ? "selected" : ""}>${escapeHtml(goal)}</option>`).join("")}</select>`)}
+      ${field("Objektivi", `<input name="goal" value="${escapeHtml(slot.goal || "")}" placeholder="Shkruaj objektivin e kësaj ore" />`)}
       <button class="primary-button" type="submit">Ruaj ndryshimet</button>
     </form>
   `);
@@ -1999,6 +2070,22 @@ function saveScheduleSlot(formData) {
   closeModal();
   navigate("schedules");
   toast("Ora u përditësua.");
+}
+
+function addScheduleGoal(formData, form) {
+  if (activeRole !== "teacher" || !state.currentStudent) return;
+  const goal = String(formData.get("goal") || "").trim();
+  if (!goal) return toast("Shkruani objektivin që dëshironi të shtoni.");
+  if (state.currentStudent.immediateObjectives.includes(goal)) {
+    form?.reset?.();
+    return toast("Ky objektiv ekziston tashmë.");
+  }
+  state.currentStudent.immediateObjectives.push(goal);
+  saveStudents();
+  refreshDerivedState();
+  navigate("schedules");
+  form?.reset?.();
+  toast("Objektivi u shtua dhe mund të zvarritet te ora e dëshiruar.");
 }
 
 function handleScheduleDragStart(event) {
@@ -2509,6 +2596,7 @@ function addProgressEntry(formData) {
   });
   entry.studentId = state.currentStudent.id;
   entry.studentName = state.currentStudent.name;
+  entry.authorId = activeUser?.id || state.currentStudent.teacherId || "teacher-demo";
   state.progressEntries.push(entry);
   persistProgress();
   state.activity.unshift({ title: "Rezultati u regjistrua", detail: `${entry.goal}: ${entry.result}` });
@@ -2521,10 +2609,12 @@ function renderParentReport() {
   const student = state.currentStudent;
   if (student) {
     const snapshot = { ...generateParentReport(student, state.progressEntries), generatedAt: new Date().toISOString() };
-    state.reportsByStudent[student.id] ||= [];
-    state.reportsByStudent[student.id].push(snapshot);
-    safeLocalSet("atlas-reports", JSON.stringify(state.reportsByStudent));
-    void persistServerState({ reportsByStudent: state.reportsByStudent });
+    state.reportsByStudent[student.id] = {
+      ...snapshot,
+      updatedAt: snapshot.generatedAt,
+      updatedBy: activeUser?.id || "teacher"
+    };
+    persistReports();
   }
   toast("Raporti për prindër u rifreskua nga të dhënat aktuale të progresit.");
   navigate("reports");

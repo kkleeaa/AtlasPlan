@@ -47,8 +47,8 @@ const FROZEN_TEMPERATURE = 0.1;
 const FROZEN_MODULE_PROMPTS = Object.freeze({
   sequences: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 1 SCHEMA. Break the requested activity into exactly 8 small, chronological, child-safe steps. Every sentence must use correct standard Albanian. Return exactly {"moduli_i_zgjedhur":"Moduli 1: Sekuencat me Fjalë","sekuencat_me_fjale":{"hapat":[{"hapi":1,"simboli":"emoji","teksti_shkurter":"Unë ..."}]}}. Key names, nesting, types, and module name are immutable. Any deviation is forbidden.`,
   flashcards: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 2 SCHEMA. Return exactly 8 concrete flashcards directly related to the requested activity. Albanian spelling and meaning must be exact. English visual descriptions must disambiguate every word. Return exactly {"moduli_i_zgjedhur":"Moduli 2: Flashcards","flashcards":[{"fjala":"...","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"one unambiguous object or action, no text"}]}. Key names, nesting, types, and module name are immutable. Any deviation is forbidden.`,
-  communication: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 3 SCHEMA. Build rich, activity-specific AAC vocabulary in correct standard Albanian. Use exactly five categories: Veprimet (8-10), Objektet (7-10), Përemrat (only unë, ti), Fjalë Lidhëse/Parafjalë (6-9), Ndajfoljet (3-4). Every word must directly relate to the requested routine and be genuinely usable by a child or teacher during that exact activity. Include the main action verb from the prompt whenever applicable, plus the place, materials, routine objects, and typical contextual items of that situation. Avoid generic unrelated words. Every visual description must unambiguously show the exact meaning; pastë means toothpaste in dental routines, never food. For beach bathing topics include words like lahem, plazhi, deti, rëra, topi, kremi i diellit, peshqiri, lodrat e rërës or kova when relevant. Return exactly {"moduli_i_zgjedhur":"Moduli 3: Tabela e Komunikimit","tabela_komunikimit":{"kategorite":[{"emri_kategorise":"Veprimet","opsionet":[{"fjala":"...","simboli":"","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"..."}]}]}}. Key names, nesting, and types are immutable. Any deviation is forbidden.`,
-  book: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 4 SCHEMA. Write exactly 10 chronological pages that teach only the requested activity, not a general daily routine. Each page must contain one short, grammatically correct Albanian sentence describing one clear visible action by the named child. The 10 pages must progress step by step from the beginning of the activity to the successful completion of that same activity. Keep the same main object, place, and task across the whole book whenever the activity requires it. Never switch to an unrelated object, location, instrument, toy, or routine. Never drift into a full-day story. If the activity is reading, every page must stay about reading letters, sounds, syllables, words, or a book. If the activity is sleeping, the final pages must keep the child in bed and asleep or nearly asleep. If the activity is piano, keep the child at the piano and never replace it with another instrument. Page 10 must clearly complete the requested activity. Return exactly {"moduli_i_zgjedhur":"Moduli 4: Social Story (Libri Virtual)","social_story_libri":{"titulli_tregimit":"...","faqet":[{"numri_faqes":1,"teksti_faqes":"Emri ..."}]}}. Key names, nesting, types, page count, and module name are immutable. Any deviation is forbidden.`
+  communication: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 3 SCHEMA. Build rich, activity-specific AAC vocabulary in correct, natural, standard Albanian for one exact requested routine only. The output must help a child and teacher build useful sentences for that same activity and must never drift into unrelated vocabulary. Use exactly five categories and keep these category names exactly: Veprimet (8-10), Objektet (7-10), Përemrat (only unë, ti), Fjalë Lidhëse/Parafjalë (6-9), Ndajfoljet (3-4). First silently imagine at least 7 short practical sentences a child or teacher would actually say during that routine, then extract the most useful words from those sentences. Every word must directly support the requested activity. Include the main action verb from the prompt whenever applicable, plus the place, materials, routine objects, and contextual helper words needed to build short sentences. Use grammatically correct Albanian, including correct letters like ë and ç. Avoid duplicates, near-duplicates, generic school words, or unrelated words. Prefer concrete usable forms that fit sentence building in AAC. For nouns and key routine words, prefer the form most useful on a board, and when a different case/form is clearly needed for that exact activity, include a closely related usable form only if it adds real sentence value. Every visual description must unambiguously show the exact meaning of the Albanian word. Do not confuse homonyms or similar-sounding words. Example: pastë in a dental routine means toothpaste, never pasta/food. For beach bathing topics include words like lahem, plazhi, deti, rëra, topi, kremi i diellit, peshqiri, lodrat e rërës or kova when relevant. For tooth brushing topics include words like dhëmbët, furça, pasta, goja, uji, rubineti, fërkoj, shpëlaj, marr, vendos, hap, mbyll, ngadalë, pastaj when relevant. Every option that represents an action, object, or place must have a simple visual concept that can be illustrated clearly for children; linking words and some adverbs may use simpler symbolic visuals but must still return a visual description string. Return exactly {"moduli_i_zgjedhur":"Moduli 3: Tabela e Komunikimit","tabela_komunikimit":{"kategorite":[{"emri_kategorise":"Veprimet","opsionet":[{"fjala":"...","simboli":"","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"..."}]}]}}. Key names, nesting, and types are immutable. Any deviation is forbidden.`,
+  book: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 4 SCHEMA. Write exactly 10 chronological pages that teach only the requested activity, not a general daily routine. Each page must contain one short, grammatically correct Albanian sentence describing one clear visible action by the named child. The 10 pages must progress step by step from the beginning of the activity to the successful completion of that same activity. Keep the same main object, place, and task across the whole book whenever the activity requires it. Never switch to an unrelated object, location, instrument, toy, or routine. Never drift into a full-day story. Use only natural, standard Albanian wording that a teacher would actually say to a child. The title and every page sentence must describe the activity with the correct Albanian verb-object structure. Never create ungrammatical phrases such as "lahet ne dhembe", "vishet ne kepuce", or other literal malformed constructions. If the requested activity is brushing teeth, use natural forms like "lan dhëmbët", "merr furçën", "vendos pastën", "fërkon dhëmbët", "shpëlan gojën". If the activity is hand washing, use forms like "lan duart" and never "lahet në duar". If the activity is reading, every page must stay about reading letters, sounds, syllables, words, or a book. If the activity is sleeping, the final pages must keep the child in bed and asleep or nearly asleep. If the activity is piano, keep the child at the piano and never replace it with another instrument. The book title must be short, natural Albanian and must name the exact activity correctly, for example "Ari lan dhëmbët", "Lina lan duart", "Noa lexon", not malformed or ambiguous phrasing. Page 10 must clearly complete the requested activity. Return exactly {"moduli_i_zgjedhur":"Moduli 4: Social Story (Libri Virtual)","social_story_libri":{"titulli_tregimit":"...","faqet":[{"numri_faqes":1,"teksti_faqes":"Emri ..."}]}}. Key names, nesting, types, page count, and module name are immutable. Any deviation is forbidden.`
 });
 
 const RESOURCE_TYPE_BY_MODULE = Object.freeze({
@@ -207,7 +207,7 @@ const BUCKET_TO_ROLE_TYPE = Object.freeze({ teachers: 'teacher', parents: 'paren
 const DEFAULT_ROLE_ACCOUNTS = Object.freeze({
   teachers: [{ id: 'teacher-demo', name: 'Mësuesja Demo', username: 'mesues', email: 'mesues@atlas.al', password: 'Atlas123' }],
   parents: [{ id: 'parent-demo', name: 'Prindi Demo', username: 'prind', email: 'prind@atlas.al', password: 'Atlas123' }],
-  admins: [{ id: 'admin-demo', name: 'Administratori', username: 'admin', email: 'admin@atlas.al', password: 'Atlas123' }]
+  admins: [{ id: 'admin-demo', name: 'Administratori', username: 'admin', email: 'admin@atlas.al', password: 'QendraPerparimi123!' }]
 });
 const DEMO_ACCOUNT_PUBLIC_IDS = Object.freeze({
   teacher: { mesues: 'teacher-demo' },
@@ -226,6 +226,11 @@ function parseJsonText(value, fallback) {
   } catch {
     return fallback;
   }
+}
+
+function isMissingColumnError(error, columnName) {
+  const message = String(error?.message || '');
+  return message.includes(`column ${columnName}`) || message.includes(`'${columnName}'`) || message.includes(`"${columnName}"`);
 }
 
 function birthdayToIso(value) {
@@ -282,6 +287,25 @@ function toPublicAccountFromProfile(profile = {}) {
     email: String(profile.email || '').trim(),
     createdAt: String(profile.created_at || new Date().toISOString())
   };
+}
+
+async function ensureDefaultProfilesSeeded() {
+  if (!supabase) return false;
+  try {
+    const rows = Object.entries(DEFAULT_ROLE_ACCOUNTS)
+      .flatMap(([bucket, accounts]) => accounts.map((account, index) => buildProfileRow(account, bucket, index)))
+      .filter(Boolean);
+    if (!rows.length) return true;
+    const { error } = await supabase.from('profiles').upsert(rows, { onConflict: 'username' });
+    if (error) {
+      console.warn('Supabase default profile seed skipped:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn('Supabase default profile seed failed:', error.message);
+    return false;
+  }
 }
 
 async function deleteAllRows(tableName) {
@@ -438,7 +462,12 @@ async function writeCalendarEvents(events) {
     try {
       await deleteAllRows('calendar_events');
       const rows = safeEvents.map((event, index) => ({
-        id: stableUuid('calendar-event', event?.id || `${event?.teacherId || ''}:${event?.date || ''}:${event?.title || index}`),
+        id: stableUuid(
+          'calendar-event',
+          event?.sourceKey
+            ? `${event.sourceKey}:${event?.teacherId || ''}`
+            : (event?.id || `${event?.teacherId || ''}:${event?.date || ''}:${event?.title || index}`)
+        ),
         title: String(event?.title || '').slice(0, 200),
         description: JSON.stringify(event),
         event_date: String(event?.date || '').slice(0, 10),
@@ -523,6 +552,7 @@ function toPublicRoleData(roleData = {}) {
 async function readRoleDataFromSupabase() {
   if (!supabase) return null;
   try {
+    await ensureDefaultProfilesSeeded();
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, role, username, email, password_hash, created_at')
@@ -538,16 +568,6 @@ async function readRoleDataFromSupabase() {
       && String(profile?.password_hash || '').trim()
     );
     if (!validProfiles.length) {
-      const seedRows = Object.entries(DEFAULT_ROLE_ACCOUNTS)
-        .flatMap(([bucket, accounts]) => accounts.map((account, index) => buildProfileRow(account, bucket, index)))
-        .filter(Boolean);
-      if (seedRows.length) {
-        const { error: seedError } = await supabase.from('profiles').upsert(seedRows, { onConflict: 'username' });
-        if (seedError) {
-          console.warn('Supabase account seed skipped:', seedError.message);
-          return normalizeRoleDataStore(buildDefaultRoleDataStore());
-        }
-      }
       return normalizeRoleDataStore(buildDefaultRoleDataStore());
     }
     return normalizeRoleDataStore(Object.values(ROLE_TYPE_TO_BUCKET).reduce((accumulator, bucket) => {
@@ -610,24 +630,48 @@ async function saveRoleDataStore(roleData) {
 }
 
 async function readProfilesIndex() {
-  if (!supabase) return { byDbId: new Map(), byPublicId: new Map() };
+  if (!supabase) return { byDbId: new Map(), byPublicId: new Map(), byUsername: new Map() };
   try {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, role, username')
       .order('created_at', { ascending: true });
-    if (error || !Array.isArray(data)) return { byDbId: new Map(), byPublicId: new Map() };
+    if (error || !Array.isArray(data)) return { byDbId: new Map(), byPublicId: new Map(), byUsername: new Map() };
     const byDbId = new Map();
     const byPublicId = new Map();
+    const byUsername = new Map();
     data.forEach((profile) => {
       const publicId = publicAccountIdForRoleUsername(profile.role, profile.username);
       byDbId.set(String(profile.id), publicId);
       byPublicId.set(publicId, String(profile.id));
+      byUsername.set(String(profile.username || '').trim().toLocaleLowerCase('sq-AL'), String(profile.id));
     });
-    return { byDbId, byPublicId };
+    return { byDbId, byPublicId, byUsername };
   } catch {
-    return { byDbId: new Map(), byPublicId: new Map() };
+    return { byDbId: new Map(), byPublicId: new Map(), byUsername: new Map() };
   }
+}
+
+function pickFallbackProfileDbId(profilesIndex, preferredRole = 'teacher') {
+  if (!profilesIndex?.byPublicId) return null;
+  const preferredPublicId = `${preferredRole}-demo`;
+  if (profilesIndex.byPublicId.has(preferredPublicId)) return profilesIndex.byPublicId.get(preferredPublicId);
+  const firstPreferred = [...profilesIndex.byPublicId.entries()].find(([publicId]) => publicId.startsWith(`${preferredRole}-`));
+  if (firstPreferred) return firstPreferred[1];
+  const firstAny = profilesIndex.byPublicId.values().next();
+  return firstAny.done ? null : firstAny.value;
+}
+
+function resolveProfileDbId(rawAuthorId, profilesIndex) {
+  const value = String(rawAuthorId || '').trim();
+  if (!value) return null;
+  if (profilesIndex?.byPublicId?.has(value)) return profilesIndex.byPublicId.get(value);
+  const normalizedUsername = value.toLocaleLowerCase('sq-AL');
+  if (profilesIndex?.byUsername?.has(normalizedUsername)) return profilesIndex.byUsername.get(normalizedUsername);
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    return value;
+  }
+  return null;
 }
 
 async function readChildrenFromSupabase() {
@@ -640,7 +684,7 @@ async function readChildrenFromSupabase() {
         .order('created_at', { ascending: true }),
       supabase
         .from('child_relationships')
-        .select('child_id, user_id, profile_id, relationship, relationship_type, created_at'),
+        .select('child_id, profile_id, relationship_type, created_at'),
       readProfilesIndex()
     ]);
     if (childError) {
@@ -659,8 +703,8 @@ async function readChildrenFromSupabase() {
     return (Array.isArray(childRows) ? childRows : []).map((row) => {
       const payload = parseJsonText(row.notes, {});
       const relationships = relationshipsByChildId.get(String(row.id)) || [];
-      const teacherRelationship = relationships.find((item) => String(item.relationship_type || item.relationship || '').trim() === 'teacher');
-      const parentRelationship = relationships.find((item) => String(item.relationship_type || item.relationship || '').trim() === 'parent');
+      const teacherRelationship = relationships.find((item) => String(item.relationship_type || '').trim() === 'teacher');
+      const parentRelationship = relationships.find((item) => String(item.relationship_type || '').trim() === 'parent');
       return {
         ...payload,
         id: String(payload.id || row.id || ''),
@@ -673,12 +717,12 @@ async function readChildrenFromSupabase() {
         photoUrl: String(payload.photoUrl || row.photo_url || ''),
         teacherId: String(
           payload.teacherId
-            || profilesIndex.byDbId.get(String(teacherRelationship?.profile_id || teacherRelationship?.user_id || ''))
+            || profilesIndex.byDbId.get(String(teacherRelationship?.profile_id || ''))
             || ''
         ),
         parentId: String(
           payload.parentId
-            || profilesIndex.byDbId.get(String(parentRelationship?.profile_id || parentRelationship?.user_id || ''))
+            || profilesIndex.byDbId.get(String(parentRelationship?.profile_id || ''))
             || ''
         ),
         createdAt: String(payload.createdAt || row.created_at || new Date().toISOString())
@@ -723,9 +767,7 @@ async function writeChildrenToSupabase(students = []) {
         relationships.push({
           id: stableUuid('child-relationship', `${externalId}:${relationshipType}:${publicId}`),
           child_id: rowId,
-          user_id: profileId,
           profile_id: profileId,
-          relationship: relationshipType,
           relationship_type: relationshipType,
           created_at: new Date().toISOString()
         });
@@ -786,12 +828,14 @@ async function readProgressFromSupabase() {
 async function writeProgressToSupabase(progressByStudent = {}) {
   if (!supabase) return false;
   try {
+    const profilesIndex = await readProfilesIndex();
+    const fallbackAuthorId = pickFallbackProfileDbId(profilesIndex, 'teacher');
     await deleteAllRows('student_progress');
     const rows = Object.entries(progressByStudent || {}).flatMap(([childId, entries]) =>
       (Array.isArray(entries) ? entries : []).map((entry, index) => ({
         id: stableUuid('student-progress', `${childId}:${entry?.id || index}:${entry?.date || ''}:${entry?.goal || ''}`),
         child_id: stableUuid('child', childId),
-        author_id: String(entry?.authorId || ''),
+        author_id: resolveProfileDbId(entry?.authorId || '', profilesIndex) || fallbackAuthorId,
         entry_type: String(entry?.entryType || 'note'),
         content: JSON.stringify({ ...entry, studentId: childId }),
         created_at: String(entry?.createdAt || entry?.date || new Date().toISOString())
@@ -813,10 +857,16 @@ async function writeProgressToSupabase(progressByStudent = {}) {
 async function readReportsFromSupabase() {
   if (!supabase) return {};
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('reports')
       .select('id, child_id, author_id, title, content, created_at, updated_at')
       .order('updated_at', { ascending: true });
+    if (error && isMissingColumnError(error, 'updated_at')) {
+      ({ data, error } = await supabase
+        .from('reports')
+        .select('id, child_id, author_id, title, content, created_at')
+        .order('created_at', { ascending: true }));
+    }
     if (error) {
       console.warn('Supabase reports read skipped:', error.message);
       return {};
@@ -837,18 +887,24 @@ async function readReportsFromSupabase() {
 async function writeReportsToSupabase(reportsByStudent = {}) {
   if (!supabase) return false;
   try {
+    const profilesIndex = await readProfilesIndex();
+    const fallbackAuthorId = pickFallbackProfileDbId(profilesIndex, 'teacher');
     await deleteAllRows('reports');
     const rows = Object.entries(reportsByStudent || {}).map(([childId, value]) => ({
       id: stableUuid('student-report', childId),
       child_id: stableUuid('child', childId),
-      author_id: String(value?.updatedBy || value?.authorId || ''),
+      author_id: resolveProfileDbId(value?.updatedBy || value?.authorId || '', profilesIndex) || fallbackAuthorId,
       title: String(value?.title || 'Raporti për prindin').slice(0, 160),
       content: JSON.stringify({ childId, value }),
       created_at: String(value?.generatedAt || value?.updatedAt || new Date().toISOString()),
       updated_at: String(value?.updatedAt || value?.generatedAt || new Date().toISOString())
     }));
     if (!rows.length) return true;
-    const { error } = await supabase.from('reports').upsert(rows, { onConflict: 'id' });
+    let { error } = await supabase.from('reports').upsert(rows, { onConflict: 'id' });
+    if (error && isMissingColumnError(error, 'updated_at')) {
+      const fallbackRows = rows.map(({ updated_at, ...row }) => row);
+      ({ error } = await supabase.from('reports').upsert(fallbackRows, { onConflict: 'id' }));
+    }
     if (error) {
       console.warn('Supabase reports write skipped:', error.message);
       return false;
@@ -860,7 +916,7 @@ async function writeReportsToSupabase(reportsByStudent = {}) {
   }
 }
 
-async function readTeachingMaterialsStateFromSupabase() {
+async function readLegacyTeachingStateFromSupabase() {
   if (!supabase) {
     return { teachingMaterials: [], scheduleByStudent: {}, planAnalysesByStudent: {} };
   }
@@ -870,7 +926,7 @@ async function readTeachingMaterialsStateFromSupabase() {
       .select('id, child_id, author_id, module_type, title, data, created_at')
       .order('created_at', { ascending: true });
     if (error) {
-      console.warn('Supabase teaching materials read skipped:', error.message);
+      console.warn('Supabase legacy teaching-state read skipped:', error.message);
       return { teachingMaterials: [], scheduleByStudent: {}, planAnalysesByStudent: {} };
     }
     const state = { teachingMaterials: [], scheduleByStudent: {}, planAnalysesByStudent: {} };
@@ -888,87 +944,139 @@ async function readTeachingMaterialsStateFromSupabase() {
     });
     return state;
   } catch (error) {
-    console.warn('Supabase teaching materials read failed:', error.message);
+    console.warn('Supabase legacy teaching-state read failed:', error.message);
     return { teachingMaterials: [], scheduleByStudent: {}, planAnalysesByStudent: {} };
   }
 }
 
-async function writeTeachingMaterialsStateToSupabase({ teachingMaterials, scheduleByStudent, planAnalysesByStudent } = {}) {
+async function readStudentSchedulesFromSupabase() {
+  if (!supabase) return {};
+  try {
+    const { data, error } = await supabase
+      .from('student_schedules')
+      .select('id, child_id, title, schedule_data, updated_at')
+      .order('updated_at', { ascending: true });
+    if (error) {
+      console.warn('Supabase student schedules read skipped:', error.message);
+      return {};
+    }
+    return (Array.isArray(data) ? data : []).reduce((accumulator, row) => {
+      const payload = row.schedule_data && typeof row.schedule_data === 'object' && !Array.isArray(row.schedule_data)
+        ? row.schedule_data
+        : parseJsonText(row.schedule_data, {});
+      const childId = String(payload.childId || '');
+      if (childId) accumulator[childId] = payload.schedule || [];
+      return accumulator;
+    }, {});
+  } catch (error) {
+    console.warn('Supabase student schedules read failed:', error.message);
+    return {};
+  }
+}
+
+async function writeStudentSchedulesToSupabase(scheduleByStudent = {}) {
   if (!supabase) return false;
   try {
-    if (scheduleByStudent && typeof scheduleByStudent === 'object' && !Array.isArray(scheduleByStudent)) {
-      await supabase.from('teaching_materials').delete().eq('module_type', 'schedule_state');
-      const scheduleRows = Object.entries(scheduleByStudent).map(([childId, schedule]) => ({
-        id: stableUuid('student-schedule', childId),
-        child_id: stableUuid('child', childId),
-        author_id: '',
-        module_type: 'schedule_state',
-        title: `Orari i ${childId}`,
-        data: { childId, schedule },
-        created_at: new Date().toISOString()
-      }));
-      if (scheduleRows.length) {
-        const { error } = await supabase.from('teaching_materials').upsert(scheduleRows, { onConflict: 'id' });
-        if (error) console.warn('Supabase schedule write skipped:', error.message);
-      }
-    }
-    if (planAnalysesByStudent && typeof planAnalysesByStudent === 'object' && !Array.isArray(planAnalysesByStudent)) {
-      await supabase.from('teaching_materials').delete().eq('module_type', 'plan_analysis');
-      const analysisRows = Object.entries(planAnalysesByStudent).map(([childId, analysis]) => ({
-        id: stableUuid('plan-analysis', childId),
-        child_id: stableUuid('child', childId),
-        author_id: '',
-        module_type: 'plan_analysis',
-        title: String(analysis?.fileName || `Analiza ${childId}`),
-        data: { childId, analysis },
-        created_at: String(analysis?.analyzedAt || new Date().toISOString())
-      }));
-      if (analysisRows.length) {
-        const { error } = await supabase.from('teaching_materials').upsert(analysisRows, { onConflict: 'id' });
-        if (error) console.warn('Supabase plan analysis write skipped:', error.message);
-      }
+    await deleteAllRows('student_schedules');
+    const rows = Object.entries(scheduleByStudent || {}).map(([childId, schedule]) => ({
+      id: stableUuid('student-schedule', childId),
+      child_id: stableUuid('child', childId),
+      title: `Orari i ${childId}`,
+      schedule_data: { childId, schedule },
+      updated_at: new Date().toISOString()
+    }));
+    if (!rows.length) return true;
+    const { error } = await supabase.from('student_schedules').upsert(rows, { onConflict: 'id' });
+    if (error) {
+      console.warn('Supabase student schedules write skipped:', error.message);
+      return false;
     }
     return true;
   } catch (error) {
-    console.warn('Supabase teaching materials write failed:', error.message);
+    console.warn('Supabase student schedules write failed:', error.message);
+    return false;
+  }
+}
+
+async function readPlanAnalysesFromSupabase() {
+  if (!supabase) return {};
+  try {
+    const { data, error } = await supabase
+      .from('plan_analyses')
+      .select('id, child_id, file_name, analysis_data, analyzed_at')
+      .order('analyzed_at', { ascending: true });
+    if (error) {
+      console.warn('Supabase plan analyses read skipped:', error.message);
+      return {};
+    }
+    return (Array.isArray(data) ? data : []).reduce((accumulator, row) => {
+      const payload = row.analysis_data && typeof row.analysis_data === 'object' && !Array.isArray(row.analysis_data)
+        ? row.analysis_data
+        : parseJsonText(row.analysis_data, {});
+      const childId = String(payload.childId || payload.studentId || '');
+      if (childId) accumulator[childId] = payload.analysis || payload;
+      return accumulator;
+    }, {});
+  } catch (error) {
+    console.warn('Supabase plan analyses read failed:', error.message);
+    return {};
+  }
+}
+
+async function writePlanAnalysesToSupabase(planAnalysesByStudent = {}) {
+  if (!supabase) return false;
+  try {
+    await deleteAllRows('plan_analyses');
+    const rows = Object.entries(planAnalysesByStudent || {}).map(([childId, analysis]) => ({
+      id: stableUuid('plan-analysis', childId),
+      child_id: stableUuid('child', childId),
+      file_name: String(analysis?.fileName || `Analiza ${childId}`),
+      analysis_data: { childId, analysis },
+      analyzed_at: String(analysis?.analyzedAt || new Date().toISOString())
+    }));
+    if (!rows.length) return true;
+    const { error } = await supabase.from('plan_analyses').upsert(rows, { onConflict: 'id' });
+    if (error) {
+      console.warn('Supabase plan analyses write skipped:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn('Supabase plan analyses write failed:', error.message);
     return false;
   }
 }
 
 async function readAppStateFromStructuredTables() {
-  const [students, progressByStudent, reportsByStudent, teachingState] = await Promise.all([
+  const [students, progressByStudent, reportsByStudent, scheduleByStudent, planAnalysesByStudent, legacyTeachingState] = await Promise.all([
     readChildrenFromSupabase(),
     readProgressFromSupabase(),
     readReportsFromSupabase(),
-    readTeachingMaterialsStateFromSupabase()
+    readStudentSchedulesFromSupabase(),
+    readPlanAnalysesFromSupabase(),
+    readLegacyTeachingStateFromSupabase()
   ]);
   return {
     students,
     progressByStudent,
     reportsByStudent,
-    scheduleByStudent: teachingState.scheduleByStudent,
-    teachingMaterials: teachingState.teachingMaterials,
-    planAnalysesByStudent: teachingState.planAnalysesByStudent
+    scheduleByStudent: Object.keys(scheduleByStudent).length ? scheduleByStudent : legacyTeachingState.scheduleByStudent,
+    teachingMaterials: [],
+    planAnalysesByStudent: Object.keys(planAnalysesByStudent).length ? planAnalysesByStudent : legacyTeachingState.planAnalysesByStudent
   };
 }
 
 async function writeAppStateToStructuredTables(incoming = {}) {
-  const tasks = [];
-  if (Object.prototype.hasOwnProperty.call(incoming, 'students')) tasks.push(writeChildrenToSupabase(Array.isArray(incoming.students) ? incoming.students : []));
-  if (Object.prototype.hasOwnProperty.call(incoming, 'progressByStudent')) tasks.push(writeProgressToSupabase(incoming.progressByStudent || {}));
-  if (Object.prototype.hasOwnProperty.call(incoming, 'reportsByStudent')) tasks.push(writeReportsToSupabase(incoming.reportsByStudent || {}));
-  if (
-    Object.prototype.hasOwnProperty.call(incoming, 'teachingMaterials')
-    || Object.prototype.hasOwnProperty.call(incoming, 'scheduleByStudent')
-    || Object.prototype.hasOwnProperty.call(incoming, 'planAnalysesByStudent')
-  ) {
-    tasks.push(writeTeachingMaterialsStateToSupabase({
-      teachingMaterials: Object.prototype.hasOwnProperty.call(incoming, 'teachingMaterials') ? incoming.teachingMaterials : undefined,
-      scheduleByStudent: Object.prototype.hasOwnProperty.call(incoming, 'scheduleByStudent') ? incoming.scheduleByStudent : undefined,
-      planAnalysesByStudent: Object.prototype.hasOwnProperty.call(incoming, 'planAnalysesByStudent') ? incoming.planAnalysesByStudent : undefined
-    }));
+  if (Object.prototype.hasOwnProperty.call(incoming, 'students')) {
+    await writeChildrenToSupabase(Array.isArray(incoming.students) ? incoming.students : []);
   }
-  await Promise.all(tasks);
+
+  const dependentTasks = [];
+  if (Object.prototype.hasOwnProperty.call(incoming, 'progressByStudent')) dependentTasks.push(writeProgressToSupabase(incoming.progressByStudent || {}));
+  if (Object.prototype.hasOwnProperty.call(incoming, 'reportsByStudent')) dependentTasks.push(writeReportsToSupabase(incoming.reportsByStudent || {}));
+  if (Object.prototype.hasOwnProperty.call(incoming, 'scheduleByStudent')) dependentTasks.push(writeStudentSchedulesToSupabase(incoming.scheduleByStudent || {}));
+  if (Object.prototype.hasOwnProperty.call(incoming, 'planAnalysesByStudent')) dependentTasks.push(writePlanAnalysesToSupabase(incoming.planAnalysesByStudent || {}));
+  await Promise.all(dependentTasks);
 }
 
 app.get('/api/app-state', async (_req, res) => {
@@ -1106,8 +1214,9 @@ app.post('/api/calendar-events/sync-birthday', async (req, res) => {
   const now = new Date();
   let year = now.getFullYear();
   if (`${year}-${month}-${day}` < now.toISOString().slice(0, 10)) year += 1;
+  const birthdayEventId = stableUuid('calendar-birthday', `${teacherId}:${studentId}:${month}-${day}`);
   const birthdayEvent = {
-    id: crypto.randomUUID(),
+    id: birthdayEventId,
     teacherId,
     date: `${year}-${month}-${day}`,
     time: '',
