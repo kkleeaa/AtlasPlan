@@ -19,12 +19,12 @@ const PORT = process.env.PORT || 5001;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 10000,
+  timeout: 30000,
   maxRetries: 2,
 });
 const openaiAac = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 35000,
+  timeout: 60000,
   maxRetries: 2,
 });
 const openaiImages = new OpenAI({
@@ -47,8 +47,8 @@ const FROZEN_TEMPERATURE = 0.1;
 const FROZEN_MODULE_PROMPTS = Object.freeze({
   sequences: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 1 SCHEMA. Break the requested activity into exactly 8 small, chronological, child-safe steps. Every sentence must use correct standard Albanian. Return exactly {"moduli_i_zgjedhur":"Moduli 1: Sekuencat me Fjalë","sekuencat_me_fjale":{"hapat":[{"hapi":1,"simboli":"emoji","teksti_shkurter":"Unë ..."}]}}. Key names, nesting, types, and module name are immutable. Any deviation is forbidden.`,
   flashcards: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 2 SCHEMA. Return exactly 8 concrete flashcards directly related to the requested activity. Albanian spelling and meaning must be exact. English visual descriptions must disambiguate every word. Return exactly {"moduli_i_zgjedhur":"Moduli 2: Flashcards","flashcards":[{"fjala":"...","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"one unambiguous object or action, no text"}]}. Key names, nesting, types, and module name are immutable. Any deviation is forbidden.`,
-  communication: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 3 SCHEMA. Build rich, activity-specific AAC vocabulary in correct, natural, standard Albanian for one exact requested routine only. The output must help a child and teacher build useful sentences for that same activity and must never drift into unrelated vocabulary. Use exactly five categories and keep these category names exactly: Veprimet (8-10), Objektet (7-10), Përemrat (only unë, ti), Fjalë Lidhëse/Parafjalë (6-9), Ndajfoljet (3-4). First silently imagine at least 7 short practical sentences a child or teacher would actually say during that routine, then extract the most useful words from those sentences. Every word must directly support the requested activity. Include the main action verb from the prompt whenever applicable, plus the place, materials, routine objects, and contextual helper words needed to build short sentences. Use grammatically correct Albanian, including correct letters like ë and ç. Avoid duplicates, near-duplicates, generic school words, or unrelated words. Prefer concrete usable forms that fit sentence building in AAC. For nouns and key routine words, prefer the form most useful on a board, and when a different case/form is clearly needed for that exact activity, include a closely related usable form only if it adds real sentence value. Every visual description must unambiguously show the exact meaning of the Albanian word. Do not confuse homonyms or similar-sounding words. Example: pastë in a dental routine means toothpaste, never pasta/food. For beach bathing topics include words like lahem, plazhi, deti, rëra, topi, kremi i diellit, peshqiri, lodrat e rërës or kova when relevant. For tooth brushing topics include words like dhëmbët, furça, pasta, goja, uji, rubineti, fërkoj, shpëlaj, marr, vendos, hap, mbyll, ngadalë, pastaj when relevant. Every option that represents an action, object, or place must have a simple visual concept that can be illustrated clearly for children; linking words and some adverbs may use simpler symbolic visuals but must still return a visual description string. Return exactly {"moduli_i_zgjedhur":"Moduli 3: Tabela e Komunikimit","tabela_komunikimit":{"kategorite":[{"emri_kategorise":"Veprimet","opsionet":[{"fjala":"...","simboli":"","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"..."}]}]}}. Key names, nesting, and types are immutable. Any deviation is forbidden.`,
-  book: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 4 SCHEMA. Write exactly 10 chronological pages that teach only the requested activity, not a general daily routine. Each page must contain one short, grammatically correct Albanian sentence describing one clear visible action by the named child. The 10 pages must progress step by step from the beginning of the activity to the successful completion of that same activity. Keep the same main object, place, and task across the whole book whenever the activity requires it. Never switch to an unrelated object, location, instrument, toy, or routine. Never drift into a full-day story. Use only natural, standard Albanian wording that a teacher would actually say to a child. The title and every page sentence must describe the activity with the correct Albanian verb-object structure. Never create ungrammatical phrases such as "lahet ne dhembe", "vishet ne kepuce", or other literal malformed constructions. If the requested activity is brushing teeth, use natural forms like "lan dhëmbët", "merr furçën", "vendos pastën", "fërkon dhëmbët", "shpëlan gojën". If the activity is hand washing, use forms like "lan duart" and never "lahet në duar". If the activity is reading, every page must stay about reading letters, sounds, syllables, words, or a book. If the activity is sleeping, the final pages must keep the child in bed and asleep or nearly asleep. If the activity is piano, keep the child at the piano and never replace it with another instrument. The book title must be short, natural Albanian and must name the exact activity correctly, for example "Ari lan dhëmbët", "Lina lan duart", "Noa lexon", not malformed or ambiguous phrasing. Page 10 must clearly complete the requested activity. Return exactly {"moduli_i_zgjedhur":"Moduli 4: Social Story (Libri Virtual)","social_story_libri":{"titulli_tregimit":"...","faqet":[{"numri_faqes":1,"teksti_faqes":"Emri ..."}]}}. Key names, nesting, types, page count, and module name are immutable. Any deviation is forbidden.`
+  communication: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 3 SCHEMA. Build rich, activity-specific AAC vocabulary in correct, natural, standard Albanian for one exact requested routine only. The output must help a child and teacher build useful sentences for that same activity and must never drift into unrelated vocabulary. Use exactly five categories and keep these category names exactly: Veprimet (8-10), Objektet (7-10), Përemrat (only unë, ti), Fjalë Lidhëse/Parafjalë (6-9), Ndajfoljet (3-4). First silently imagine at least 7 short practical sentences a child or teacher would actually say during that routine, then extract the most useful words from those sentences. Every word must directly support the requested activity. Include the main action verb from the prompt whenever applicable, plus the place, materials, routine objects, and contextual helper words needed to build short sentences. Use grammatically correct Albanian, including correct letters like ë and ç. Avoid duplicates, near-duplicates, generic school words, or unrelated words. Prefer concrete usable forms that fit sentence building in AAC. For nouns and key routine words, prefer the form most useful on a board, and when a different case/form is clearly needed for that exact activity, include a closely related usable form only if it adds real sentence value. Never invent fake noun forms or fake declensions. Output only real Albanian words that a teacher would truly use. Never output non-Albanian classroom borrowings when a standard Albanian word exists. Example: use laps, never pencil. Use fshirëse or another real Albanian classroom word, never fake forms like fshesi or fshesin. Do not create impossible forms like ngjyrati or ngjyratin. Every visual description must unambiguously show the exact meaning of the Albanian word. Do not confuse homonyms or similar-sounding words. Example: pastë in a dental routine means toothpaste, never pasta/food. For beach bathing topics include words like lahem, plazhi, deti, rëra, topi, kremi i diellit, peshqiri, lodrat e rërës or kova when relevant. For tooth brushing topics include words like dhëmbët, furça, pasta, goja, uji, rubineti, fërkoj, shpëlaj, marr, vendos, hap, mbyll, ngadalë, pastaj when relevant. Every option that represents an action, object, or place must have a simple visual concept that can be illustrated clearly for children; linking words and some adverbs may use simpler symbolic visuals but must still return a visual description string. Return exactly {"moduli_i_zgjedhur":"Moduli 3: Tabela e Komunikimit","tabela_komunikimit":{"kategorite":[{"emri_kategorise":"Veprimet","opsionet":[{"fjala":"...","simboli":"","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"..."}]}]}}. Key names, nesting, and types are immutable. Any deviation is forbidden.`,
+  book: `${JSON_SYSTEM_RULE}\n${FROZEN_APPROVED_GENERATION_NOTE}\nFROZEN MODULE 4 SCHEMA. Write exactly 10 chronological pages that teach only the requested activity, not a general daily routine. Each page must contain one short, grammatically correct Albanian sentence describing one clear visible action by the named child. The 10 pages must progress step by step from the beginning of the activity to the successful completion of that same activity. Keep the same main object, place, and task across the whole book whenever the activity requires it. Never switch to an unrelated object, location, instrument, toy, or routine. Never drift into a full-day story. Use only natural, standard Albanian wording that a teacher would actually say to a child. The title and every page sentence must describe the activity with the correct Albanian verb-object structure. Never create ungrammatical phrases such as "lahet ne dhembe", "vishet ne kepuce", or other literal malformed constructions. If the requested activity is brushing teeth, use natural forms like "lan dhëmbët", "merr furçën", "vendos pastën", "fërkon dhëmbët", "shpëlan gojën". If the activity is hand washing, use forms like "lan duart" and never "lahet në duar". If the activity is reading, every page must stay about reading letters, sounds, syllables, words, or a book. If the activity is sleeping, the final pages must keep the child in bed and asleep or nearly asleep. If the activity is piano, keep the child at the piano and never replace it with another instrument. Make the action wording concrete enough that an illustrator can vary pose, head direction, gaze, and hand use from page to page. The book title must be short, natural Albanian and must name the exact activity correctly, for example "Ari lan dhëmbët", "Lina lan duart", "Noa lexon", not malformed or ambiguous phrasing. Page 10 must clearly complete the requested activity. Return exactly {"moduli_i_zgjedhur":"Moduli 4: Social Story (Libri Virtual)","social_story_libri":{"titulli_tregimit":"...","faqet":[{"numri_faqes":1,"teksti_faqes":"Emri ..."}]}}. Key names, nesting, types, page count, and module name are immutable. Any deviation is forbidden.`
 });
 
 const RESOURCE_TYPE_BY_MODULE = Object.freeze({
@@ -194,6 +194,12 @@ Behavior and communication rules:
 app.use(cors());
 app.use(express.json({ limit: '30mb' }));
 
+function setNoStore(res) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+}
+
 const CALENDAR_STORE = path.join(__dirname, 'data', 'calendar-events.json');
 const APP_STATE_STORE = path.join(__dirname, 'data', 'app-state.json');
 const APP_STATE_RESOURCE_TYPE = 'system_app_state';
@@ -205,13 +211,13 @@ const ROLE_DATA_SEARCH_SLUG = 'system:atlas-role-data-v1';
 const ROLE_TYPE_TO_BUCKET = Object.freeze({ teacher: 'teachers', parent: 'parents', admin: 'admins' });
 const BUCKET_TO_ROLE_TYPE = Object.freeze({ teachers: 'teacher', parents: 'parent', admins: 'admin' });
 const DEFAULT_ROLE_ACCOUNTS = Object.freeze({
-  teachers: [{ id: 'teacher-demo', name: 'Mësuesja Demo', username: 'mesues', email: 'mesues@atlas.al', password: 'Atlas123' }],
-  parents: [{ id: 'parent-demo', name: 'Prindi Demo', username: 'prind', email: 'prind@atlas.al', password: 'Atlas123' }],
-  admins: [{ id: 'admin-demo', name: 'Administratori', username: 'admin', email: 'admin@atlas.al', password: 'QendraPerparimi123!' }]
+  teachers: [],
+  parents: [],
+  admins: [{ id: 'admin-demo', name: 'Administratori', username: 'admin', email: 'admin@atlas.al', password: 'atlas123' }]
 });
 const DEMO_ACCOUNT_PUBLIC_IDS = Object.freeze({
-  teacher: { mesues: 'teacher-demo' },
-  parent: { prind: 'parent-demo' },
+  teacher: {},
+  parent: {},
   admin: { admin: 'admin-demo' }
 });
 
@@ -325,7 +331,7 @@ async function deleteAllRows(tableName) {
 
 function hasStructuredAppStateData(state = {}) {
   const arrayKeys = ['students', 'teachingMaterials'];
-  const objectKeys = ['progressByStudent', 'reportsByStudent', 'scheduleByStudent', 'planAnalysesByStudent'];
+  const objectKeys = ['progressByStudent', 'reportsByStudent', 'scheduleByStudent'];
   return arrayKeys.some((key) => Array.isArray(state[key]) && state[key].length)
     || objectKeys.some((key) => state[key] && typeof state[key] === 'object' && Object.keys(state[key]).length);
 }
@@ -977,14 +983,28 @@ async function readStudentSchedulesFromSupabase() {
 async function writeStudentSchedulesToSupabase(scheduleByStudent = {}) {
   if (!supabase) return false;
   try {
+    const { data: childRows, error: childError } = await supabase
+      .from('children')
+      .select('id');
+    const validChildIds = new Set(
+      childError || !Array.isArray(childRows)
+        ? []
+        : childRows.map((row) => String(row.id || '')).filter(Boolean)
+    );
     await deleteAllRows('student_schedules');
-    const rows = Object.entries(scheduleByStudent || {}).map(([childId, schedule]) => ({
-      id: stableUuid('student-schedule', childId),
-      child_id: stableUuid('child', childId),
-      title: `Orari i ${childId}`,
-      schedule_data: { childId, schedule },
-      updated_at: new Date().toISOString()
-    }));
+    const rows = Object.entries(scheduleByStudent || {})
+      .filter(([childId]) => {
+        if (!childId) return false;
+        const dbChildId = stableUuid('child', childId);
+        return validChildIds.size ? validChildIds.has(dbChildId) : true;
+      })
+      .map(([childId, schedule]) => ({
+        id: stableUuid('student-schedule', childId),
+        child_id: stableUuid('child', childId),
+        title: `Orari i ${childId}`,
+        schedule_data: { childId, schedule },
+        updated_at: new Date().toISOString()
+      }));
     if (!rows.length) return true;
     const { error } = await supabase.from('student_schedules').upsert(rows, { onConflict: 'id' });
     if (error) {
@@ -1048,12 +1068,11 @@ async function writePlanAnalysesToSupabase(planAnalysesByStudent = {}) {
 }
 
 async function readAppStateFromStructuredTables() {
-  const [students, progressByStudent, reportsByStudent, scheduleByStudent, planAnalysesByStudent, legacyTeachingState] = await Promise.all([
+  const [students, progressByStudent, reportsByStudent, scheduleByStudent, legacyTeachingState] = await Promise.all([
     readChildrenFromSupabase(),
     readProgressFromSupabase(),
     readReportsFromSupabase(),
     readStudentSchedulesFromSupabase(),
-    readPlanAnalysesFromSupabase(),
     readLegacyTeachingStateFromSupabase()
   ]);
   return {
@@ -1062,7 +1081,7 @@ async function readAppStateFromStructuredTables() {
     reportsByStudent,
     scheduleByStudent: Object.keys(scheduleByStudent).length ? scheduleByStudent : legacyTeachingState.scheduleByStudent,
     teachingMaterials: [],
-    planAnalysesByStudent: Object.keys(planAnalysesByStudent).length ? planAnalysesByStudent : legacyTeachingState.planAnalysesByStudent
+    planAnalysesByStudent: {}
   };
 }
 
@@ -1075,7 +1094,6 @@ async function writeAppStateToStructuredTables(incoming = {}) {
   if (Object.prototype.hasOwnProperty.call(incoming, 'progressByStudent')) dependentTasks.push(writeProgressToSupabase(incoming.progressByStudent || {}));
   if (Object.prototype.hasOwnProperty.call(incoming, 'reportsByStudent')) dependentTasks.push(writeReportsToSupabase(incoming.reportsByStudent || {}));
   if (Object.prototype.hasOwnProperty.call(incoming, 'scheduleByStudent')) dependentTasks.push(writeStudentSchedulesToSupabase(incoming.scheduleByStudent || {}));
-  if (Object.prototype.hasOwnProperty.call(incoming, 'planAnalysesByStudent')) dependentTasks.push(writePlanAnalysesToSupabase(incoming.planAnalysesByStudent || {}));
   await Promise.all(dependentTasks);
 }
 
@@ -1088,7 +1106,7 @@ app.put('/api/app-state', async (req, res) => {
   if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
     return res.status(400).json({ error: 'Gjendja e aplikacionit nuk është e vlefshme.' });
   }
-  const allowedKeys = ['students', 'progressByStudent', 'reportsByStudent', 'scheduleByStudent', 'teachingMaterials', 'planAnalysesByStudent'];
+  const allowedKeys = ['students', 'progressByStudent', 'reportsByStudent', 'scheduleByStudent', 'teachingMaterials'];
   const previous = await readAppState();
   const next = { ...previous };
   allowedKeys.forEach((key) => {
@@ -1240,6 +1258,18 @@ app.delete('/api/calendar-events/:id', async (req, res) => {
   if (nextEvents.length === events.length) return res.status(404).json({ error: 'Ngjarja nuk u gjet.' });
   await writeCalendarEvents(nextEvents);
   res.json({ success: true });
+});
+
+app.delete('/api/children/:id/related-data', async (req, res) => {
+  const studentId = String(req.params.id || '').trim();
+  if (!studentId) return res.status(400).json({ error: 'Mungon identifikuesi i fëmijës.' });
+  const events = await readCalendarEvents();
+  const nextEvents = events.filter((event) => (
+    String(event.studentId || '').trim() !== studentId
+    && String(event.sourceKey || '').trim() !== `birthday:${studentId}`
+  ));
+  await writeCalendarEvents(nextEvents);
+  res.json({ success: true, removedCalendarEvents: events.length - nextEvents.length });
 });
 
 app.post('/api/extract-plan-text', async (req, res) => {
@@ -1817,7 +1847,7 @@ app.post('/api/generate-aac-board', async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: `${JSON_SYSTEM_RULE}\nTi je ekspert i AAC dhe gjuhës shqipe për fëmijë me nevoja të veçanta. Mendo fillimisht 7-8 fjali shumë të thjeshta, praktike dhe kronologjike që e kryejnë aktivitetin në rend logjik; pastaj nxirr prej tyre vetëm fjalorin që i duhet fëmijës për të ndërtuar vetë fjali për atë rutinë. Struktura është {"moduli_i_zgjedhur":"Moduli 3: Tabela e Komunikimit","tabela_komunikimit":{"kategorite":[{"emri_kategorise":"Veprimet","opsionet":[{"fjala":"...","simboli":"","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"..."}]}]}}. Kategoritë dhe sasitë: Veprimet 8-10, Objektet 7-10, Përemrat vetëm “unë” dhe “ti”, Fjalë Lidhëse/Parafjalë 6-9 dhe Ndajfoljet 3-4. Fjalori duhet të jetë i balancuar mes veprimeve kryesore, objekteve të rutinës, fjalëve të vendit/lidhjes dhe ndajfoljeve të dobishme. Çdo fjalë duhet të lidhet drejtpërdrejt me temën; mos shto njerëz, vende ose objekte të rastësishme. Mos jep fjalor të përgjithshëm si “objekt”, “gjë”, “vend”, përveçse kur tema e kërkon realisht. Duhet të përfshihen jo vetëm veprimi kryesor, por edhe vendi ku ndodh rutina, materialet që përdoren, objektet që preken, lodrat ose sendet tipike të asaj situate dhe fjalët funksionale që lejojnë fjali të thjeshta. Nëse te kërkesa ka një folje kyçe si “lahem”, “ha”, “lexoj”, “luaj”, kjo folje duhet të shfaqet patjetër në kategori si fjalë përdorimi. Përdor fjalë konkrete që mësuesi ose fëmija do t'i shtypte realisht gjatë aktivitetit. Për larjen e dhëmbëve mendo fjali si: “Unë shkoj në banjë. Pastaj unë marr furçën nga dollapi. Marr pastën dhe e vendos mbi furçën. Pastaj fërkoj dhëmbët ngadalë. Shpëlaj gojën me ujin dhe mbyll rubinetin.” Për larjen e duarve përfshi duart, sapunin, ujin, rubinetin, lavamanin, peshqirin, banjën; laj, shkoj, hap, lag, marr, vendos, fërkoj, shpëlaj, mbyll, thaj. Për situata si “të lahet në plazh” përfshi patjetër fjalë si lahem, plazhi, deti, rëra, topi, kremi i diellit, peshqiri, lodrat e rërës ose kovë, dhe veprime si luaj, lyej, mbush, ndërtoj kur janë të dobishme për atë rutinë. Përdor shqip standarde gramatikisht të saktë dhe ruaj çdo “ë” dhe “ç”. Për çdo fjalë jep kuptimin dhe një përshkrim vizual shumë të qartë në anglisht, që ilustrimi të mos ngatërrojë homonime ose kuptime të tjera.`
+          content: `${JSON_SYSTEM_RULE}\nTi je ekspert i AAC dhe gjuhës shqipe për fëmijë me nevoja të veçanta. Mendo fillimisht 7-8 fjali shumë të thjeshta, praktike dhe kronologjike që e kryejnë aktivitetin në rend logjik; pastaj nxirr prej tyre vetëm fjalorin që i duhet fëmijës për të ndërtuar vetë fjali për atë rutinë. Struktura është {"moduli_i_zgjedhur":"Moduli 3: Tabela e Komunikimit","tabela_komunikimit":{"kategorite":[{"emri_kategorise":"Veprimet","opsionet":[{"fjala":"...","simboli":"","kuptimi_ne_anglisht":"...","pershkrimi_vizual_anglisht":"..."}]}]}}. Kategoritë dhe sasitë: Veprimet 8-10, Objektet 7-10, Përemrat vetëm “unë” dhe “ti”, Fjalë Lidhëse/Parafjalë 6-9 dhe Ndajfoljet 3-4. Fjalori duhet të jetë i balancuar mes veprimeve kryesore, objekteve të rutinës, fjalëve të vendit/lidhjes dhe ndajfoljeve të dobishme. Çdo fjalë duhet të lidhet drejtpërdrejt me temën; mos shto njerëz, vende ose objekte të rastësishme. Mos jep fjalor të përgjithshëm si “objekt”, “gjë”, “vend”, përveçse kur tema e kërkon realisht. Duhet të përfshihen jo vetëm veprimi kryesor, por edhe vendi ku ndodh rutina, materialet që përdoren, objektet që preken, lodrat ose sendet tipike të asaj situate dhe fjalët funksionale që lejojnë fjali të thjeshta. Nëse te kërkesa ka një folje kyçe si “lahem”, “ha”, “lexoj”, “luaj”, kjo folje duhet të shfaqet patjetër në kategori si fjalë përdorimi. Përdor fjalë konkrete që mësuesi ose fëmija do t'i shtypte realisht gjatë aktivitetit. Përdor vetëm fjalë reale të shqipes standarde. Mos përdor fjalë jo-shqipe si “pencil” kur ekziston fjala shqipe “laps”. Mos krijo forma të rreme si “pencili”, “pencilin”, “fshesi”, “fshesin”, “ngjyrati” ose “ngjyratin”. Për larjen e dhëmbëve mendo fjali si: “Unë shkoj në banjë. Pastaj unë marr furçën nga dollapi. Marr pastën dhe e vendos mbi furçën. Pastaj fërkoj dhëmbët ngadalë. Shpëlaj gojën me ujin dhe mbyll rubinetin.” Për larjen e duarve përfshi duart, sapunin, ujin, rubinetin, lavamanin, peshqirin, banjën; laj, shkoj, hap, lag, marr, vendos, fërkoj, shpëlaj, mbyll, thaj. Për situata si “të lahet në plazh” përfshi patjetër fjalë si lahem, plazhi, deti, rëra, topi, kremi i diellit, peshqiri, lodrat e rërës ose kovë, dhe veprime si luaj, lyej, mbush, ndërtoj kur janë të dobishme për atë rutinë. Përdor shqip standarde gramatikisht të saktë dhe ruaj çdo “ë” dhe “ç”. Për çdo fjalë jep kuptimin dhe një përshkrim vizual shumë të qartë në anglisht, që ilustrimi të mos ngatërrojë homonime ose kuptime të tjera.`
         },
         {
           role: 'user',
@@ -1934,6 +1964,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, openaiConfigured: Boo
 
 app.post('/api/generate-image', async (req, res) => {
   try {
+    setNoStore(res);
     const { prompt, size = '1024x1024', quality = 'low', priority_class } = req.body || {};
     if (typeof prompt !== 'string' || !prompt.trim()) return res.status(400).json({ error: 'Prompt is required.' });
     const style = "Clean, professional 2D digital illustration for a children's learning app. Clear subject, warm colors, natural anatomy, uncluttered background, no writing, no watermark.";
@@ -1964,6 +1995,7 @@ function sanitizeEditReferenceImages(images) {
 
 app.post('/api/edit-image', async (req, res) => {
   try {
+    setNoStore(res);
     const {
       prompt,
       images,

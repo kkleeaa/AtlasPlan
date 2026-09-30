@@ -613,7 +613,7 @@ function frozenRoutineStorageKey(moduleType, topic) {
   const normalizedTopic = window.AtlasPreSavedRoutines?.topicKey(topic) || normalizeWord(topic);
   const versionByModule = {
     sequences: "v2",
-    communication: "v3"
+    communication: "v4"
   };
   const version = versionByModule[moduleType] || "v1";
   return `atlas-frozen-routine-${version}:${moduleType}:${normalizedTopic}`;
@@ -1127,7 +1127,7 @@ function localBookStorageKey(topic, childName) {
     hash ^= character.charCodeAt(0);
     hash = Math.imul(hash, 16777619);
   }
-  return `atlas-virtual-book-v5:${(hash >>> 0).toString(16)}`;
+  return `atlas-virtual-book-v6:${(hash >>> 0).toString(16)}`;
 }
 
 function characterAnchorStorageKey(childName = "") {
@@ -1138,14 +1138,14 @@ function characterAnchorStorageKey(childName = "") {
     hash ^= character.charCodeAt(0);
     hash = Math.imul(hash, 16777619);
   }
-  return `atlas-virtual-book-character-anchor-v5:${(hash >>> 0).toString(16)}`;
+  return `atlas-virtual-book-character-anchor-v6:${(hash >>> 0).toString(16)}`;
 }
 
 function getSavedCharacterAnchor(childName = "") {
   try {
     const saved = JSON.parse(localStorage.getItem(characterAnchorStorageKey(childName)) || "null");
     const imageUrl = String(saved?.imageUrl || "");
-    return saved?.version === 5 && isRasterDataUrl(imageUrl) ? imageUrl : "";
+    return saved?.version === 6 && isRasterDataUrl(imageUrl) ? imageUrl : "";
   } catch {
     return "";
   }
@@ -1155,7 +1155,7 @@ function saveCharacterAnchor(childName = "", imageUrl = "") {
   if (!isRasterDataUrl(imageUrl)) return false;
   try {
     localStorage.setItem(characterAnchorStorageKey(childName), JSON.stringify({
-      version: 5,
+      version: 6,
       imageUrl
     }));
     return true;
@@ -1185,7 +1185,7 @@ async function saveBookLocally(topic, childName, book, pages) {
   try {
     const compactPages = [];
     for (const page of pages) compactPages.push({ ...page, imageUrl: await compressBookImage(page.imageUrl) });
-    localStorage.setItem(localBookStorageKey(topic, childName), JSON.stringify({ version: 5, book, pages: compactPages }));
+    localStorage.setItem(localBookStorageKey(topic, childName), JSON.stringify({ version: 6, book, pages: compactPages }));
     return true;
   } catch (error) {
     console.warn("Libri ishte shumë i madh për ruajtjen lokale.", error);
@@ -1196,7 +1196,7 @@ async function saveBookLocally(topic, childName, book, pages) {
 function getLocalBook(topic, childName) {
   try {
     const saved = JSON.parse(localStorage.getItem(localBookStorageKey(topic, childName)) || "null");
-    return saved?.version === 5 && Array.isArray(saved.pages) && saved.pages.length === 10
+    return saved?.version === 6 && Array.isArray(saved.pages) && saved.pages.length === 10
       && saved.pages.every((page) => {
         const imageUrl = String(page?.imageUrl || "");
         return Boolean(imageUrl && !imageUrl.includes("/assets/placeholders/") && String(page?.teksti_faqes || "").trim());
@@ -1780,7 +1780,26 @@ Critical rules:
       "le": "putting an object back in its place",
       "lexoj": "a child reading a word from a book",
       "shkronjën": "a large printed letter on a page",
-      "shkronjen": "a large printed letter on a page"
+      "shkronjen": "a large printed letter on a page",
+      "laps": "a simple school pencil",
+      "lapsi": "a simple school pencil",
+      "lapsin": "a simple school pencil",
+      "fshirëse": "a simple school eraser",
+      "fshirese": "a simple school eraser",
+      "fshirësja": "a simple school eraser",
+      "fshirësen": "a simple school eraser",
+      "ngjyra": "simple coloring pencils or paint colors",
+      "ngjyrat": "simple coloring pencils or paint colors",
+      "fletore": "a simple school notebook",
+      "fletorja": "a simple school notebook",
+      "fletoren": "a simple school notebook",
+      "pikturë": "a simple child drawing on paper",
+      "piktura": "a simple child drawing on paper",
+      "pikturën": "a simple child drawing on paper",
+      "tablo": "a classroom display board",
+      "stol": "a simple classroom stool",
+      "stoli": "a simple classroom stool",
+      "stolin": "a simple classroom stool"
     };
     if (visualDictionary[normalized]) {
       return visualDictionary[normalized];
@@ -1947,7 +1966,9 @@ Critical rules:
 - Never replace the named activity object with a similar but wrong object.
 - Show the whole child whenever possible.
 - The child must look like the exact same real child from the uploaded photo, not a similar child.
+- The face must remain clearly illustrated in the same clean book style. Never leave the real photo face unchanged and never paste a photographic face onto the illustration.
 - The body pose, arm position, hand position, and orientation must change to match the exact action of this page. Do not keep the character frozen in the same position across pages.
+- The head angle, eye gaze, and expression must also change naturally to match the action of this page. If the child is painting, reading, brushing, or using an object, the child should usually look toward that object instead of staring at the viewer.
 - Make the art look animated, attractive, and polished for children: expressive face, crisp forms, warm clear colors, and approachable natural features.
 - Simple 2D storybook illustration, child-safe, no text, not photorealistic, and never pastel-washed or painterly-soft.`;
 
@@ -1977,7 +1998,9 @@ Reference image rules:
 - Never drift into a different face, different child, different gender presentation, or invented disability traits.
 - Keep the same main object and activity across the story. Do not replace the piano with a guitar or any other object.
 - The page image must stay literal to the page sentence and must preserve the correct object, place, and body position for that exact step.
-- Change the body's pose and hand placement to match the exact action in this page.`;
+- Change the body's pose and hand placement to match the exact action in this page.
+- Change head direction, eye gaze, and facial expression naturally for this page. The child should look at the relevant object or action when that makes sense, not always straight at the viewer.
+- Keep the face illustrated, cute, and natural inside the book style. Do not leave the face raw-photographic or pasted from the source photo.`;
     imageDataUrl = await generateImageFromReferenceSet(
       referenceImages.slice(0, 3),
       referencePrompt,
@@ -2152,132 +2175,172 @@ function isBoardObjectCategory(categoryName = "") {
   return normalizeWord(categoryName).includes("objekt");
 }
 
-function inferSimpleAlbanianNounForms(word) {
-  const original = String(word || "").trim();
-  const normalized = normalizeWord(original);
-  if (!normalized) return [];
+const KNOWN_COMMUNICATION_NOUN_FORMS = {
+  "banjë": { base: "banjë", forms: ["banja", "banjën"] },
+  "banja": { base: "banjë", forms: ["banja", "banjën"] },
+  "banjën": { base: "banjë", forms: ["banja", "banjën"] },
+  "banjen": { base: "banjë", forms: ["banja", "banjën"] },
+  "furçë": { base: "furçë", forms: ["furca", "furçën"] },
+  "furca": { base: "furçë", forms: ["furca", "furçën"] },
+  "furçën": { base: "furçë", forms: ["furca", "furçën"] },
+  "furcen": { base: "furçë", forms: ["furca", "furçën"] },
+  "pastë": { base: "pastë", forms: ["pasta", "pastën"] },
+  "pasta": { base: "pastë", forms: ["pasta", "pastën"] },
+  "pastën": { base: "pastë", forms: ["pasta", "pastën"] },
+  "pasten": { base: "pastë", forms: ["pasta", "pastën"] },
+  "gojë": { base: "gojë", forms: ["goja", "gojën"] },
+  "goja": { base: "gojë", forms: ["goja", "gojën"] },
+  "gojën": { base: "gojë", forms: ["goja", "gojën"] },
+  "gojen": { base: "gojë", forms: ["goja", "gojën"] },
+  "ujë": { base: "ujë", forms: ["uji", "ujin"] },
+  "uji": { base: "ujë", forms: ["uji", "ujin"] },
+  "ujin": { base: "ujë", forms: ["uji", "ujin"] },
+  "dhëmbë": { base: "dhëmbë", forms: ["dhëmbët"] },
+  "dhëmbët": { base: "dhëmbë", forms: ["dhëmbët"] },
+  "duar": { base: "duar", forms: ["duart"] },
+  "duart": { base: "duar", forms: ["duart"] },
+  "sapun": { base: "sapun", forms: ["sapuni", "sapunin"] },
+  "sapuni": { base: "sapun", forms: ["sapuni", "sapunin"] },
+  "sapunin": { base: "sapun", forms: ["sapuni", "sapunin"] },
+  "rubinet": { base: "rubinet", forms: ["rubineti", "rubinetin"] },
+  "rubineti": { base: "rubinet", forms: ["rubineti", "rubinetin"] },
+  "rubinetin": { base: "rubinet", forms: ["rubineti", "rubinetin"] },
+  "lavaman": { base: "lavaman", forms: ["lavamani", "lavamanin"] },
+  "lavamani": { base: "lavaman", forms: ["lavamani", "lavamanin"] },
+  "lavamanin": { base: "lavaman", forms: ["lavamani", "lavamanin"] },
+  "peshqir": { base: "peshqir", forms: ["peshqiri", "peshqirin"] },
+  "peshqiri": { base: "peshqir", forms: ["peshqiri", "peshqirin"] },
+  "peshqirin": { base: "peshqir", forms: ["peshqiri", "peshqirin"] },
+  "dollap": { base: "dollap", forms: ["dollapi", "dollapin"] },
+  "dollapi": { base: "dollap", forms: ["dollapi", "dollapin"] },
+  "dollapin": { base: "dollap", forms: ["dollapi", "dollapin"] },
+  "ushqim": { base: "ushqim", forms: ["ushqimi", "ushqimin"] },
+  "ushqimi": { base: "ushqim", forms: ["ushqimi", "ushqimin"] },
+  "ushqimin": { base: "ushqim", forms: ["ushqimi", "ushqimin"] },
+  "pjatë": { base: "pjatë", forms: ["pjata", "pjatën"] },
+  "pjata": { base: "pjatë", forms: ["pjata", "pjatën"] },
+  "pjatën": { base: "pjatë", forms: ["pjata", "pjatën"] },
+  "lugë": { base: "lugë", forms: ["luga", "lugën"] },
+  "luga": { base: "lugë", forms: ["luga", "lugën"] },
+  "lugën": { base: "lugë", forms: ["luga", "lugën"] },
+  "pirun": { base: "pirun", forms: ["piruni", "pirunin"] },
+  "piruni": { base: "pirun", forms: ["piruni", "pirunin"] },
+  "pirunin": { base: "pirun", forms: ["piruni", "pirunin"] },
+  "gotë": { base: "gotë", forms: ["gota", "gotën"] },
+  "gota": { base: "gotë", forms: ["gota", "gotën"] },
+  "gotën": { base: "gotë", forms: ["gota", "gotën"] },
+  "tavolinë": { base: "tavolinë", forms: ["tavolina", "tavolinën"] },
+  "tavolina": { base: "tavolinë", forms: ["tavolina", "tavolinën"] },
+  "tavolinën": { base: "tavolinë", forms: ["tavolina", "tavolinën"] },
+  "pecetë": { base: "pecetë", forms: ["peceta", "pecetën"] },
+  "peceta": { base: "pecetë", forms: ["peceta", "pecetën"] },
+  "pecetën": { base: "pecetë", forms: ["peceta", "pecetën"] },
+  "plazh": { base: "plazh", forms: ["plazhi", "plazhin"] },
+  "plazhi": { base: "plazh", forms: ["plazhi", "plazhin"] },
+  "plazhin": { base: "plazh", forms: ["plazhi", "plazhin"] },
+  "det": { base: "det", forms: ["deti", "detin"] },
+  "deti": { base: "det", forms: ["deti", "detin"] },
+  "detin": { base: "det", forms: ["deti", "detin"] },
+  "rërë": { base: "rërë", forms: ["rëra", "rërën"] },
+  "rëra": { base: "rërë", forms: ["rëra", "rërën"] },
+  "rërën": { base: "rërë", forms: ["rëra", "rërën"] },
+  "krem": { base: "krem", forms: ["kremi", "kremin"] },
+  "kremi": { base: "krem", forms: ["kremi", "kremin"] },
+  "kremin": { base: "krem", forms: ["kremi", "kremin"] },
+  "lodër": { base: "lodër", forms: ["lodra", "lodrën"] },
+  "lodra": { base: "lodër", forms: ["lodra", "lodrën"] },
+  "lodrën": { base: "lodër", forms: ["lodra", "lodrën"] },
+  "kovë": { base: "kovë", forms: ["kova", "kovën"] },
+  "kova": { base: "kovë", forms: ["kova", "kovën"] },
+  "kovën": { base: "kovë", forms: ["kova", "kovën"] },
+  "top": { base: "top", forms: ["topi", "topin"] },
+  "topi": { base: "top", forms: ["topi", "topin"] },
+  "topin": { base: "top", forms: ["topi", "topin"] },
+  "fushë": { base: "fushë", forms: ["fusha", "fushën"] },
+  "fusha": { base: "fushë", forms: ["fusha", "fushën"] },
+  "fushën": { base: "fushë", forms: ["fusha", "fushën"] },
+  "portë": { base: "portë", forms: ["porta", "portën"] },
+  "porta": { base: "portë", forms: ["porta", "portën"] },
+  "portën": { base: "portë", forms: ["porta", "portën"] },
+  "lojë": { base: "lojë", forms: ["loja", "lojën"] },
+  "loja": { base: "lojë", forms: ["loja", "lojën"] },
+  "lojën": { base: "lojë", forms: ["loja", "lojën"] },
+  "skuadër": { base: "skuadër", forms: ["skuadra", "skuadrën"] },
+  "skuadra": { base: "skuadër", forms: ["skuadra", "skuadrën"] },
+  "skuadrën": { base: "skuadër", forms: ["skuadra", "skuadrën"] },
+  "shok": { base: "shok", forms: ["shoku", "shokun"] },
+  "shoku": { base: "shok", forms: ["shoku", "shokun"] },
+  "shokun": { base: "shok", forms: ["shoku", "shokun"] },
+  "gol": { base: "gol", forms: ["goli", "golin"] },
+  "goli": { base: "gol", forms: ["goli", "golin"] },
+  "golin": { base: "gol", forms: ["goli", "golin"] },
+  "rrjetë": { base: "rrjetë", forms: ["rrjeta", "rrjetën"] },
+  "rrjeta": { base: "rrjetë", forms: ["rrjeta", "rrjetën"] },
+  "rrjetën": { base: "rrjetë", forms: ["rrjeta", "rrjetën"] },
+  "këmbë": { base: "këmbë", forms: ["këmba", "këmbën"] },
+  "këmba": { base: "këmbë", forms: ["këmba", "këmbën"] },
+  "këmbën": { base: "këmbë", forms: ["këmba", "këmbën"] },
+  "laps": { base: "laps", forms: ["lapsi", "lapsin"] },
+  "lapsi": { base: "laps", forms: ["lapsi", "lapsin"] },
+  "lapsin": { base: "laps", forms: ["lapsi", "lapsin"] },
+  "fshirëse": { base: "fshirëse", forms: ["fshirësja", "fshirësen"] },
+  "fshirese": { base: "fshirëse", forms: ["fshirësja", "fshirësen"] },
+  "fshirësja": { base: "fshirëse", forms: ["fshirësja", "fshirësen"] },
+  "fshiresja": { base: "fshirëse", forms: ["fshirësja", "fshirësen"] },
+  "fshirësen": { base: "fshirëse", forms: ["fshirësja", "fshirësen"] },
+  "fshiresen": { base: "fshirëse", forms: ["fshirësja", "fshirësen"] },
+  "ngjyrë": { base: "ngjyrë", forms: ["ngjyra", "ngjyrën"] },
+  "ngjyra": { base: "ngjyra", forms: ["ngjyrat"] },
+  "ngjyrën": { base: "ngjyrë", forms: ["ngjyra", "ngjyrën"] },
+  "ngjyrat": { base: "ngjyrat", forms: [] },
+  "fletore": { base: "fletore", forms: ["fletorja", "fletoren"] },
+  "fletorja": { base: "fletore", forms: ["fletorja", "fletoren"] },
+  "fletoren": { base: "fletore", forms: ["fletorja", "fletoren"] },
+  "pikturë": { base: "pikturë", forms: ["piktura", "pikturën"] },
+  "piktura": { base: "pikturë", forms: ["piktura", "pikturën"] },
+  "pikturën": { base: "pikturë", forms: ["piktura", "pikturën"] },
+  "tablo": { base: "tablo", forms: [] },
+  "stol": { base: "stol", forms: ["stoli", "stolin"] },
+  "stoli": { base: "stol", forms: ["stoli", "stolin"] },
+  "stolin": { base: "stol", forms: ["stoli", "stolin"] }
+};
 
-  const irregular = {
-    "banjë": ["banja", "banjën"],
-    "furçë": ["furca", "furçën"],
-    "pastë": ["pasta", "pastën"],
-    "gojë": ["goja", "gojën"],
-    "ujë": ["uji", "ujin"],
-    "dhëmbë": ["dhëmbët"],
-    "duar": ["duart"],
-    "sapun": ["sapuni", "sapunin"],
-    "rubinet": ["rubineti", "rubinetin"],
-    "lavaman": ["lavamani", "lavamanin"],
-    "peshqir": ["peshqiri", "peshqirin"],
-    "dollap": ["dollapi", "dollapin"],
-    "ushqim": ["ushqimi", "ushqimin"],
-    "pjatë": ["pjata", "pjatën"],
-    "lugë": ["luga", "lugën"],
-    "pirun": ["piruni", "pirunin"],
-    "gotë": ["gota", "gotën"],
-    "tavolinë": ["tavolina", "tavolinën"],
-    "pecetë": ["peceta", "pecetën"],
-    "plazh": ["plazhi", "plazhin"],
-    "det": ["deti", "detin"],
-    "rërë": ["rëra", "rërën"],
-    "krem": ["kremi", "kremin"],
-    "lodër": ["lodra", "lodrën"],
-    "kovë": ["kova", "kovën"],
-    "top": ["topi", "topin"],
-    "fushë": ["fusha", "fushën"],
-    "portë": ["porta", "portën"],
-    "lojë": ["loja", "lojën"],
-    "skuadër": ["skuadra", "skuadrën"],
-    "shok": ["shoku", "shokun"],
-    "gol": ["goli", "golin"],
-    "rrjetë": ["rrjeta", "rrjetën"],
-    "këmbë": ["këmba", "këmbën"]
+const COMMUNICATION_WORD_REPLACEMENTS = {
+  "pencil": "laps",
+  "pencili": "laps",
+  "pencilin": "laps",
+  "fshes": "fshirëse",
+  "fshesi": "fshirëse",
+  "fshesin": "fshirëse",
+  "ngjyrati": "ngjyra",
+  "ngjyratin": "ngjyra"
+};
+
+function getKnownCommunicationNounInfo(word) {
+  return KNOWN_COMMUNICATION_NOUN_FORMS[normalizeWord(word)] || null;
+}
+
+function standardizeCommunicationOption(option = {}, categoryName = "") {
+  const rawWord = String(option?.fjala || "").trim();
+  if (!rawWord) return option;
+  const replacement = COMMUNICATION_WORD_REPLACEMENTS[normalizeWord(rawWord)];
+  if (!replacement) return option;
+  const nounInfo = getKnownCommunicationNounInfo(replacement);
+  return {
+    ...option,
+    fjala: nounInfo?.base || replacement,
+    forma_te_fjales: nounInfo?.forms ? [...nounInfo.forms] : (Array.isArray(option?.forma_te_fjales) ? option.forma_te_fjales : []),
+    kuptimi_ne_anglisht: String(option?.kuptimi_ne_anglisht || "").trim() || rawWord,
+    pershkrimi_vizual_anglisht: String(option?.pershkrimi_vizual_anglisht || "").trim() || String(option?.kuptimi_ne_anglisht || "").trim() || rawWord
   };
-  if (irregular[normalized]) return irregular[normalized];
+}
 
-  if (normalized.endsWith("ë")) {
-    return [`${original.slice(0, -1)}a`, `${original.slice(0, -1)}ën`];
-  }
-
-  if (/[bcçdfghjklmnpqrstvwxzy]$/i.test(normalized)) {
-    return [`${original}i`, `${original}in`];
-  }
-
-  return [];
+function inferSimpleAlbanianNounForms(word) {
+  return getKnownCommunicationNounInfo(word)?.forms || [];
 }
 
 function deriveSimpleAlbanianNounBase(word) {
-  const original = String(word || "").trim();
-  const normalized = normalizeWord(original);
-  if (!normalized) return original;
-
-  const irregularBase = {
-    "banja": "banjë",
-    "banjën": "banjë",
-    "furca": "furçë",
-    "furçën": "furçë",
-    "pasta": "pastë",
-    "pastën": "pastë",
-    "goja": "gojë",
-    "gojën": "gojë",
-    "uji": "ujë",
-    "ujin": "ujë",
-    "dhëmbët": "dhëmbë",
-    "duart": "duar",
-    "sapuni": "sapun",
-    "sapunin": "sapun",
-    "ushqimi": "ushqim",
-    "ushqimin": "ushqim",
-    "pjata": "pjatë",
-    "pjatën": "pjatë",
-    "luga": "lugë",
-    "lugën": "lugë",
-    "piruni": "pirun",
-    "pirunin": "pirun",
-    "gota": "gotë",
-    "gotën": "gotë",
-    "tavolina": "tavolinë",
-    "tavolinën": "tavolinë",
-    "peceta": "pecetë",
-    "pecetën": "pecetë",
-    "plazhi": "plazh",
-    "plazhin": "plazh",
-    "deti": "det",
-    "detin": "det",
-    "rëra": "rërë",
-    "rërën": "rërë",
-    "kremi": "krem",
-    "kremin": "krem",
-    "lodra": "lodër",
-    "lodrën": "lodër",
-    "kova": "kovë",
-    "kovën": "kovë",
-    "topi": "top",
-    "topin": "top",
-    "fusha": "fushë",
-    "fushën": "fushë",
-    "porta": "portë",
-    "portën": "portë",
-    "loja": "lojë",
-    "lojën": "lojë",
-    "skuadra": "skuadër",
-    "skuadrën": "skuadër",
-    "shoku": "shok",
-    "shokun": "shok",
-    "goli": "gol",
-    "golin": "gol",
-    "rrjeta": "rrjetë",
-    "rrjetën": "rrjetë",
-    "këmba": "këmbë",
-    "këmbën": "këmbë"
-  };
-  if (irregularBase[normalized]) return irregularBase[normalized];
-
-  if (normalized.length > 3 && normalized.endsWith("ën")) return `${original.slice(0, -2)}ë`;
-  if (normalized.length > 3 && normalized.endsWith("in")) return original.slice(0, -2);
-  if (normalized.length > 3 && normalized.endsWith("a")) return `${original.slice(0, -1)}ë`;
-  if (normalized.length > 3 && normalized.endsWith("i")) return original.slice(0, -1);
-  return original;
+  return getKnownCommunicationNounInfo(word)?.base || String(word || "").trim();
 }
 
 function setWordForms(option, baseWord, forms = []) {
@@ -2289,7 +2352,8 @@ function setWordForms(option, baseWord, forms = []) {
 }
 
 function enrichWordFormsForOption(option, categoryName = "") {
-  const normalized = normalizeWord(option?.fjala);
+  const standardizedOption = standardizeCommunicationOption(option, categoryName);
+  const normalized = normalizeWord(standardizedOption?.fjala);
   const formsDictionary = {
     "banjë": ["banja", "banjën"],
     "banjen": ["banjë", "banja"],
@@ -2437,16 +2501,18 @@ function enrichWordFormsForOption(option, categoryName = "") {
     "rrjeta": "rrjetë",
     "rrjetën": "rrjetë"
   };
-  const baseWord = baseWordDictionary[normalized]
-    || (isBoardObjectCategory(categoryName) ? deriveSimpleAlbanianNounBase(option?.fjala) : "")
-    || option?.fjala
+  const nounInfo = getKnownCommunicationNounInfo(standardizedOption?.fjala);
+  const baseWord = nounInfo?.base
+    || baseWordDictionary[normalized]
+    || (isBoardObjectCategory(categoryName) ? deriveSimpleAlbanianNounBase(standardizedOption?.fjala) : "")
+    || standardizedOption?.fjala
     || "";
-  const forms = (formsDictionary[normalized] || formsDictionary[normalizeWord(baseWord)] || [])
+  const forms = (nounInfo?.forms || formsDictionary[normalized] || formsDictionary[normalizeWord(baseWord)] || [])
     .concat(isBoardObjectCategory(categoryName) ? inferSimpleAlbanianNounForms(baseWord) : []);
   return {
-    ...option,
+    ...standardizedOption,
     fjala: baseWord,
-    forma_te_fjales: Array.from(new Set((Array.isArray(option?.forma_te_fjales) ? option.forma_te_fjales : []).concat(forms)))
+    forma_te_fjales: Array.from(new Set((Array.isArray(standardizedOption?.forma_te_fjales) ? standardizedOption.forma_te_fjales : []).concat(forms)))
       .filter((item) => normalizeWord(item) !== normalizeWord(baseWord))
   };
 }
@@ -2625,6 +2691,65 @@ function buildKnownFlashcards(tema) {
 
 function buildKnownCommunicationBoard(tema) {
   const normalizedTema = normalizeWord(tema);
+  if (containsAny(normalizedTema, ["vizat", "ngjyros", "ngjyr", "piktur", "laps", "fletor", "art"])) {
+    return {
+      moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",
+      tabela_komunikimit: {
+        kategorite: [
+          {
+            emri_kategorise: "Veprimet",
+            opsionet: [
+              boardWordDetailed("vizatoj", "draw", "a child drawing on paper with a pencil"),
+              boardWordDetailed("ngjyros", "color", "a child coloring a picture"),
+              boardWordDetailed("marr", "take", "a child taking a pencil or notebook"),
+              boardWordDetailed("mbaj", "hold", "a child holding a pencil"),
+              boardWordDetailed("shikoj", "look", "a child looking at a drawing"),
+              boardWordDetailed("vendos", "put", "putting colors on a page"),
+              boardWordDetailed("fshij", "erase", "a child erasing pencil marks"),
+              boardWordDetailed("tregoj", "show", "a child showing a drawing"),
+              boardWordDetailed("ulem", "sit", "a child sitting at a table to draw")
+            ]
+          },
+          {
+            emri_kategorise: "Objektet",
+            opsionet: [
+              setWordForms(boardWordDetailed("laps", "pencil", "a simple school pencil"), "laps", ["lapsi", "lapsin"]),
+              setWordForms(boardWordDetailed("ngjyra", "colors", "simple coloring pencils or paint colors"), "ngjyra", ["ngjyrat"]),
+              setWordForms(boardWordDetailed("fletore", "notebook", "a simple school notebook"), "fletore", ["fletorja", "fletoren"]),
+              setWordForms(boardWordDetailed("fshirëse", "eraser", "a simple school eraser"), "fshirëse", ["fshirësja", "fshirësen"]),
+              setWordForms(boardWordDetailed("pikturë", "drawing or picture", "a simple child drawing on paper"), "pikturë", ["piktura", "pikturën"]),
+              setWordForms(boardWordDetailed("tablo", "board or display board", "a classroom display board"), "tablo", []),
+              setWordForms(boardWordDetailed("stol", "stool or small chair", "a simple classroom stool"), "stol", ["stoli", "stolin"]),
+              setWordForms(boardWordDetailed("tavolinë", "table", "a simple classroom table"), "tavolinë", ["tavolina", "tavolinën"])
+            ]
+          },
+          { emri_kategorise: "Përemrat", opsionet: [boardWordDetailed("unë", "I", "a child pointing to self"), boardWordDetailed("ti", "you", "a child pointing to another person")] },
+          {
+            emri_kategorise: "Fjalë Lidhëse/Parafjalë",
+            opsionet: [
+              boardWordDetailed("në", "in", "a pencil in a notebook"),
+              boardWordDetailed("mbi", "on", "colors on a page"),
+              boardWordDetailed("me", "with", "a child drawing with a pencil"),
+              boardWordDetailed("te", "at", "a child sitting at a table"),
+              boardWordDetailed("nga", "from", "taking an object from the table"),
+              boardWordDetailed("dhe", "and", "two drawing actions connected together"),
+              boardWordDetailed("e", "it", "one object linked to the next action"),
+              boardWordDetailed("pastaj", "then", "two drawing steps in order with an arrow")
+            ]
+          },
+          {
+            emri_kategorise: "Ndajfoljet",
+            opsionet: [
+              boardWordDetailed("ngadalë", "slowly", "a calm slow hand movement while drawing"),
+              boardWordDetailed("qartë", "clearly", "clear visible drawing lines"),
+              boardWordDetailed("mirë", "well", "a correct drawing action with a check mark"),
+              boardWordDetailed("tani", "now", "a clock showing now")
+            ]
+          }
+        ]
+      }
+    };
+  }
   if (containsAny(normalizedTema, ["top", "futboll", "basketboll", "loj me top", "luaj me top", "playing with the ball", "ball"])) {
     return {
       moduli_i_zgjedhur: "Moduli 3: Tabela e Komunikimit",

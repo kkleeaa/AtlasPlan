@@ -101,6 +101,20 @@ async function persistServerState(patch) {
   }
 }
 
+async function persistServerStateOrThrow(patch) {
+  persistentStateCache = { ...(persistentStateCache || {}), ...patch };
+  const response = await atlasFetch("http://localhost:5001/api/app-state", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    keepalive: true,
+    body: JSON.stringify({ state: patch })
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload?.error || `HTTP ${response.status}`);
+  }
+}
+
 const storedTeachingMaterials = safeLocalJson("atlas-teaching-materials", []);
 
 const teacherRoutes = [
@@ -156,14 +170,14 @@ const state = {
 };
 
 const defaultRoleData = {
-  teachers: [{ id: "teacher-demo", name: "Mësuesja Demo", username: "mesues", email: "mesues@atlas.al" }],
-  parents: [{ id: "parent-demo", name: "Prindi Demo", username: "prind", email: "prind@atlas.al" }],
+  teachers: [],
+  parents: [],
   admins: [{ id: "admin-demo", name: "Administratori", username: "admin", email: "admin@atlas.al" }]
 };
 const legacyRolePasswords = Object.freeze({
-  teachers: "Atlas123",
-  parents: "Atlas123",
-  admins: "QendraPerparimi123!"
+  teachers: "",
+  parents: "",
+  admins: "atlas123"
 });
 
 function normalizeAccount(account, fallbackRoleKey, fallbackIndex = 0) {
@@ -259,6 +273,16 @@ async function createAccountOnServer(payload) {
   if (response.status === 404) throw new Error("Backend-i duhet të rifillohet për menaxhimin e llogarive.");
   if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
   replaceRoleData(data?.roleData || {});
+}
+
+async function deleteChildRelatedDataOnServer(studentId) {
+  const response = await atlasFetch(`http://localhost:5001/api/children/${encodeURIComponent(studentId)}/related-data`, {
+    method: "DELETE"
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.status === 404) throw new Error("Backend-i duhet të rifillohet për fshirjen e të dhënave të fëmijës.");
+  if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+  return data;
 }
 
 async function deleteAccountOnServer(accountType, accountId) {
@@ -419,11 +443,13 @@ async function handleRoleLogin(event) {
     } catch (error) {
       console.error("AtlasPlan initialization failed.", error);
       try {
-        if (!state.students.length) state.students = createStudentProfiles(await loadSampleStudent());
+        if (!state.students.length) state.students = [];
         state.currentStudent = visibleStudents()[0] || state.students[0] || null;
         if (state.currentStudent) {
           state.progressByStudent[state.currentStudent.id] ||= [];
           state.progressEntries = state.progressByStudent[state.currentStudent.id];
+        } else {
+          state.progressEntries = [];
         }
         appInitialized = true;
         renderNavigation();
@@ -458,7 +484,6 @@ async function init() {
   } catch (error) {
     console.warn("Llogaritë nga serveri nuk u ngarkuan; po përdoret lista rezervë.", error);
   }
-  const sample = await loadSampleStudent();
   const persistent = await loadPersistentState();
   const savedStudents = Array.isArray(persistent.students) ? persistent.students : safeLocalJson("atlas-students", null);
   const validSavedStudents = Array.isArray(savedStudents)
@@ -466,10 +491,10 @@ async function init() {
     : [];
   state.students = validSavedStudents.length
     ? validSavedStudents.map((student) => new Student(migrateStudentName(student)))
-    : createStudentProfiles(sample);
-  state.students.forEach((student, index) => {
-    student.teacherId ||= "teacher-demo";
-    student.parentId ||= index === 0 ? "parent-demo" : "";
+    : [];
+  state.students.forEach((student) => {
+    student.teacherId ||= "";
+    student.parentId ||= "";
   });
   safeLocalSet("atlas-students", JSON.stringify(state.students));
   state.currentStudent = visibleStudents()[0] || state.students[0] || null;
@@ -483,15 +508,14 @@ async function init() {
     ? savedProgress
     : Object.fromEntries(state.students.map((student, index) => [student.id, index === 0 ? state.progressEntries : []]));
   state.students.forEach((student) => { state.progressByStudent[student.id] ||= []; });
-  state.progressEntries = state.progressByStudent[state.currentStudent.id];
+  state.progressEntries = state.currentStudent ? (state.progressByStudent[state.currentStudent.id] || []) : [];
   persistProgress();
   const savedReports = persistent.reportsByStudent || safeLocalJson("atlas-reports", readStoredObject("atlas-parent-reports"));
   state.reportsByStudent = savedReports && typeof savedReports === "object" && !Array.isArray(savedReports)
     ? normalizeReportsByStudentMap(savedReports)
     : Object.fromEntries(state.students.map((student) => [student.id, {}]));
-  state.planAnalysesByStudent = persistent.planAnalysesByStudent && typeof persistent.planAnalysesByStudent === "object" && !Array.isArray(persistent.planAnalysesByStudent)
-    ? persistent.planAnalysesByStudent
-    : readStoredObject("atlas-plan-analyses");
+  state.planAnalysesByStudent = {};
+  try { localStorage.removeItem("atlas-plan-analyses"); } catch { /* Injoro dështimet lokale të pastrimit. */ }
   const storedTeachingMaterials = safeLocalJson("atlas-teaching-materials", state.teachingMaterials);
   const serverTeachingMaterials = Array.isArray(persistent.teachingMaterials) ? persistent.teachingMaterials : null;
   state.teachingMaterials = Array.isArray(storedTeachingMaterials) && storedTeachingMaterials.length
@@ -550,7 +574,7 @@ function seedProgress() {
 
 function refreshDerivedState() {
   state.progressSummary = summarizeProgress(state.progressEntries);
-  state.recommendations = recommendTools(state.currentStudent);
+  state.recommendations = state.currentStudent ? recommendTools(state.currentStudent) : [];
 }
 
 function renderNavigation() {
@@ -595,8 +619,7 @@ function persistReports() {
 }
 
 function persistPlanAnalyses() {
-  localStorage.setItem("atlas-plan-analyses", JSON.stringify(state.planAnalysesByStudent));
-  void persistServerState({ planAnalysesByStudent: state.planAnalysesByStudent });
+  return;
 }
 
 function handleLiveDataUpdate(event) {
@@ -721,17 +744,34 @@ async function handleClickAsync(event) {
   }
   if (action === "delete-child") {
     if (activeRole !== "admin") return toast("Vetëm administratori mund të fshijë profile.");
-    state.students = state.students.filter((student) => student.id !== studentId);
-    delete state.progressByStudent[studentId];
-    delete state.reportsByStudent[studentId];
-    delete state.scheduleByStudent[studentId];
-    saveStudents();
-    persistProgress();
-    persistSchedules();
-    safeLocalSet("atlas-reports", JSON.stringify(state.reportsByStudent));
-    void persistServerState({ reportsByStudent: state.reportsByStudent });
-    navigate("admin");
-    toast("Profili i fëmijës u fshi.");
+    try {
+      state.students = state.students.filter((student) => student.id !== studentId);
+      delete state.progressByStudent[studentId];
+      delete state.reportsByStudent[studentId];
+      delete state.scheduleByStudent[studentId];
+      delete state.planAnalysesByStudent[studentId];
+      safeLocalSet("atlas-students", JSON.stringify(state.students));
+      safeLocalSet("atlas-progress", JSON.stringify(state.progressByStudent));
+      safeLocalSet("atlas-schedules", JSON.stringify(state.scheduleByStudent));
+      safeLocalSet("atlas-reports", JSON.stringify(state.reportsByStudent));
+      try { localStorage.removeItem("atlas-plan-analyses"); } catch { /* Injoro dështimet lokale të pastrimit. */ }
+      if (state.currentStudent?.id === studentId) {
+        state.currentStudent = state.students[0] || null;
+      }
+      await persistServerStateOrThrow({
+        students: state.students,
+        progressByStudent: state.progressByStudent,
+        reportsByStudent: state.reportsByStudent,
+        scheduleByStudent: state.scheduleByStudent
+      });
+      await deleteChildRelatedDataOnServer(studentId);
+      removeChildCalendarDataLocally(studentId);
+      navigate("admin");
+      toast("Profili i fëmijës u fshi.");
+    } catch (error) {
+      console.error("Student deletion failed.", error);
+      toast(error?.message || "Profili i fëmijës nuk mund të fshihej.");
+    }
     return;
   }
 
@@ -1902,6 +1942,29 @@ function filterCalendarEventsForRole(events) {
   });
 }
 
+function removeChildCalendarDataLocally(studentId) {
+  state.calendarEvents = state.calendarEvents.filter((event) => (
+    String(event.studentId || "") !== studentId
+    && String(event.sourceKey || "") !== `birthday:${studentId}`
+  ));
+  try {
+    const calendarKeys = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith("atlas-calendar-")) calendarKeys.push(key);
+    }
+    calendarKeys.forEach((key) => {
+      const events = safeLocalJson(key, []);
+      if (!Array.isArray(events)) return;
+      const filtered = events.filter((event) => (
+        String(event.studentId || "") !== studentId
+        && String(event.sourceKey || "") !== `birthday:${studentId}`
+      ));
+      safeLocalSet(key, JSON.stringify(filtered));
+    });
+  } catch { /* Injoro dështimet lokale gjatë pastrimit të kalendarit. */ }
+}
+
 function calendarEventDateForYear(event, year) {
   return event.recurrence === "ANNUAL" && event.monthDay ? `${year}-${event.monthDay}` : event.date;
 }
@@ -2596,7 +2659,7 @@ function addProgressEntry(formData) {
   });
   entry.studentId = state.currentStudent.id;
   entry.studentName = state.currentStudent.name;
-  entry.authorId = activeUser?.id || state.currentStudent.teacherId || "teacher-demo";
+  entry.authorId = activeUser?.id || state.currentStudent?.teacherId || "admin-demo";
   state.progressEntries.push(entry);
   persistProgress();
   state.activity.unshift({ title: "Rezultati u regjistrua", detail: `${entry.goal}: ${entry.result}` });
